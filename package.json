@@ -2,6 +2,7 @@
   "name": "locust",
   "displayName": "Locust",
   "publisher": "locust",
+  "repository": "https://github.com/locustcloud/extension",
   "description": "An extension that makes it easy to create and run load tests with Locust.",
   "version": "0.0.1",
   "engines": {
