@@ -2,6 +2,8 @@
 
 This plugin helps you develop and run Locust load test scenarios.
 
+Based on https://code.visualstudio.com/api/get-started/your-first-extension
+
 ## Features
 
 <!---
