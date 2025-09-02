@@ -4,11 +4,17 @@
     {
       "type": "npm",
       "script": "watch",
-      "label": "npm: watch",
       "problemMatcher": "$tsc-watch",
       "isBackground": true,
-      "presentation": { "reveal": "never", "group": "watchers" },
-      "group": { "kind": "build", "isDefault": true }
+      "group": "build",
+      "label": "npm: watch"
+    },
+    {
+      "type": "npm",
+      "script": "compile",
+      "problemMatcher": "$tsc",
+      "group": "build",
+      "label": "npm: compile"
     }
   ]
 }

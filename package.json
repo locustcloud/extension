@@ -4,8 +4,23 @@
   "description": "VS Code extension to scaffold, run, and manage Locust load tests.",
   "version": "0.0.1",
   "publisher": "locust",
-  "engines": { "vscode": "^1.90.0" },
-  "categories": ["Testing"],
+  "extensionKind": [
+    "workspace"
+  ],
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
+  "extensionDependencies": [
+    "ms-python.python"
+  ],
+  "categories": [
+    "Testing"
+  ],
   "activationEvents": [
     "onCommand:locust.init",
     "onCommand:locust.createSimulation",
@@ -55,15 +70,42 @@
       ]
     },
     "commands": [
-      { "command": "locust.init", "title": "Locust: Initialize (Install/Detect)" },
-      { "command": "locust.createSimulation", "title": "Locust: Create Simulation…" },
-      { "command": "locust.runUI", "title": "Locust: Run (Web UI)" },
-      { "command": "locust.runHeadless", "title": "Locust: Run (Headless)" },
-      { "command": "locust.stop", "title": "Locust: Stop Run" },
-      { "command": "locust.refreshTree", "title": "Locust: Refresh Scenarios" },
-      { "command": "locust.runFileUI", "title": "Locust: Run File (Web UI)" },
-      { "command": "locust.runFileHeadless", "title": "Locust: Run File (Headless)" },
-      { "command": "locust.runTaskHeadless", "title": "Locust: Run Task (Headless)" }
+      {
+        "command": "locust.init",
+        "title": "Locust: Initialize (Install/Detect)"
+      },
+      {
+        "command": "locust.createSimulation",
+        "title": "Locust: Create Simulation…"
+      },
+      {
+        "command": "locust.runUI",
+        "title": "Locust: Run (Web UI)"
+      },
+      {
+        "command": "locust.runHeadless",
+        "title": "Locust: Run (Headless)"
+      },
+      {
+        "command": "locust.stop",
+        "title": "Locust: Stop Run"
+      },
+      {
+        "command": "locust.refreshTree",
+        "title": "Locust: Refresh Scenarios"
+      },
+      {
+        "command": "locust.runFileUI",
+        "title": "Locust: Run File (Web UI)"
+      },
+      {
+        "command": "locust.runFileHeadless",
+        "title": "Locust: Run File (Headless)"
+      },
+      {
+        "command": "locust.runTaskHeadless",
+        "title": "Locust: Run Task (Headless)"
+      }
     ],
     "configuration": {
       "title": "Locust",
@@ -91,13 +133,18 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
-    "test": "echo \"No tests yet\""
+    "test": "npm run compile && node ./out/test/runTest.js"
   },
   "devDependencies": {
+    "@types/chai": "^5.2.2",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^2.5.2",
+    "chai": "^6.0.1",
+    "glob": "^11.0.3",
+    "mocha": "^11.7.2",
     "typescript": "^5.4.0",
     "vsce": "^2.15.0"
-  },
-  "dependencies": {}
+  }
 }
