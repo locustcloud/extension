@@ -1,7 +1,6 @@
 
 ---
 
-````markdown
 # Locust Load Testing for VS Code
 
 This extension helps you **scaffold, run, and manage [Locust](https://locust.io/) load tests** directly from VS Code.  
@@ -35,7 +34,7 @@ This is the fastest way to try the extension with a demo backend.
    ```bash
    uv venv locust_env
    uv pip install flask
-````
+
 
 2. **Run the playground API**
 
@@ -144,7 +143,6 @@ Then press **F5** in VS Code to launch a new Extension Development Host with Loc
 * Added playground Flask app for tutorial-style scenarios.
 * Added Quick Start tutorial for end-to-end demo.
 
-```
 
 ---
 
