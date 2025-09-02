@@ -1,0 +1,35 @@
+npm run test
+
+> locust-vscode-extension@0.0.1 test
+> npm run compile && node ./out/test/runTest.js
+
+
+> locust-vscode-extension@0.0.1 compile
+> tsc -p ./
+
+✔ Validated version: 1.103.2
+✔ Found existing install in /home/pablo/dev24/extension/.vscode-test/vscode-linux-x64-1.103.2
+Installing extensions...
+Extension 'ms-python.python' v2025.12.0 is already installed. Use '--force' option to update to latest version or provide '@<version>' to install a specific version, for example: 'ms-python.python@1.2.3'.
+ms-python.debugpy@2025.10.0
+ms-python.python@2025.12.0
+ms-python.vscode-pylance@2025.7.1
+ms-python.vscode-python-envs@1.2.0
+✔ Validated version: 1.103.2
+✔ Found existing install in /home/pablo/dev24/extension/.vscode-test/vscode-linux-x64-1.103.2
+[main 2025-09-02T09:57:21.356Z] update#setState disabled
+[main 2025-09-02T09:57:21.357Z] update#ctor - updates are disabled by the environment
+Via 'product.json#extensionEnabledApiProposals' extension 'ms-vsliveshare.vsliveshare' wants API proposal 'notebookCellExecutionState' but that proposal DOES NOT EXIST. Likely, the proposal has been finalized (check 'vscode.d.ts') or was abandoned.
+Via 'product.json#extensionEnabledApiProposals' extension 'ms-python.gather' wants API proposal 'notebookCellExecutionState' but that proposal DOES NOT EXIST. Likely, the proposal has been finalized (check 'vscode.d.ts') or was abandoned.
+Via 'product.json#extensionEnabledApiProposals' extension 'ms-python.vscode-pylance' wants API proposal 'mcpConfigurationProvider' but that proposal DOES NOT EXIST. Likely, the proposal has been finalized (check 'vscode.d.ts') or was abandoned.
+Started local extension host with pid 406111.
+ChatSessionStore: Migrating 0 chat sessions from storage service to file system
+Loading development extension at /home/pablo/dev24/extension
+Settings Sync: Account status changed from uninitialized to unavailable
+
+  Extension Basics
+    ✔ Extension activates and registers commands (805ms)
+  1 passing (828ms)
+[main 2025-09-02T09:57:23.790Z] Extension host with pid 406111 exited with code: 0, signal: unknown.
+[main 2025-09-02T09:57:23.836Z] [UtilityProcess id: 1, type: fileWatcher, pid: 406109]: crashed with code 15 and reason 'killed'
+Exit code:   0
