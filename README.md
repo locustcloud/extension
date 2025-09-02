@@ -34,8 +34,8 @@ This is the fastest way to try the extension with a demo backend.
    ```bash
    uv venv locust_env
    uv pip install flask
-  ```
   
+
 2. **Run the playground API**
 
    ```bash
