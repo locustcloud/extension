@@ -1,9 +1,10 @@
 
 ---
 
+````markdown
 # Locust Load Testing for VS Code
 
-This extension helps you **scaffold, run, and manage [Locust](https://locust.io/) load tests** directly from VS Code.
+This extension helps you **scaffold, run, and manage [Locust](https://locust.io/) load tests** directly from VS Code.  
 It integrates with Python environments, provides templates, snippets, and an Explorer view for your scenarios.
 
 ---
@@ -12,96 +13,103 @@ It integrates with Python environments, provides templates, snippets, and an Exp
 
 * **Explorer tree view**: browse `locustfile.py` files, user classes, and tasks.
 * **One-click runs**:
-
   * Run a locustfile in Web UI mode.
   * Run in headless mode.
   * Run specific tasks or tags.
 * **Environment setup**:
-
   * Detects existing Locust installation.
-  * Prompts to create a local `.venv` and install Locust (via `uv` or `venv+pip`).
+  * Prompts to create a local `locust_env` and install Locust (via `uv` or `venv+pip`).
 * **Templates**: create a ready-to-use `locustfile.py` from extension templates.
 * **Snippets**: insert `@task`, `FastHttpUser`, and tagged task boilerplates quickly.
 * **Command Palette integration**: run everything via `F1 → Locust: ...`.
+* **Playground app**: optional Flask demo backend to practice against.
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quick Start Tutorial (Playground + Locust)
 
-### 1. Install dependencies
+This is the fastest way to try the extension with a demo backend.
 
-Ensure you have Python 3.8+ installed. On Debian/Ubuntu:
+1. **Create environment & install Flask**
 
-```bash
-sudo apt install python3 python3-venv
+   ```bash
+   uv venv locust_env
+   uv pip install flask
+````
+
+2. **Run the playground API**
+
+   ```bash
+   uv run python -m playground_app.locust_playground_app
+   ```
+
+   This starts a fake e-commerce API at:
+   👉 [http://localhost:5000](http://localhost:5000)
+
+3. **Scaffold a Locust scenario**
+
+   In VS Code:
+
+   ```
+   F1 → Locust: Create Simulation
+   ```
+
+   Pick `locustfile.py` template.
+   It contains sample tasks against the `/`, `/authenticate`, `/cart/add`, and `/checkout/confirm` endpoints.
+
+4. **Run Locust against the playground**
+
+   * Web UI:
+
+     ```
+     F1 → Locust: Run (Web UI)
+     ```
+
+     Open [http://localhost:8089](http://localhost:8089) and start a test against `http://localhost:5000`.
+
+   * Headless:
+
+     ```
+     F1 → Locust: Run (Headless)
+     ```
+
+   * By tag:
+
+     ```
+     F1 → Locust: Run by Tag…
+     ```
+
+---
+
+## 🏗️ Architecture Overview
+
+```text
+┌─────────────────────┐
+│   VS Code Extension │
+│  (Locust UI & CLI)  │
+└─────────┬───────────┘
+          │ Commands (Run, Init, Create, Tags)
+          ▼
+┌─────────────────────┐
+│  Python Environment │
+│   (locust_env venv) │
+│   Locust installed  │
+└─────────┬───────────┘
+          │ Locust HTTP load generation
+          ▼
+┌─────────────────────┐
+│  Playground Flask   │
+│     Demo App        │
+│ (Simulated API)     │
+└─────────────────────┘
 ```
-
-Optionally install [uv](https://docs.astral.sh/uv/) for faster environments:
-
-```bash
-pipx install uv
-```
-
-### 2. Install the extension
-
-Search **"Locust Load Testing"** in the VS Code Marketplace, or install from a `.vsix` package.
-
-### 3. Initialize environment
-
-When you first open a folder, the extension will prompt to:
-
-* Create a `.venv` (with `uv` or `python -m venv`)
-* Install the `locust` package inside
-
-You can re-run this anytime via:
-
-```
-F1 → Locust: Initialize (Install/Detect)
-```
-
-### 4. Create your first scenario
-
-Run:
-
-```
-F1 → Locust: Create Simulation
-```
-
-Pick a template (e.g. `locustfile.py`), and it will be copied into your workspace.
-Open it and customize tasks as needed.
-
-### 5. Run Locust
-
-* **Run with Web UI**:
-
-  ```
-  F1 → Locust: Run (Web UI)
-  ```
-
-  This opens `http://localhost:8089` in your browser.
-
-* **Run headless**:
-
-  ```
-  F1 → Locust: Run (Headless)
-  ```
-
-* **Run by tag**:
-
-  ```
-  F1 → Locust: Run by Tag…
-  ```
-
-  Enter a tag like `checkout,auth` to filter tasks.
 
 ---
 
 ## ⚙️ Extension Settings
 
-This extension contributes the following settings:
-
 * `locust.path`: Path to the Locust CLI (default: `locust`).
-* `locust.envFolder`: Name of the local Python environment folder (default: `.venv`).
+* `locust.envFolder`: Name of the local Python environment folder (default: `locust_env`).
 * `locust.defaultHost`: Default host URL for your tests.
 * `locust.autoSetup`: Whether to prompt for setup on activation (`prompt` | `always` | `never`).
 
@@ -115,11 +123,28 @@ This extension contributes the following settings:
 
 ---
 
+## 🧑‍💻 Development (For Contributors)
+
+If you want to hack on the extension itself:
+
+```bash
+npm install
+npm run watch
+```
+
+Then press **F5** in VS Code to launch a new Extension Development Host with Locust support.
+
+---
+
 ## 📝 Release Notes
 
 ### 0.0.1
 
 * Initial release with tree view, templates, snippets, and environment setup flow.
+* Added playground Flask app for tutorial-style scenarios.
+* Added Quick Start tutorial for end-to-end demo.
+
+```
 
 ---
 
