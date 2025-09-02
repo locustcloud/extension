@@ -1,49 +1,103 @@
 {
-  "name": "locust",
-  "displayName": "Locust",
-  "publisher": "locust",
-  "repository": "https://github.com/locustcloud/extension",
-  "description": "An extension that makes it easy to create and run load tests with Locust.",
+  "name": "locust-vscode-extension",
+  "displayName": "Locust Load Testing",
+  "description": "VS Code extension to scaffold, run, and manage Locust load tests.",
   "version": "0.0.1",
-  "engines": {
-    "vscode": "^1.103.0"
-  },
-  "categories": [
-    "Other"
+  "publisher": "locust",
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Testing"],
+  "activationEvents": [
+    "onCommand:locust.init",
+    "onCommand:locust.createSimulation",
+    "onCommand:locust.runUI",
+    "onCommand:locust.runHeadless",
+    "onCommand:locust.stop",
+    "onCommand:locust.refreshTree",
+    "onCommand:locust.runFileUI",
+    "onCommand:locust.runFileHeadless",
+    "onCommand:locust.runTaskHeadless",
+    "onView:locust.scenarios"
   ],
-  "activationEvents": [],
-  "main": "./dist/extension.js",
+  "main": "./out/extension.js",
   "contributes": {
+    "views": {
+      "explorer": [
+        {
+          "id": "locust.scenarios",
+          "name": "Locust Scenarios"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "locust.refreshTree",
+          "when": "view == locust.scenarios",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "locust.runFileUI",
+          "when": "view == locust.scenarios && viewItem == file",
+          "group": "inline"
+        },
+        {
+          "command": "locust.runFileHeadless",
+          "when": "view == locust.scenarios && viewItem == file",
+          "group": "inline"
+        },
+        {
+          "command": "locust.runTaskHeadless",
+          "when": "view == locust.scenarios && viewItem == task",
+          "group": "inline"
+        }
+      ]
+    },
     "commands": [
-      {
-        "command": "locust.helloWorld",
-        "title": "Hello World"
+      { "command": "locust.init", "title": "Locust: Initialize (Install/Detect)" },
+      { "command": "locust.createSimulation", "title": "Locust: Create Simulation…" },
+      { "command": "locust.runUI", "title": "Locust: Run (Web UI)" },
+      { "command": "locust.runHeadless", "title": "Locust: Run (Headless)" },
+      { "command": "locust.stop", "title": "Locust: Stop Run" },
+      { "command": "locust.refreshTree", "title": "Locust: Refresh Scenarios" },
+      { "command": "locust.runFileUI", "title": "Locust: Run File (Web UI)" },
+      { "command": "locust.runFileHeadless", "title": "Locust: Run File (Headless)" },
+      { "command": "locust.runTaskHeadless", "title": "Locust: Run Task (Headless)" }
+    ],
+    "configuration": {
+      "title": "Locust",
+      "properties": {
+        "locust.path": {
+          "type": "string",
+          "default": "locust",
+          "description": "Path to the Locust CLI executable."
+        },
+        "locust.envFolder": {
+          "type": "string",
+          "default": ".venv",
+          "description": "Name of the local Python environment folder."
+        },
+        "locust.defaultHost": {
+          "type": "string",
+          "default": "",
+          "description": "Default host to target in generated locustfile.py."
+        }
       }
-    ]
+    }
   },
   "scripts": {
-    "vscode:prepublish": "yarn run package",
-    "compile": "webpack",
-    "watch": "webpack --watch",
-    "package": "webpack --mode production --devtool hidden-source-map",
-    "compile-tests": "tsc -p . --outDir out",
-    "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "yarn run compile-tests && yarn run compile && yarn run lint",
-    "lint": "eslint src",
-    "test": "vscode-test"
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "test": "echo \"No tests yet\""
   },
   "devDependencies": {
-    "@types/vscode": "^1.103.0",
-    "@types/mocha": "^10.0.10",
-    "@types/node": "22.x",
-    "@typescript-eslint/eslint-plugin": "^8.39.0",
-    "@typescript-eslint/parser": "^8.39.0",
-    "eslint": "^9.32.0",
-    "typescript": "^5.9.2",
-    "ts-loader": "^9.5.2",
-    "webpack": "^5.101.0",
-    "webpack-cli": "^6.0.1",
-    "@vscode/test-cli": "^0.0.11",
-    "@vscode/test-electron": "^2.5.2"
-  }
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.4.0",
+    "vsce": "^2.15.0"
+  },
+  "dependencies": {}
 }

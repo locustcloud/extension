@@ -1,5 +1,44 @@
 {
-  // See http://go.microsoft.com/fwlink/?LinkId=827846
-  // for the documentation about the extensions.json format
-  "recommendations": ["dbaeumer.vscode-eslint", "amodio.tsl-problem-matcher", "ms-vscode.extension-test-runner"]
+  "name": "locust-helper",
+  "displayName": "Locust Helper",
+  "description": "VSCode extension to refresh Locust scenarios",
+  "version": "0.0.1",
+  "publisher": "Emil Karlsson",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onCommand:locust.refreshScenarios"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "locust.refreshScenarios",
+        "title": "Locust: Refresh Scenarios"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "locustScenarios",
+          "name": "Locust Scenarios"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0",
+    "@types/node": "18.x",
+    "typescript": "^5.2.0",
+    "tslint": "^6.1.3"
+  }
 }

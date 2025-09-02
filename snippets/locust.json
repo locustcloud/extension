@@ -1,0 +1,12 @@
+{
+  "Locust task": {
+    "prefix": "loctask",
+    "body": [
+      "@task",
+      "def ${1:name}(self):",
+      "    self.client.${2|get,post,put,delete|}(\"${3:/}\")"
+    ],
+    "description": "Insert a Locust @task"
+  }
+}
+
