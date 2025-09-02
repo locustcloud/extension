@@ -1,38 +1,125 @@
-# locust README
 
-This plugin helps you develop and run Locust load test scenarios.
+---
 
-Based on https://code.visualstudio.com/api/get-started/your-first-extension
+# Locust Load Testing for VS Code
 
-## Features
+This extension helps you **scaffold, run, and manage [Locust](https://locust.io/) load tests** directly from VS Code.
+It integrates with Python environments, provides templates, snippets, and an Explorer view for your scenarios.
 
-<!---
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+---
 
-For example if there is an image subfolder under your extension project workspace:
+## ✨ Features
 
-\!\[feature X\]\(images/feature-x.png\)
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+* **Explorer tree view**: browse `locustfile.py` files, user classes, and tasks.
+* **One-click runs**:
 
-## Requirements
+  * Run a locustfile in Web UI mode.
+  * Run in headless mode.
+  * Run specific tasks or tags.
+* **Environment setup**:
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+  * Detects existing Locust installation.
+  * Prompts to create a local `.venv` and install Locust (via `uv` or `venv+pip`).
+* **Templates**: create a ready-to-use `locustfile.py` from extension templates.
+* **Snippets**: insert `@task`, `FastHttpUser`, and tagged task boilerplates quickly.
+* **Command Palette integration**: run everything via `F1 → Locust: ...`.
 
-## Extension Settings
+---
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+## 🚀 Getting Started
 
-For example:
+### 1. Install dependencies
+
+Ensure you have Python 3.8+ installed. On Debian/Ubuntu:
+
+```bash
+sudo apt install python3 python3-venv
+```
+
+Optionally install [uv](https://docs.astral.sh/uv/) for faster environments:
+
+```bash
+pipx install uv
+```
+
+### 2. Install the extension
+
+Search **"Locust Load Testing"** in the VS Code Marketplace, or install from a `.vsix` package.
+
+### 3. Initialize environment
+
+When you first open a folder, the extension will prompt to:
+
+* Create a `.venv` (with `uv` or `python -m venv`)
+* Install the `locust` package inside
+
+You can re-run this anytime via:
+
+```
+F1 → Locust: Initialize (Install/Detect)
+```
+
+### 4. Create your first scenario
+
+Run:
+
+```
+F1 → Locust: Create Simulation
+```
+
+Pick a template (e.g. `locustfile.py`), and it will be copied into your workspace.
+Open it and customize tasks as needed.
+
+### 5. Run Locust
+
+* **Run with Web UI**:
+
+  ```
+  F1 → Locust: Run (Web UI)
+  ```
+
+  This opens `http://localhost:8089` in your browser.
+
+* **Run headless**:
+
+  ```
+  F1 → Locust: Run (Headless)
+  ```
+
+* **Run by tag**:
+
+  ```
+  F1 → Locust: Run by Tag…
+  ```
+
+  Enter a tag like `checkout,auth` to filter tasks.
+
+---
+
+## ⚙️ Extension Settings
 
 This extension contributes the following settings:
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+* `locust.path`: Path to the Locust CLI (default: `locust`).
+* `locust.envFolder`: Name of the local Python environment folder (default: `.venv`).
+* `locust.defaultHost`: Default host URL for your tests.
+* `locust.autoSetup`: Whether to prompt for setup on activation (`prompt` | `always` | `never`).
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+---
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
--->
+## ⌨️ Snippets
 
-## Release Notes
+* `loctask` → Insert a `@task` function with a request.
+* `locuser` → Boilerplate `FastHttpUser` class with a simple GET task.
+* `loctag` → Task with a `@tag` decorator for selective runs.
+
+---
+
+## 📝 Release Notes
+
+### 0.0.1
+
+* Initial release with tree view, templates, snippets, and environment setup flow.
+
+---
+

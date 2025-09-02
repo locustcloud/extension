@@ -52,8 +52,7 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     clearTimeout(this.refreshTimer as any);
   }
 
-  // ---------------- Tree API ----------------
-
+  // Tree API
   async getChildren(element?: LocustNode): Promise<LocustNode[]> {
     const folders = vscode.workspace.workspaceFolders;
     if (!folders || folders.length === 0) return [];
@@ -145,8 +144,7 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     return item;
   }
 
-  // ---------------- Utils ----------------
-
+  // Utils
   private async read(uri: vscode.Uri): Promise<string> {
     const bytes = await vscode.workspace.fs.readFile(uri);
     return Buffer.from(bytes).toString('utf8');

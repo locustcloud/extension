@@ -21,7 +21,14 @@
   "categories": [
     "Testing"
   ],
+  "keywords": [
+    "locust",
+    "load testing",
+    "performance",
+    "python"
+  ],
   "activationEvents": [
+    "workspaceContains:locustfile.py",
     "onCommand:locust.init",
     "onCommand:locust.createSimulation",
     "onCommand:locust.runUI",
@@ -31,6 +38,7 @@
     "onCommand:locust.runFileUI",
     "onCommand:locust.runFileHeadless",
     "onCommand:locust.runTaskHeadless",
+    "onCommand:locust.resetSetup",
     "onView:locust.scenarios"
   ],
   "main": "./out/extension.js",
@@ -70,42 +78,17 @@
       ]
     },
     "commands": [
-      {
-        "command": "locust.init",
-        "title": "Locust: Initialize (Install/Detect)"
-      },
-      {
-        "command": "locust.createSimulation",
-        "title": "Locust: Create Simulation…"
-      },
-      {
-        "command": "locust.runUI",
-        "title": "Locust: Run (Web UI)"
-      },
-      {
-        "command": "locust.runHeadless",
-        "title": "Locust: Run (Headless)"
-      },
-      {
-        "command": "locust.stop",
-        "title": "Locust: Stop Run"
-      },
-      {
-        "command": "locust.refreshTree",
-        "title": "Locust: Refresh Scenarios"
-      },
-      {
-        "command": "locust.runFileUI",
-        "title": "Locust: Run File (Web UI)"
-      },
-      {
-        "command": "locust.runFileHeadless",
-        "title": "Locust: Run File (Headless)"
-      },
-      {
-        "command": "locust.runTaskHeadless",
-        "title": "Locust: Run Task (Headless)"
-      }
+      { "command": "locust.init", "title": "Locust: Initialize (Install/Detect)" },
+      { "command": "locust.createSimulation", "title": "Locust: Create Simulation…" },
+      { "command": "locust.runUI", "title": "Locust: Run (Web UI)" },
+      { "command": "locust.runHeadless", "title": "Locust: Run (Headless)" },
+      { "command": "locust.stop", "title": "Locust: Stop Run" },
+      { "command": "locust.refreshTree", "title": "Locust: Refresh Scenarios" },
+      { "command": "locust.runFileUI", "title": "Locust: Run File (Web UI)" },
+      { "command": "locust.runFileHeadless", "title": "Locust: Run File (Headless)" },
+      { "command": "locust.runTaskHeadless", "title": "Locust: Run Task (Headless)" },
+      { "command": "locust.runByTag", "title": "Locust: Run by Tag…" },
+      { "command": "locust.resetSetup", "title": "Locust: Reset Setup Flag" }
     ],
     "configuration": {
       "title": "Locust",
@@ -124,10 +107,38 @@
           "type": "string",
           "default": "",
           "description": "Default host to target in generated locustfile.py."
+        },
+        "locust.autoSetup": {
+          "type": "string",
+          "enum": ["prompt", "always", "never"],
+          "default": "prompt",
+          "description": "When the extension activates: prompt to set up the Locust environment, always set it up automatically, or never run setup."
         }
       }
-    }
+    },
+    "snippets": [
+      {
+        "language": "python",
+        "path": "./snippets/locust.json"
+      }
+    ]
   },
+  "files": [
+    "out/**",
+    "templates/**",
+    "package.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/<you>/locust-vscode-extension.git"
+  },
+  "bugs": {
+    "url": "https://github.com/<you>/locust-vscode-extension/issues"
+  },
+  "homepage": "https://github.com/<you>/locust-vscode-extension",
+  "license": "MIT",
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
