@@ -4,11 +4,9 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { LocustTreeProvider } from './locustTree';
 
-
 const execFileAsync = promisify(execFile);
 const LOCUST_TERMINAL_NAME = 'Locust';
 const WS_SETUP_KEY = 'locust.setupCompleted'; // workspaceState flag
-
 
 export function activate(context: vscode.ExtensionContext) {
   const tree = new LocustTreeProvider();
@@ -43,7 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
       runLocustFile(file.fsPath, 'headless', [`--tags ${tag}`]);
     }),
 
-    // createSimulation: copies a template fromextension's templates/ into workspace
+    // createSimulation: copies a template from extension's templates/ into workspace
     vscode.commands.registerCommand('locust.createSimulation', async () => {
       if (!vscode.workspace.isTrusted) {
         vscode.window.showWarningMessage('Trust this workspace to create files.');
@@ -136,7 +134,6 @@ export function activate(context: vscode.ExtensionContext) {
   );
 }
 
-
 export function deactivate() {}
 
 // Setup Detection
@@ -144,11 +141,10 @@ function getConfig() {
   const cfg = vscode.workspace.getConfiguration();
   return {
     locustPath: cfg.get<string>('locust.path', 'locust'),
-    envFolder: cfg.get<string>('locust.envFolder', '.venv'),
+    envFolder: cfg.get<string>('locust.envFolder', 'locust_env'),
     defaultHost: cfg.get<string>('locust.defaultHost', '')
   };
 }
-
 
 async function checkAndOfferSetup(
   context: vscode.ExtensionContext,
@@ -159,69 +155,116 @@ async function checkAndOfferSetup(
   if (!folder) return;
 
   const already = context.workspaceState.get<boolean>(WS_SETUP_KEY);
-  if (already && !opts.forcePrompt) return;
-
   const { locustPath, envFolder } = getConfig();
-  const hasLocust = await isLocustAvailable(locustPath);
-  const venvExists = await folderHasVenv(folder.uri, envFolder);
 
-  if (hasLocust && venvExists && !opts.forcePrompt) {
-    // looks set up — mark and bail
+  // 1) Only prompt if Locust isn't available (unless forcePrompt)
+  const hasLocust = await isLocustAvailable(locustPath);
+  if (hasLocust && !opts.forcePrompt) {
     await context.workspaceState.update(WS_SETUP_KEY, true);
     return;
   }
 
-  // Offer setup
+  // 2) Detect pyproject + [loadtest] extra
+  const pyInfo = await detectPyprojectInfo(folder.uri);
+
+  // 3) Build choices
   const uvAvailable = await isOnPath('uv', ['--version']);
-  const picks: vscode.QuickPickItem[] = [
-    uvAvailable ? { label: 'Use uv (recommended)', detail: `Create ${envFolder} and install locust fast` } : { label: 'Use Python venv', detail: `Create ${envFolder} and install locust with pip` },
-    ...(uvAvailable ? [{ label: 'Use Python venv', detail: `Create ${envFolder} and install locust with pip` }] : []),
-    { label: 'Skip for now', detail: 'You can run “Locust: Initialize (Install/Detect)” later' }
-  ];
+  const picks: vscode.QuickPickItem[] = [];
+  if (uvAvailable) {
+    if (pyInfo.hasPyproject) {
+      picks.push(
+        { label: 'Use uv (recommended): Install project (+[loadtest] if present)', detail: `Create ${envFolder}, uv install -e .[loadtest]` },
+        { label: 'Use uv: Locust only', detail: `Create ${envFolder}, uv install locust` },
+      );
+    } else {
+      picks.push(
+        { label: 'Use uv (recommended): Locust only', detail: `Create ${envFolder}, uv install locust` },
+      );
+    }
+  }
+  // venv/pip options
+  if (pyInfo.hasPyproject) {
+    picks.push(
+      { label: 'Use Python venv: Install project (+[loadtest] if present)', detail: `Create ${envFolder}, pip install -e .[loadtest]` },
+      { label: 'Use Python venv: Locust only', detail: `Create ${envFolder}, pip install locust` },
+    );
+  } else {
+    picks.push(
+      { label: 'Use Python venv: Locust only', detail: `Create ${envFolder}, pip install locust` },
+    );
+  }
+  picks.push({ label: 'Skip for now', detail: 'You can run “Locust: Initialize (Install/Detect)” later' });
 
   const choice = await vscode.window.showQuickPick(picks, { placeHolder: 'Set up a local Locust environment?' });
   if (!choice || choice.label.startsWith('Skip')) return;
 
+  // 4) Resolve selection → installer + payload
   const useUv = choice.label.startsWith('Use uv');
+  const installProject = choice.label.includes('Install project');
+  const hasLoadtest = pyInfo.hasLoadtestExtra;
+
+  // Decide what to "pip install"
+  const installArg = installProject
+    ? (hasLoadtest ? '-e ".[loadtest]"' : '-e .')
+    : 'locust';
+
+  // 5) Execute in terminal
   await vscode.window.withProgress(
     { location: vscode.ProgressLocation.Notification, title: 'Setting up Locust environment', cancellable: false },
     async () => {
       const term = getOrCreateLocustTerminal();
       term.show();
-
       const workspacePath = folder.uri.fsPath;
 
+      const isWin = process.platform === 'win32';
+      const pyPath = isWin ? `${envFolder}\\Scripts\\python` : `${envFolder}/bin/python`;
+      const pipPath = isWin ? `${envFolder}\\Scripts\\pip` : `${envFolder}/bin/pip`;
+
+      term.sendText(`cd "${workspacePath}"`);
+
       if (useUv) {
-        // uv: creates venv and installs locust
-        // if env exists, uv will reuse it
-        term.sendText(`cd "${workspacePath}"`);
         term.sendText(`uv venv "${envFolder}"`);
-        term.sendText(`uv pip install --upgrade pip`);
-        term.sendText(`uv pip install locust`);
+        // tie uv pip to the env's python explicitly
+        term.sendText(`uv pip install --python "${pyPath}" --upgrade pip`);
+        term.sendText(`uv pip install --python "${pyPath}" ${installArg}`);
       } else {
-        // Python venv + pip
-        term.sendText(`cd "${workspacePath}"`);
-        if (process.platform === 'win32') {
+        if (isWin) {
           term.sendText(`python -m venv "${envFolder}"`);
           term.sendText(`if (Test-Path "${envFolder}\\Scripts\\Activate.ps1") { . "${envFolder}\\Scripts\\Activate.ps1" }`);
-          // Use venv executables explicitly to avoid system Python / PEP 668 issues
-          term.sendText(`${envFolder}\\Scripts\\python -m pip install --upgrade pip`);
-          term.sendText(`${envFolder}\\Scripts\\pip install locust`);
         } else {
           term.sendText(`python3 -m venv "${envFolder}"`);
           term.sendText(`if [ -f "${envFolder}/bin/activate" ]; then source "${envFolder}/bin/activate"; fi`);
-          // Use venv executables explicitly to avoid system Python / PEP 668 issues
-          term.sendText(`${envFolder}/bin/python -m pip install --upgrade pip`);
-          term.sendText(`${envFolder}/bin/pip install locust`);
         }
+        // Always use env executables to avoid PEP 668 issues
+        term.sendText(`"${pyPath}" -m pip install --upgrade pip`);
+        term.sendText(`"${pipPath}" install ${installArg}`);
       }
 
-      vscode.window.showInformationMessage('Locust environment setup started in terminal. When it finishes, use the Run commands.');
+      vscode.window.showInformationMessage(
+        installProject
+          ? `Installing project${hasLoadtest ? ' (+[loadtest])' : ''} into ${envFolder}...`
+          : `Installing Locust into ${envFolder}...`
+      );
       await context.workspaceState.update(WS_SETUP_KEY, true);
     }
   );
 }
 
+async function detectPyprojectInfo(root: vscode.Uri): Promise<{ hasPyproject: boolean; hasLoadtestExtra: boolean; }> {
+  const pyUri = vscode.Uri.joinPath(root, 'pyproject.toml');
+  try {
+    const stat = await vscode.workspace.fs.stat(pyUri);
+    if (!stat) return { hasPyproject: false, hasLoadtestExtra: false };
+    const bytes = await vscode.workspace.fs.readFile(pyUri);
+    const text = Buffer.from(bytes).toString('utf8');
+    // naive detection of the extra
+    const hasExtras = /\[project\.optional-dependencies\]/.test(text);
+    const hasLoadtest = hasExtras && /^\s*loadtest\s*=\s*\[/m.test(text);
+    return { hasPyproject: true, hasLoadtestExtra: hasLoadtest };
+  } catch {
+    return { hasPyproject: false, hasLoadtestExtra: false };
+  }
+}
 
 async function isLocustAvailable(locustPath: string): Promise<boolean> {
   try {
@@ -231,17 +274,6 @@ async function isLocustAvailable(locustPath: string): Promise<boolean> {
     return false;
   }
 }
-
-
-async function folderHasVenv(folder: vscode.Uri, envFolder: string): Promise<boolean> {
-  try {
-    await vscode.workspace.fs.stat(vscode.Uri.joinPath(folder, envFolder));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 
 async function isOnPath(binary: string, args: string[] = []): Promise<boolean> {
   try {
@@ -259,11 +291,9 @@ function findLocustTerminal(): vscode.Terminal | undefined {
   return vscode.window.terminals.find(t => t.name === LOCUST_TERMINAL_NAME);
 }
 
-
 function getOrCreateLocustTerminal(): vscode.Terminal {
   return findLocustTerminal() ?? vscode.window.createTerminal({ name: LOCUST_TERMINAL_NAME });
 }
-
 
 async function ensureTerminalEnv(term: vscode.Terminal, envFolder: string) {
   const folder = vscode.workspace.workspaceFolders?.[0];
@@ -279,7 +309,6 @@ async function ensureTerminalEnv(term: vscode.Terminal, envFolder: string) {
   }
 }
 
-
 function buildLocustCommand(filePath: string, mode: RunMode, extraArgs: string[] = []): string {
   const { locustPath, defaultHost } = getConfig();
   const headless = mode === 'headless' ? '--headless' : '';
@@ -287,7 +316,6 @@ function buildLocustCommand(filePath: string, mode: RunMode, extraArgs: string[]
   const extras = extraArgs.join(' ');
   return `${locustPath} -f "${filePath}" ${headless} ${host} ${extras}`.trim();
 }
-
 
 function runLocustFile(filePath: string, mode: RunMode, extraArgs: string[] = []) {
   if (!vscode.workspace.isTrusted) {
@@ -311,7 +339,6 @@ function runFile(node: any, mode: RunMode) {
   runLocustFile(filePath, mode);
 }
 
-
 function runTaskHeadless(node: any) {
   const { filePath, taskName } = node ?? {};
   if (!filePath || !taskName) {
@@ -329,7 +356,8 @@ async function pickLocustfile(): Promise<vscode.Uri | undefined> {
     vscode.window.showWarningMessage('Open a folder first.');
     return;
   }
-  const files = await vscode.workspace.findFiles('**/locustfile*.py', '**/{.venv,.git,__pycache__}/**', 50);
+  // Also ignore locust_env now
+  const files = await vscode.workspace.findFiles('**/locustfile*.py', '**/{locust_env,.venv,.git,__pycache__}/**', 50);
   if (files.length === 0) {
     vscode.window.showWarningMessage('No locustfile found in this workspace.');
     return;

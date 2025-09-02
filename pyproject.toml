@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "playground-app"
+version = "0.1.0"
+description = "Tutorial target service for Locust"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Emil Karlsson", email = "ekarlsson66@gmail.com" }]
+dependencies = [
+  "flask>=3.0.0,<4"
+]
+
+[project.optional-dependencies]
+# install this extra when you want to run locust from the same env/repo
+loadtest = [
+  "locust>=2.25.0,<3"
+]
+
+[project.scripts]
+# `playground-app` command will run the server
+playground-app = "playground_app.locust_playground_app:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]

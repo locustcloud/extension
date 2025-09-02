@@ -100,8 +100,8 @@
         },
         "locust.envFolder": {
           "type": "string",
-          "default": ".venv",
-          "description": "Name of the local Python environment folder."
+          "default": "locust_env",
+          "description": "Local locust_env directory."
         },
         "locust.defaultHost": {
           "type": "string",
