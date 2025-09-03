@@ -111,11 +111,13 @@ export function activate(context: vscode.ExtensionContext) {
       if (!file) return;
       runLocustFile(file.fsPath, 'ui');
     }),
+
     vscode.commands.registerCommand('locust.runHeadless', async () => {
       const file = await pickLocustfile();
       if (!file) return;
       runLocustFile(file.fsPath, 'headless');
     }),
+    
     vscode.commands.registerCommand('locust.stop', async () => {
       const term = findLocustTerminal();
       if (!term) {
@@ -124,12 +126,6 @@ export function activate(context: vscode.ExtensionContext) {
       }
       term.dispose();
       vscode.window.showInformationMessage('Locust: stopped.');
-    }),
-
-    // Minimal reset command to clear the per-workspace setup flag
-    vscode.commands.registerCommand('locust.resetSetup', async () => {
-      await context.workspaceState.update(WS_SETUP_KEY, undefined);
-      vscode.window.showInformationMessage('Locust setup flag reset for this workspace.');
     }),
   );
 }

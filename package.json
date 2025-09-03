@@ -87,8 +87,7 @@
       { "command": "locust.runFileUI", "title": "Locust: Run File (Web UI)" },
       { "command": "locust.runFileHeadless", "title": "Locust: Run File (Headless)" },
       { "command": "locust.runTaskHeadless", "title": "Locust: Run Task (Headless)" },
-      { "command": "locust.runByTag", "title": "Locust: Run by Tag…" },
-      { "command": "locust.resetSetup", "title": "Locust: Reset Setup Flag" }
+      { "command": "locust.runByTag", "title": "Locust: Run by Tag…" }
     ],
     "configuration": {
       "title": "Locust",

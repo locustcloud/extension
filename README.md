@@ -67,6 +67,10 @@ This is the fastest way to try the extension with a demo backend.
      Open [http://localhost:8089](http://localhost:8089) and start a test against `http://localhost:5000`.
 
    * Headless:
+     
+     ```bash
+     locust -f locustfile.py --headless -u 10 -r 2 -t 1m -H http://localhost:5000
+     ```
 
      ```
      F1 → Locust: Run (Headless)
