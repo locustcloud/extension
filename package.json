@@ -8,6 +8,7 @@
     "workspace"
   ],
   "engines": {
+    "node": ">=20",
     "vscode": "^1.90.0"
   },
   "capabilities": {

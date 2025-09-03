@@ -1,3 +1,4 @@
 {
-  "npm.packageManager": "npm"
+  // Package manager: Yarn
+  "npm.packageManager": "yarn"
 }
