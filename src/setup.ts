@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import * as path from 'path'; // <-- added
+import * as path from 'path';
 
 const execFileAsync = promisify(execFile);
 const LOCUST_TERMINAL_NAME = 'Locust';
@@ -27,7 +27,7 @@ function createFreshLocustTerminal(): vscode.Terminal {
   const term = vscode.window.createTerminal({ name: LOCUST_TERMINAL_NAME });
   term.show();
 
-  // Best-effort 'deactivate' if venv is currently active in shell.
+  // Best-effort 'deactivate' if venv currently active in shell.
   if (process.platform === 'win32') {
     term.sendText('if (Get-Command deactivate -ErrorAction SilentlyContinue) { deactivate }');
   } else {
@@ -36,9 +36,8 @@ function createFreshLocustTerminal(): vscode.Terminal {
   return term;
 }
 
-/**
- * Returns true if a given binary is on PATH and runs without error.
- */
+
+// Returns true if a given binary is on PATH and runs without error.
 async function isOnPath(binary: string, args: string[] = []): Promise<boolean> {
   try {
     await execFileAsync(binary, args);
@@ -48,9 +47,8 @@ async function isOnPath(binary: string, args: string[] = []): Promise<boolean> {
   }
 }
 
-/**
- * Returns true if `locust` appears available.
- */
+
+// Returns true if `locust` appears available.
 async function isLocustAvailable(locustPath: string): Promise<boolean> {
   try {
     await execFileAsync(locustPath, ['--version']);
@@ -60,9 +58,7 @@ async function isLocustAvailable(locustPath: string): Promise<boolean> {
   }
 }
 
-/**
- * Detect if pyproject exists and declares optional dependency group named [loadtest].
- */
+ // Detect if pyproject exists and declares optional dependency group named [loadtest].
 async function detectPyprojectInfo(root: vscode.Uri): Promise<{ hasPyproject: boolean; hasLoadtestExtra: boolean; }> {
   const pyUri = vscode.Uri.joinPath(root, 'pyproject.toml');
   try {
@@ -77,8 +73,7 @@ async function detectPyprojectInfo(root: vscode.Uri): Promise<{ hasPyproject: bo
   }
 }
 
-/* -------------------- interpreter helpers (new/safe) -------------------- */
-
+//interpreter helper
 function getEnvInterpreterPath(envFolder: string): string {
   const ws = vscode.workspace.workspaceFolders?.[0];
   if (!ws) return '';
@@ -104,7 +99,7 @@ async function isInterpreterPathValid(interpreterPath: string): Promise<boolean>
 
 /**
  * Set workspace's Python interpreter to created env, enable terminal
- * auto-activation for UX. Only writes if the path exists.
+ * auto-activation for UX. Only writes if path exists.
  */
 export async function setWorkspacePythonInterpreter(envFolder: string) {
   const interpreter = getEnvInterpreterPath(envFolder);
@@ -127,7 +122,7 @@ export async function setWorkspacePythonInterpreter(envFolder: string) {
 }
 
 /**
- * Optional: call on activation to repair an invalid interpreter path.
+ * Optional: call on activation to repair invalid interpreter path.
  * If locust_env exists, re-point to it. Otherwise clear the setting.
  */
 export async function repairWorkspaceInterpreterIfBroken() {
@@ -153,17 +148,15 @@ export async function repairWorkspaceInterpreterIfBroken() {
   }
 }
 
-/* ------------------------------- main setup ------------------------------ */
-
 /**
  * Main setup entry:
  * - prompts only if locust isn't available (unless forced),
  * - pip-only,
- * - deactivates any existing venv in a fresh terminal,
+ * - deactivates existing venv in a fresh terminal,
  * - creates envFolder (default: locust_env),
  * - installs either project (-e .[loadtest]) or locust,
- * - activates the new env,
- * - sets the workspace interpreter to the new env (if valid).
+ * - activates new env,
+ * - sets workspace interpreter to new env (if valid).
  */
 export async function checkAndOfferSetup(
   context: vscode.ExtensionContext,
@@ -184,7 +177,7 @@ export async function checkAndOfferSetup(
     return;
   }
 
-  // Optional UX: if repo has pyproject, offer "install project" vs "locust only"
+  // UX: if repo has pyproject, offer "install project" vs "locust only"
   const pyInfo = await detectPyprojectInfo(folder.uri);
   const picks: vscode.QuickPickItem[] = pyInfo.hasPyproject
     ? [
