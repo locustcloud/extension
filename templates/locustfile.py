@@ -1,6 +1,6 @@
 # Minimal, simple starter for HTTP load testing with Locust.
-# Web UI:  locust -f locustfile.py
-# Headless: locust -f locustfile.py --headless -u 10 -r 2 -t 1m -H http://localhost:5000
+# Web UI:  locust -f locustfile.py 
+# Headless: locust -f locustfile.py --headless -u 10 -r 2 -t 1m -H http://0.0.0.0:5000
 
 import os
 import random
@@ -13,7 +13,7 @@ import random
 from locust import task, constant, events
 from locust.contrib.fasthttp import FastHttpUser  # explicit import
 
-DEFAULT_HOST = os.getenv("TARGET_HOST", "http://localhost:5000")
+DEFAULT_HOST = os.getenv("TARGET_HOST", "https://mock-test-target.eu-north-1.locust.cloud")
 
 # Fallback: if Locust is started without --host, set one
 @events.init.add_listener
