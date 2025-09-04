@@ -5,7 +5,12 @@ import * as path from 'path';
 
 const execFileAsync = promisify(execFile);
 const LOCUST_TERMINAL_NAME = 'Locust';
-const WS_SETUP_KEY = 'locust.setupCompleted'; // workspaceState flag
+const WS_SETUP_KEY = 'locust.setupCompleted';
+
+// Current tree layout
+const MCP_REQ_REL = path.join('mcp', 'requirements.txt');
+const MCP_SERVER_REL = path.join('mcp', 'server.py');
+const WORKSPACE_REQ_REL = 'requirements.txt';
 
 export function getConfig() {
   const cfg = vscode.workspace.getConfiguration();
@@ -17,7 +22,7 @@ export function getConfig() {
 }
 
 /**
- * Creates a fresh terminal named "Locust", disposes the old one,
+ * Creates fresh terminal "Locust", disposes the old one,
  * best-effort deactivates active venv to avoid cross-contamination.
  */
 function createFreshLocustTerminal(): vscode.Terminal {
@@ -36,7 +41,6 @@ function createFreshLocustTerminal(): vscode.Terminal {
   return term;
 }
 
-
 // Returns true if a given binary is on PATH and runs without error.
 async function isOnPath(binary: string, args: string[] = []): Promise<boolean> {
   try {
@@ -46,7 +50,6 @@ async function isOnPath(binary: string, args: string[] = []): Promise<boolean> {
     return false;
   }
 }
-
 
 // Returns true if `locust` appears available.
 async function isLocustAvailable(locustPath: string): Promise<boolean> {
@@ -58,22 +61,7 @@ async function isLocustAvailable(locustPath: string): Promise<boolean> {
   }
 }
 
- // Detect if pyproject exists and declares optional dependency group named [loadtest].
-async function detectPyprojectInfo(root: vscode.Uri): Promise<{ hasPyproject: boolean; hasLoadtestExtra: boolean; }> {
-  const pyUri = vscode.Uri.joinPath(root, 'pyproject.toml');
-  try {
-    await vscode.workspace.fs.stat(pyUri);
-    const bytes = await vscode.workspace.fs.readFile(pyUri);
-    const text = Buffer.from(bytes).toString('utf8');
-    const hasExtras = /\[project\.optional-dependencies\]/.test(text);
-    const hasLoadtest = hasExtras && /^\s*loadtest\s*=\s*\[/m.test(text);
-    return { hasPyproject: true, hasLoadtestExtra: hasLoadtest };
-  } catch {
-    return { hasPyproject: false, hasLoadtestExtra: false };
-  }
-}
-
-//interpreter helper
+// Interpreter helper
 function getEnvInterpreterPath(envFolder: string): string {
   const ws = vscode.workspace.workspaceFolders?.[0];
   if (!ws) return '';
@@ -122,8 +110,7 @@ export async function setWorkspacePythonInterpreter(envFolder: string) {
 }
 
 /**
- * Optional: call on activation to repair invalid interpreter path.
- * If locust_env exists, re-point to it. Otherwise clear the setting.
+ * Optional: repair invalid interpreter path on activation.
  */
 export async function repairWorkspaceInterpreterIfBroken() {
   const cfg = vscode.workspace.getConfiguration('python');
@@ -149,14 +136,62 @@ export async function repairWorkspaceInterpreterIfBroken() {
 }
 
 /**
+ * Always write a fresh .vscode/mcp.json that points to the workspace venv.
+ * This overwrites any existing file on purpose.
+ */
+async function writeMcpConfig(envFolder: string) {
+  const ws = vscode.workspace.workspaceFolders?.[0];
+  if (!ws) return;
+
+  const pyInterpAbs = getEnvInterpreterPath(envFolder);
+  const serverAbs = path.join(ws.uri.fsPath, MCP_SERVER_REL);
+
+  const freshConfig = {
+    runtimes: {
+      python: {
+        command: pyInterpAbs,
+        args: ["-u", serverAbs]
+      }
+    },
+    servers: [
+      {
+        id: "mcp-har2locust",
+        name: "HAR → Locustfile (Python)",
+        runtime: "python",
+        autoStart: true,
+        tools: ["har.to_locust"]
+      }
+    ],
+    toolsets: [
+      {
+        name: "locust-tools",
+        description: "Locust authoring helpers",
+        servers: ["mcp-har2locust"]
+      }
+    ]
+  };
+
+  const dir = vscode.Uri.joinPath(ws.uri, ".vscode");
+  const target = vscode.Uri.joinPath(dir, "mcp.json");
+
+  try { await vscode.workspace.fs.stat(dir); } catch { await vscode.workspace.fs.createDirectory(dir); }
+  await vscode.workspace.fs.writeFile(target, Buffer.from(JSON.stringify(freshConfig, null, 2), "utf8"));
+
+  vscode.window.setStatusBarMessage("MCP configured (fresh) to use workspace venv.", 4000);
+}
+
+
+/**
  * Main setup entry:
  * - prompts only if locust isn't available (unless forced),
  * - pip-only,
  * - deactivates existing venv in a fresh terminal,
  * - creates envFolder (default: locust_env),
- * - installs either project (-e .[loadtest]) or locust,
+ * - installs either workspace requirements.txt or locust,
+ * - installs MCP server requirements (mcp/requirements.txt) if present,
  * - activates new env,
- * - sets workspace interpreter to new env (if valid).
+ * - sets workspace interpreter to new env (if valid),
+ * - writes .vscode/mcp.json pointing at env python.
  */
 export async function checkAndOfferSetup(
   context: vscode.ExtensionContext,
@@ -169,19 +204,19 @@ export async function checkAndOfferSetup(
 
   const { locustPath, envFolder } = getConfig();
 
-  const already = context.workspaceState.get<boolean>(WS_SETUP_KEY);
   const hasLocust = await isLocustAvailable(locustPath);
-
   if (hasLocust && !opts.forcePrompt) {
     await context.workspaceState.update(WS_SETUP_KEY, true);
     return;
   }
 
-  // UX: if repo has pyproject, offer "install project" vs "locust only"
-  const pyInfo = await detectPyprojectInfo(folder.uri);
-  const picks: vscode.QuickPickItem[] = pyInfo.hasPyproject
+  const workspacePath = folder.uri.fsPath;
+  const wsReqAbs = path.join(workspacePath, WORKSPACE_REQ_REL);
+  const hasWsReq = await fileExists(wsReqAbs);
+
+  const picks: vscode.QuickPickItem[] = hasWsReq
     ? [
-        { label: 'Set up with venv + pip: Install project (+[loadtest] if present)', detail: `Create ${envFolder} and pip install -e .[loadtest]` },
+        { label: 'Set up with venv + pip: Install from workspace requirements.txt', detail: `Create ${envFolder} and pip install -r requirements.txt` },
         { label: 'Set up with venv + pip: Locust only', detail: `Create ${envFolder} and pip install locust` },
         { label: 'Skip for now', detail: 'You can run “Locust: Initialize (Install/Detect)” later' }
       ]
@@ -193,15 +228,11 @@ export async function checkAndOfferSetup(
   const choice = await vscode.window.showQuickPick(picks, { placeHolder: 'Set up a local Locust environment?' });
   if (!choice || choice.label.startsWith('Skip')) return;
 
-  const installProject = choice.label.includes('Install project');
-  const installArg = installProject
-    ? (pyInfo.hasLoadtestExtra ? '-e ".[loadtest]"' : '-e .')
-    : 'locust';
+  const installFromReq = choice.label.includes('Install from workspace requirements.txt');
 
   await vscode.window.withProgress(
     { location: vscode.ProgressLocation.Notification, title: 'Setting up Locust environment', cancellable: false },
     async () => {
-      const workspacePath = folder.uri.fsPath;
       const term = createFreshLocustTerminal();
 
       const isWin = process.platform === 'win32';
@@ -220,19 +251,34 @@ export async function checkAndOfferSetup(
       term.sendText(`"${pyPath}" -m pip install --upgrade pip`);
 
       // Install target payload with env-local pip
-      term.sendText(`"${pipPath}" install ${installArg}`);
+      if (installFromReq) {
+        const reqQuoted = `"${wsReqAbs.replace(/\\/g, isWin ? '\\\\' : '\\/')}"`;
+        term.sendText(`"${pipPath}" install -r ${reqQuoted}`);
+      } else {
+        term.sendText(`"${pipPath}" install locust`);
+      }
+
+      // Install MCP server requirements if present
+      const mcpReqAbs = path.join(workspacePath, MCP_REQ_REL);
+      if (await fileExists(mcpReqAbs)) {
+        const reqQuoted = `"${mcpReqAbs.replace(/\\/g, isWin ? '\\\\' : '\\/')}"`;
+        term.sendText(`"${pipPath}" install -r ${reqQuoted}`);
+      }
 
       // Activate env, follow-up user commands run inside it
       term.sendText(activateCmd);
 
       vscode.window.showInformationMessage(
-        installProject
-          ? `Installing project${pyInfo.hasLoadtestExtra ? ' (+[loadtest])' : ''} into ${envFolder}...`
+        installFromReq
+          ? `Installing from workspace requirements.txt into ${envFolder}...`
           : `Installing Locust into ${envFolder}...`
       );
 
       // Set workspace interpreter to new env (only if valid)
       await setWorkspacePythonInterpreter(envFolder);
+
+      // Write/update MCP config for Copilot Chat
+      await writeMcpConfig(envFolder);
 
       await context.workspaceState.update(WS_SETUP_KEY, true);
     }
