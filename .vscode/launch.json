@@ -10,7 +10,7 @@
         "--extensionDevelopmentPath=${workspaceFolder}"
       ],
       "outFiles": ["${workspaceFolder}/out/**/*.js"],
-      "preLaunchTask": "npm: watch"
+      "preLaunchTask": "yarn: watch"
     },
     {
       "name": "Debug Extension Tests",
@@ -22,7 +22,7 @@
         "--extensionTestsPath=${workspaceFolder}/out/test/suite/index.js"
       ],
       "outFiles": ["${workspaceFolder}/out/test/**/*.js"],
-      "preLaunchTask": "npm: compile"
+      "preLaunchTask": "yarn: compile"
     }
   ]
 }

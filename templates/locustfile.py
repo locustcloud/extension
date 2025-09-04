@@ -1,56 +1,52 @@
 # Minimal, simple starter for HTTP load testing with Locust.
-# Run:
-#   locust -f locustfile.py                 # web UI (http://localhost:8089)
-#   locust -f locustfile.py --headless \
-#       -u 10 -r 2 -t 1m -H http://localhost:5000
+# Web UI:  locust -f locustfile.py
+# Headless: locust -f locustfile.py --headless -u 10 -r 2 -t 1m -H http://localhost:5000
 
-from locust import FastHttpUser, task, constant
+import os
 import random
+from locust import task, constant
+from locust.contrib.fasthttp import FastHttpUser  # Fast, requires a base host
 
+# locustfile.py
+import os
+import random
+from locust import task, constant, events
+from locust.contrib.fasthttp import FastHttpUser  # explicit import
+
+DEFAULT_HOST = os.getenv("TARGET_HOST", "http://localhost:5000")
+
+# Fallback: if Locust is started without --host, set one
+@events.init.add_listener
+def set_default_host(environment, **_):
+    if not environment.host:
+        environment.host = DEFAULT_HOST
 
 class MockTarget(FastHttpUser):
-    # Simulated user wait between tasks
-    wait_time = constant(1)
+    # Class-level default (still overridable via --host / -H)
+    host = DEFAULT_HOST
 
-    # Example “catalog”
+    wait_time = constant(1)
     product_ids = [1, 2, 42, 4711]
 
-
     def on_start(self):
-        """
-        Called once when a simulated user starts.
-        Good place for login or session setup.
-        """
-        # Example:
-        # resp = self.client.post("/authenticate", json={"user": "foo", "password": "bar"})
-        # resp.raise_for_status()
+        # Log visibility that host was set:
+        self.environment.runner.environment.events.quitting.fire(
+            reverse=False
+        ) if False else None  # no-op to keep import tools happy
         pass
-
 
     @task
     def browse_home(self):
-        """Simple GET to the home page."""
         self.client.get("/")
-
 
     @task
     def add_items_and_checkout(self):
-        """
-        POST a couple of items to the cart and try a checkout.
-        Demonstrates JSON payloads and basic success validation.
-        """
-        # Add 2 random items
-        for product_id in random.sample(self.product_ids, k=min(2, len(self.product_ids))):
-            self.client.post("/cart/add", json={"productId": product_id})
-
-        # Attempt checkout with simple validation
+        for pid in random.sample(self.product_ids, k=min(2, len(self.product_ids))):
+            self.client.post("/cart/add", json={"productId": pid})
         with self.client.post("/checkout/confirm", json={}, catch_response=True) as resp:
-            ok = False
             try:
-                data = resp.json()
-                ok = bool(data.get("orderId"))
+                ok = bool(resp.json().get("orderId"))
             except Exception:
                 ok = False
-
             if not ok:
                 resp.failure("orderId missing in checkout response")

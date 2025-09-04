@@ -140,11 +140,11 @@
   "homepage": "https://github.com/<you>/locust-vscode-extension",
   "license": "MIT",
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "yarn run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
-    "test": "npm run compile && node ./out/test/runTest.js"
+    "test": "yarn run compile && node ./out/test/runTest.js"
   },
   "devDependencies": {
     "@types/chai": "^5.2.2",
