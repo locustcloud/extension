@@ -4,14 +4,8 @@
 
 import os
 import random
-from locust import task, constant
-from locust.contrib.fasthttp import FastHttpUser  # Fast, requires a base host
-
-# locustfile.py
-import os
-import random
 from locust import task, constant, events
-from locust.contrib.fasthttp import FastHttpUser  # explicit import
+from locust.contrib.fasthttp import FastHttpUser  
 
 DEFAULT_HOST = os.getenv("TARGET_HOST", "https://mock-test-target.eu-north-1.locust.cloud")
 
