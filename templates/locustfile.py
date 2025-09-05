@@ -1,33 +1,27 @@
 # Minimal, simple starter for HTTP load testing with Locust.
 # Web UI:  locust -f locustfile.py 
 # Headless: locust -f locustfile.py --headless -u 10 -r 2 -t 1m -H http://0.0.0.0:5000
+# 
 
-import os
+
 import random
 from locust import task, constant, events
 from locust.contrib.fasthttp import FastHttpUser  
 
-DEFAULT_HOST = os.getenv("TARGET_HOST", "https://mock-test-target.eu-north-1.locust.cloud")
-
-# Fallback: if Locust is started without --host, set one
-@events.init.add_listener
-def set_default_host(environment, **_):
-    if not environment.host:
-        environment.host = DEFAULT_HOST
 
 class MockTarget(FastHttpUser):
-    # Class-level default (still overridable via --host / -H)
-    host = DEFAULT_HOST
 
+    # Class-level default (still overridable via --host / -H)
+    host = "https://mock-test-target.eu-north-1.locust.cloud"
     wait_time = constant(1)
     product_ids = [1, 2, 42, 4711]
+    
 
     def on_start(self):
-        # Log visibility that host was set:
-        self.environment.runner.environment.events.quitting.fire(
-            reverse=False
-        ) if False else None  # no-op to keep import tools happy
-        pass
+        # Authenticate once per simulated user
+        resp = self.client.post("/authenticate", json={"password": "bar"})
+        if resp.status_code != 200:
+            resp.failure("Login failed")
 
     @task
     def browse_home(self):
