@@ -4,6 +4,11 @@
   "description": "VS Code extension to scaffold, run, and manage Locust load tests.",
   "version": "0.0.1",
   "publisher": "locust",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#0e1116",
+    "theme": "dark"
+  },
   "extensionKind": [
     "workspace"
   ],
@@ -29,19 +34,7 @@
     "python"
   ],
   "activationEvents": [
-    "workspaceContains:locustfile.py",
-    "onCommand:locust.init",
-    "onCommand:locust.openWalkthrough",
-    "onCommand:locust.createSimulation",
-    "onCommand:locust.runUI",
-    "onCommand:locust.runHeadless",
-    "onCommand:locust.stop",
-    "onCommand:locust.refreshTree",
-    "onCommand:locust.runFileUI",
-    "onCommand:locust.runFileHeadless",
-    "onCommand:locust.runTaskHeadless",
-    "onCommand:locust.resetSetup",
-    "onView:locust.scenarios"
+    "workspaceContains:locustfile.py"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -85,7 +78,6 @@
       { "command": "locust.createSimulation", "title": "Locust: Create Simulation…" },
       { "command": "locust.runUI", "title": "Locust: Run (Web UI)" },
       { "command": "locust.runHeadless", "title": "Locust: Run (Headless)" },
-      { "command": "locust.stop", "title": "Locust: Stop Run" },
       { "command": "locust.refreshTree", "title": "Locust: Refresh Scenarios" },
       { "command": "locust.runFileUI", "title": "Locust: Run File (Web UI)" },
       { "command": "locust.runFileHeadless", "title": "Locust: Run File (Headless)" },

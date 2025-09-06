@@ -1,4 +1,8 @@
 {
   // Package manager: Yarn
-  "npm.packageManager": "yarn"
+  "npm.packageManager": "yarn",
+
+  "files.exclude": {
+    "out": false
+  }
 }
