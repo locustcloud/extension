@@ -2,7 +2,14 @@ import * as vscode from 'vscode';
 import { getConfig } from '../core/config';
 import { EnvService } from '../services/envService';
 
+/**
+ * Locust run functions.
+ * Runs in a dedicated terminal named "Locust"
+ * Uses config settings for locust path, env folder, default host
+ */
+
 type RunMode = 'ui' | 'headless';
+
 
 export class LocustRunner {
   constructor(private env: EnvService, private extensionUri: vscode.Uri) {}

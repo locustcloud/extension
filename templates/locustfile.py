@@ -1,13 +1,10 @@
-# Minimal, simple starter for HTTP load testing with Locust.
-# Web UI:  locust -f locustfile.py 
-# Headless: locust -f locustfile.py --headless -u 10 -r 2 -t 1m -H http://0.0.0.0:5000
-# 
-
-
 import random
 from locust import task, constant, events
 from locust.contrib.fasthttp import FastHttpUser  
 
+# Minimal, simple starter for HTTP load testing with Locust.
+# Web UI:  locust -f locustfile.py 
+# Headless: locust -f locustfile.py --headless -u 10 -r 2 -t 1m -H http://0.0.0.0:5000
 
 class MockTarget(FastHttpUser):
 

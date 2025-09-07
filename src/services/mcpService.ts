@@ -3,6 +3,11 @@ import * as path from 'path';
 import { MCP_SERVER_REL } from '../core/config';
 import { EnvService } from './envService';
 
+/**
+ * Write MCP Config to workplace.
+ * Uses EnvService to get python path inside venv.
+ */
+
 export class McpService {
   constructor(private env: EnvService) {}
 

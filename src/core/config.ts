@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 
+/**
+ * Configuration Locust terminall Tree and MCP
+ */
+
 export const LOCUST_TERMINAL_NAME = 'Locust';
 export const WS_SETUP_KEY = 'locust.setupCompleted';
 

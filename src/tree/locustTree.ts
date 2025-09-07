@@ -1,6 +1,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 
+/**
+ * Locustfile manipulation, refresh and discard changes
+ * Tree data provider for Locust files, users, and tasks
+ */
+
 type NodeKind = 'file' | 'user' | 'task';
 
 interface LocustNode {

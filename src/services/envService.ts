@@ -2,6 +2,12 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { LOCUST_TERMINAL_NAME } from '../core/config';
 
+/**
+ * Activate locust_env and terminal
+ * Identify OS differences (Windows vs Unix)
+ * Provide python path inside venv
+ */
+
 export class EnvService {
   createFreshLocustTerminal(): vscode.Terminal {
     vscode.window.terminals.find(t => t.name === LOCUST_TERMINAL_NAME)?.dispose();

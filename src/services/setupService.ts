@@ -7,6 +7,12 @@ import { McpService } from './mcpService';
 import { getConfig, WS_SETUP_KEY, MCP_REQ_REL, WORKSPACE_REQ_REL } from '../core/config';
 import { fileExists } from '../core/utils/fs';
 
+/** 
+* Automation service Setup Interpreter, locust_env dependencies and MCP config
+* Initialized on end user command: "Locust: Initialize (Install/Detect)" 
+* Also runs optional prompt on activation if locust not found.
+*/
+
 const execFileAsync = promisify(execFile);
 
 // Returns true if a given binary is on PATH and runs without error.
@@ -48,7 +54,7 @@ export class SetupService {
 
   /**
    * Set workspace's Python interpreter to created env, enable terminal auto-activation for UX.
-   * Only writes if path exists. (same behavior as original)
+   * Only writes if path exists.
    */
   async setWorkspacePythonInterpreter(envFolder: string) {
     const interpreter = this.env.getEnvInterpreterPath(envFolder);
@@ -71,7 +77,7 @@ export class SetupService {
   }
 
   /**
-   * Optional: repair invalid interpreter path on activation. (same behavior)
+   * Optional: repair invalid interpreter path on activation.
    */
   async repairWorkspaceInterpreterIfBroken() {
     const cfg = vscode.workspace.getConfiguration('python');
@@ -97,7 +103,7 @@ export class SetupService {
   }
 
   /**
-   * Main setup entry (logic is identical, just reorganized).
+   * Main setup entry
    */
   async checkAndOfferSetup(opts: { forcePrompt?: boolean } = {}) {
     if (!vscode.workspace.isTrusted) return;

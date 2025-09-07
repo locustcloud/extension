@@ -6,6 +6,12 @@ import {
   runTests
 } from '@vscode/test-electron';
 
+/**
+ * Entry point for running extension tests.
+ * Sets up a test instance of VSCode with the extension and dependencies installed.
+ * Runs tests located in ./suite/index.ts
+ */
+
 async function main() {
   try {
     const version = process.env.VSCODE_VERSION ?? 'stable';

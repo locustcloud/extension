@@ -1,5 +1,10 @@
 import * as vscode from 'vscode';
 
+/**
+ * Extension logging.
+ * Uses OutputChannel.
+ */
+
 export interface Logger {
   info: (msg: string) => void;
   warn: (msg: string) => void;

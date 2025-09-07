@@ -3,6 +3,10 @@ import { SetupService } from '../services/setupService';
 import { LocustRunner } from '../runners/locustRunner';
 import { LocustTreeProvider } from '../tree/locustTree';
 
+/**
+ * Register commands for the Locust extension.
+ */
+
 export function registerCommands(
   ctx: vscode.ExtensionContext,
   deps: { setup: SetupService; runner: LocustRunner; tree: LocustTreeProvider }

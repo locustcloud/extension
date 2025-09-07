@@ -2,6 +2,11 @@ import * as path from 'path';
 import Mocha from 'mocha';
 import { glob } from 'glob';
 
+/**
+ * Runs the Mocha test suite.
+ * See https://code.visualstudio.com/api/working-with-extensions/testing-extension
+ */
+
 export async function run(): Promise<void> {
   const mocha = new Mocha({
     ui: 'tdd',

@@ -41,8 +41,8 @@ Open **Copilot Chat** inside VS Code and run:
 ````
 
 * `har_path`: absolute path to your `.har` file.
-* `user_class`: optional — the class name for the generated user.
-* `write_to`: optional — path where the `locustfile.py` should be written.
+* `user_class`: optional: the class name for the generated user.
+* `write_to`: optional: path where the `locustfile.py` should be written.
 
 The generated Locustfile will also be displayed inline in Copilot Chat.
 
@@ -67,10 +67,9 @@ locust -f locustfile_from_har.py
 ## Notes
 
 * HARs with **no entries** will produce an empty script. Make sure you capture real traffic.
-* The generated file is a starting point — you can tweak tasks, headers, or add assertions as needed.
+* The generated file is a starting point, you can tweak tasks, headers, or add assertions as needed.
 * You can keep both **hand-written** and **HAR-generated** files in your workspace and run either.
 
 ```
 
----
 

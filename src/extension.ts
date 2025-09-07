@@ -6,6 +6,11 @@ import { SetupService } from './services/setupService';
 import { LocustRunner } from './runners/locustRunner';
 import { registerCommands } from './commands/registerCommands';
 
+/**
+* This method is called when your extension is activated
+* the extension is activated the very first time the command is executed
+*/
+
 export function activate(ctx: vscode.ExtensionContext) {
   const env = new EnvService();
   const mcp = new McpService(env);
