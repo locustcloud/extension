@@ -4,5 +4,28 @@
 
   "files.exclude": {
     "out": false
-  }
+  },
+  
+  // workspace venv setup.ts configures
+  "python.defaultInterpreterPath": "${workspaceFolder}/locust_env/bin/python",
+
+  // Stronger analysis = better completions & errors
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.logLevel": "Information",
+
+  // Enable auto-imports
+  "python.analysis.autoImportCompletions": true,
+  "python.terminal.activateEnvironment": true,
+
+  // Ignore our venv and build output
+  "python.analysis.exclude": [
+    "**/locust_env/**",
+    "**/.venv/**"
+  ],
+
+  // Point to custom typings
+  "python.analysis.stubPath": "typings",
+
+  // Use workspace TypeScript version
+  "typescript.tsdk": "node_modules/typescript/lib"
 }

@@ -36,6 +36,8 @@ export function registerCommands(
         'locust.locust-vscode-extension#locust.gettingStarted'
       )
     ),
+    // HAR2Locust conversion
+    vscode.commands.registerCommand('locust.convertHar', () => runner.convertHar()),
 
     // Palette commands
     vscode.commands.registerCommand('locust.runUI', () => runner.runSelected('ui')),

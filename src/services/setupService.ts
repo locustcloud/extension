@@ -45,6 +45,38 @@ async function isInterpreterPathValid(interpreterPath: string): Promise<boolean>
   }
 }
 
+async function ensureCopilotInstalled() {
+  // Copilot used to have a separate "copilot-chat" ID; check both just in case.
+  const ids = ['github.copilot', 'github.copilot-chat'];
+  const hasCopilot = ids.some(id => !!vscode.extensions.getExtension(id));
+
+  if (hasCopilot) return;
+
+  const choice = await vscode.window.showInformationMessage(
+    'Optional: Install GitHub Copilot to use HAR → Locust via Copilot Chat (MCP) directly from this workspace.',
+    { modal: true },
+    'Install Copilot',
+    'Skip'
+  );
+  if (choice !== 'Install Copilot') return;
+
+  try {
+    await vscode.commands.executeCommand('workbench.extensions.installExtension', 'github.copilot');
+
+    const reload = await vscode.window.showInformationMessage(
+      'GitHub Copilot installed. Reload VS Code to enable it now?',
+      'Reload',
+      'Later'
+    );
+    if (reload === 'Reload') {
+      await vscode.commands.executeCommand('workbench.action.reloadWindow');
+    }
+  } catch (err: any) {
+    vscode.window.showErrorMessage(`Could not install GitHub Copilot: ${err?.message ?? String(err)}`);
+  }
+}
+
+
 export class SetupService {
   constructor(
     private env: EnvService,
@@ -77,7 +109,7 @@ export class SetupService {
   }
 
   /**
-   * Optional: repair invalid interpreter path on activation.
+   * Repair invalid interpreter path on activation.
    */
   async repairWorkspaceInterpreterIfBroken() {
     const cfg = vscode.workspace.getConfiguration('python');
@@ -167,6 +199,38 @@ export class SetupService {
           term.sendText(`"${pipPath}" install locust`);
         }
 
+        // Ensure har2locust is present for MCP/CLI usage
+        term.sendText(`"${pipPath}" install har2locust`);
+
+        // ✅ Also install ruff (used by har2locust default plugin)
+        term.sendText(`"${pipPath}" install ruff`);
+
+        /** Add a shim so "har-to-locust" also works (Copilot workaround)
+        if (isWin) {
+          // Windows: create Scripts\har-to-locust.cmd
+          const shimPathWin = `${envFolder}\\Scripts\\har-to-locust.cmd`;
+          // Use PowerShell to create the file if it doesn't exist
+          term.sendText(
+            `$shim = "${shimPathWin}"; ` +
+            `if (!(Test-Path $shim)) { ` +
+              `@'` + // here-string start
+        `\@echo off
+        "%~dp0python.exe" -m har2locust %*` + // note: leading backslash escapes @ in PS here-string above
+        `'@ | Out-File -FilePath $shim -Encoding ascii -Force; ` +
+            `}`
+          );
+        } else {
+          // POSIX: create bin/har-to-locust
+          const shimPathPosix = `${envFolder}/bin/har-to-locust`;
+          term.sendText(
+            `SHIM="${shimPathPosix}"; ` +
+            `if [ ! -f "$SHIM" ]; then ` +
+              `printf '%s\n' '#!/usr/bin/env bash' '"${envFolder}/bin/python" -m har2locust "$@"' > "$SHIM"; ` +
+              `chmod +x "$SHIM"; ` +
+            `fi`
+          );
+        } */
+
         // Install MCP server requirements if present
         const mcpReqAbs = path.join(workspacePath, MCP_REQ_REL);
         if (await fileExists(mcpReqAbs)) {
@@ -188,6 +252,12 @@ export class SetupService {
 
         // Write/update MCP config for Copilot Chat
         await this.mcp.writeMcpConfig(envFolder);
+        
+        // 🔸 Only offer Copilot if enabled in settings (defaults to true)
+        const offer = vscode.workspace.getConfiguration().get<boolean>('locust.offerCopilotOnInit', true);
+        if (offer) {
+          await ensureCopilotInstalled();
+        }
 
         await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
       }

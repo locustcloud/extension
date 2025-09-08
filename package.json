@@ -35,7 +35,6 @@
   ],
   "activationEvents": [
     "workspaceContains:locustfile.py",
-    "onView:locust.scenarios",
     "onCommand:locust.openWalkthrough"
   ],
   "main": "./out/extension.js",
@@ -51,7 +50,7 @@
     "viewsWelcome": [
       {
         "view": "locust.scenarios",
-        "contents": "Welcome to **Locust**.\n\n- [Open Getting Started](command:locust.openWalkthrough)\n- [Initialize (Install/Detect)](command:locust.init)\n- [Create Simulation](command:locust.createSimulation)"
+        "contents": "Welcome to **Locust**.\n\n- [Open Getting Started](command:locust.openWalkthrough)\n- [Initialize (Install/Detect)](command:locust.init)\n- [Run Headless Scenario](command:locust.runHeadless)"
       }
     ],
     "menus": {
@@ -77,20 +76,25 @@
           "command": "locust.runTaskHeadless",
           "when": "view == locust.scenarios && viewItem == task",
           "group": "inline"
+        },
+        {
+          "command": "locust.convertHar",
+          "when": "view == locust.scenarios",
+          "group": "navigation"
         }
       ]
     },
     "commands": [
       { "command": "locust.init", "title": "Locust: Initialize (Install/Detect)" },
       { "command": "locust.openWalkthrough", "title": "Locust: Open Getting Started Walkthrough" },
-      { "command": "locust.createSimulation", "title": "Locust: Create Simulation…" },
-      { "command": "locust.runUI", "title": "Locust: Run (Web UI)" },
-      { "command": "locust.runHeadless", "title": "Locust: Run (Headless)" },
+      { "command": "locust.runUI", "title": "Locust: Run Scenario (Web UI)" },
+      { "command": "locust.runHeadless", "title": "Locust: Run Scenario (Headless)" },
       { "command": "locust.refreshTree", "title": "Locust: Refresh Scenarios" },
       { "command": "locust.runFileUI", "title": "Locust: Run File (Web UI)" },
       { "command": "locust.runFileHeadless", "title": "Locust: Run File (Headless)" },
       { "command": "locust.runTaskHeadless", "title": "Locust: Run Task (Headless)" },
-      { "command": "locust.runByTag", "title": "Locust: Run by Tag…" }
+      { "command": "locust.runByTag", "title": "Locust: Run by Tag…" },
+      { "command": "locust.convertHar", "title": "Locust: Convert HAR to Locustfile…" }
     ],
     "configuration": {
       "title": "Locust",
@@ -115,6 +119,11 @@
           "enum": ["prompt", "always", "never"],
           "default": "prompt",
           "description": "When the extension activates: prompt to set up the Locust environment, always set it up automatically, or never run setup."
+        },
+        "locust.offerCopilotOnInit": {
+          "type": "boolean",
+          "default": true,
+          "description": "If true, offer to install GitHub Copilot during the Locust: Initialize setup process."
         }
       }
     },
@@ -195,6 +204,7 @@
     "out/**",
     "templates/**",
     "media/**",
+    "typings/**",
     "package.json",
     "README.md",
     "LICENSE"

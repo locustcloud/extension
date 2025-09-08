@@ -13,5 +13,11 @@
     "types": ["node", "vscode", "mocha"]
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", ".vscode-test"]
+  "exclude": [
+    "node_modules",
+    "out",
+    "locust_env",
+    "**/__pycache__",
+    ".vscode-test"
+  ]
 }

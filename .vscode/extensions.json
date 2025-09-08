@@ -2,10 +2,11 @@
   "recommendations": [
     "ms-python.python",          // Python language support
     "ms-python.vscode-pylance",  // Pylance for fast IntelliSense
-    "dbaeumer.vscode-eslint",    // ESLint for your TS/JS sources
-    "esbenp.prettier-vscode"     // Prettier for formatting consistency
+    "dbaeumer.vscode-eslint",    // ESLint for TS/JS sources
+    "esbenp.prettier-vscode",    // Prettier formatting consistency
+    "github.copilot"             // GitHub Copilot
   ],
   "unwantedRecommendations": [
-    "ms-vscode.vscode-typescript-next" // avoid experimental TS unless needed
+    "ms-vscode.vscode-typescript-next" // avoid experimental TS
   ]
 }

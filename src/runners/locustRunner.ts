@@ -42,6 +42,61 @@ export class LocustRunner {
     term.sendText(this.buildLocustCommand(filePath, mode, extraArgs));
   }
 
+  async convertHar() {
+    if (!vscode.workspace.isTrusted) {
+      vscode.window.showWarningMessage('Trust this workspace to run commands.');
+      return;
+    }
+    const ws = vscode.workspace.workspaceFolders?.[0];
+    if (!ws) {
+      vscode.window.showWarningMessage('Open a folder first.');
+      return;
+    }
+
+    // Pick HAR
+    const chosen = await vscode.window.showOpenDialog({
+      canSelectMany: false,
+      openLabel: 'Select HAR file',
+      filters: { HAR: ['har'], All: ['*'] }
+    });
+    if (!chosen || chosen.length === 0) return;
+    const harPath = chosen[0].fsPath;
+
+    // Output name
+    const outName = await vscode.window.showInputBox({
+      prompt: 'Enter output locustfile name',
+      value: 'locustfile_from_har.py'
+    });
+    if (!outName) return;
+
+    const outUri = vscode.Uri.joinPath(ws.uri, outName);
+
+    // Run inside locust_env
+    const term = vscode.window.createTerminal({ name: 'Locust (HAR→Locust)' });
+    term.show();
+
+    const { envFolder } = getConfig();
+    const py = this.env.getEnvInterpreterPath(envFolder);
+
+    term.sendText(`cd "${ws.uri.fsPath}"`);
+    // Use module entrypoint to avoid CLI name confusion (har-to-locust vs har2locust)
+    term.sendText(`"${py}" -m har2locust "${harPath}" > "${outUri.fsPath}"`);
+
+    // Open result
+    try {
+      const doc = await vscode.workspace.openTextDocument(outUri);
+      await vscode.window.showTextDocument(doc, { preview: false });
+    } catch {
+      // If the file isn't ready yet (shell redirection), try again after a tick
+      setTimeout(async () => {
+        try {
+          const doc = await vscode.workspace.openTextDocument(outUri);
+          await vscode.window.showTextDocument(doc, { preview: false });
+        } catch { /* no-op */ }
+      }, 500);
+    }
+  }
+
   async runFile(filePath: string | undefined, mode: RunMode) {
     if (!filePath) {
       vscode.window.showWarningMessage('No file node provided.');
@@ -60,7 +115,7 @@ export class LocustRunner {
     this.runLocustFile(filePath, 'headless');
   }
 
-  // ——— Palette helpers (mirror original behavior) ———
+  //  Palette helpers.
   async runSelected(mode: RunMode) {
     const file = await this.pickLocustfile();
     if (!file) return;
@@ -95,7 +150,7 @@ export class LocustRunner {
     const files = await vscode.workspace.findFiles('**/locustfile*.py', ignoreGlob, 50);
 
     if (files.length === 0) {
-      // AUTO-CREATE from extension template on first run (same as original)
+      // AUTO-CREATE from extension template on first run
       if (!vscode.workspace.isTrusted) {
         vscode.window.showWarningMessage('Trust this workspace to create files.');
         return;

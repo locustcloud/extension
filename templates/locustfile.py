@@ -12,7 +12,8 @@ class MockTarget(FastHttpUser):
     host = "https://mock-test-target.eu-north-1.locust.cloud"
     wait_time = constant(1)
     product_ids = [1, 2, 42, 4711]
-    
+    # Improves completion in editor
+    client: "HttpSession"
 
     def on_start(self):
         # Authenticate once per simulated user
