@@ -28,5 +28,14 @@
 
   // Use workspace TypeScript version
   "typescript.tsdk": "node_modules/typescript/lib",
-  "diffEditor.wordWrap": "on"
+  "diffEditor.wordWrap": "on",
+
+  
+  "[python]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": false
+    },
+    "editor.formatOnSave": false
+  },
+  "ruff.lint.run": "onType"
 }
