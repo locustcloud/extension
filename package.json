@@ -187,14 +187,6 @@
             "media": {
               "markdown": "media/walkthrough/06-edit.md"
             }
-          },
-          {
-            "id": "locust.step.har2locust",
-            "title": "Convert a HAR file",
-            "description": "Record real traffic in your browser, export it as a HAR file, and convert it to a Locustfile with the `/har.to_locust` tool.\n\n[Open HAR Conversion Guide](command:workbench.action.openWalkthrough?%5B%22locust.gettingStarted%22%2C%22locust.step.har2locust%22%5D)",
-            "media": {
-              "markdown": "media/walkthrough/07-har2locust.md"
-            }
           }
         ]
       }

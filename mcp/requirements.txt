@@ -1,5 +1,5 @@
-mcp>=1.2.0
+mcp>=1.9.0
 har2locust>=0.9.3
 locust>=2.15.1
-pydantic>=1.10.7
+pydantic>=2.7
 ruff>=0.12.12
