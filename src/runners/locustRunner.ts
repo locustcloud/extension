@@ -69,32 +69,42 @@ export class LocustRunner {
     });
     if (!outName) return;
 
-    const outUri = vscode.Uri.joinPath(ws.uri, outName);
+    // Write into <workspace>/templates/
+    const templatesDir = vscode.Uri.joinPath(ws.uri, 'templates');
+    const outUri = vscode.Uri.joinPath(templatesDir, outName);
 
-    // Run inside locust_env
-    const term = vscode.window.createTerminal({ name: 'Locust (HAR→Locust)' });
+    // Ensure templates directory exists (needed for shell redirection to succeed)
+    try {
+      await vscode.workspace.fs.createDirectory(templatesDir);
+    } catch {
+      // ignore
+    }
+
+    // Reuse the Locust terminal and ensure venv is active
+    const term = this.getOrCreateLocustTerminal();
     term.show();
 
     const { envFolder } = getConfig();
     const py = this.env.getEnvInterpreterPath(envFolder);
+    this.env.ensureTerminalEnv(term, envFolder);
 
     term.sendText(`cd "${ws.uri.fsPath}"`);
-    // Use module entrypoint to avoid CLI name confusion (har-to-locust vs har2locust)
-    term.sendText(`"${py}" -m har2locust "${harPath}" > "${outUri.fsPath}"`);
+    // Use module entrypoint and disable the Ruff plugin to avoid missing-binary errors
+    term.sendText(`"${py}" -m har2locust --disable-plugins=ruff.py "${harPath}" > "${outUri.fsPath}"`);
 
-    // Open result
-    try {
-      const doc = await vscode.workspace.openTextDocument(outUri);
-      await vscode.window.showTextDocument(doc, { preview: false });
-    } catch {
-      // If the file isn't ready yet (shell redirection), try again after a tick
-      setTimeout(async () => {
-        try {
-          const doc = await vscode.workspace.openTextDocument(outUri);
-          await vscode.window.showTextDocument(doc, { preview: false });
-        } catch { /* no-op */ }
-      }, 500);
-    }
+    // Open result (allow a short delay in case the shell redirection hasn't flushed yet)
+    const tryOpen = async () => {
+      try {
+        const doc = await vscode.workspace.openTextDocument(outUri);
+        await vscode.window.showTextDocument(doc, { preview: false });
+      } catch {
+        setTimeout(tryOpen, 400);
+      }
+    };
+    tryOpen();
+
+    // Optional: refresh Scenarios so new locustfile* shows up if it matches pattern
+    vscode.commands.executeCommand('locust.refreshTree').then(undefined, () => {});
   }
 
   async runFile(filePath: string | undefined, mode: RunMode) {
