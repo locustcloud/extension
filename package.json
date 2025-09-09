@@ -1,6 +1,6 @@
 {
   "name": "locust-vscode-extension",
-  "displayName": "Locust Load Testing",
+  "displayName": "Locust",
   "description": "VS Code extension to scaffold, run, and manage Locust load tests.",
   "version": "0.0.1",
   "publisher": "locust",
