@@ -50,5 +50,34 @@ export class McpService {
     await vscode.workspace.fs.writeFile(target, Buffer.from(JSON.stringify(freshConfig, null, 2), "utf8"));
 
     vscode.window.setStatusBarMessage("MCP configured (fresh) to use workspace venv.", 4000);
+
+    // Try reload Copilot’s MCP servers so the new config is picked up
+    // These command IDs aren’t documented as stable; call defensively and ignore failures.
+    const restartCandidates = [
+      'github.copilot.mcp.reloadServers',
+      'github.copilot.mcp.restartAll',
+    ];
+    let restarted = false;
+    for (const cmd of restartCandidates) {
+      try {
+        const ok = await vscode.commands.executeCommand(cmd as any);
+        // Some commands return undefined; consider it a best-effort.
+        restarted = true;
+        break;
+      } catch {
+        // ignore and try next
+      }
+    }
+
+    if (!restarted) {
+      const choice = await vscode.window.showInformationMessage(
+        'MCP config updated. Reload VS Code to ensure Copilot picks up the new server?',
+        'Reload',
+        'Later'
+      );
+      if (choice === 'Reload') {
+        await vscode.commands.executeCommand('workbench.action.reloadWindow');
+      }
+    }
   }
 }

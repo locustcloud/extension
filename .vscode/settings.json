@@ -3,7 +3,7 @@
   "npm.packageManager": "yarn",
 
   "files.exclude": {
-    "out": false
+    "out": true
   },
   
   // workspace venv setup.ts configures

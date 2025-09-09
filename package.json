@@ -94,7 +94,7 @@
       { "command": "locust.runFileHeadless", "title": "Locust: Run File (Headless)" },
       { "command": "locust.runTaskHeadless", "title": "Locust: Run Task (Headless)" },
       { "command": "locust.runByTag", "title": "Locust: Run by Tag…" },
-      { "command": "locust.convertHar", "title": "Locust: Convert HAR to Locustfile…" }
+      { "command": "locust.convertHar", "title": "Locust: Convert HAR → Locustfile…" }
     ],
     "configuration": {
       "title": "Locust",

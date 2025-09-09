@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { SetupService } from '../services/setupService';
 import { LocustRunner } from '../runners/locustRunner';
 import { LocustTreeProvider } from '../tree/locustTree';
+import { Har2LocustService } from '../services/har2locustService';
+
 
 /**
  * Register commands for the Locust extension.
@@ -12,6 +14,9 @@ export function registerCommands(
   deps: { setup: SetupService; runner: LocustRunner; tree: LocustTreeProvider }
 ) {
   const { setup, runner, tree } = deps;
+
+  // HAR2Locust conversion
+  const har = new Har2LocustService(deps.runner['env'] ?? (deps as any).env ?? (deps as any).setup?.['env']); // fallback – or pass env explicitly if you prefer
 
   ctx.subscriptions.push(
     // Tree refresh – call provider directly (no recursive command invocation)
@@ -36,8 +41,8 @@ export function registerCommands(
         'locust.locust-vscode-extension#locust.gettingStarted'
       )
     ),
-    // HAR2Locust conversion
-    vscode.commands.registerCommand('locust.convertHar', () => runner.convertHar()),
+
+    vscode.commands.registerCommand('locust.convertHar', () => har.convertHarInteractive()),
 
     // Palette commands
     vscode.commands.registerCommand('locust.runUI', () => runner.runSelected('ui')),
