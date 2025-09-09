@@ -1,0 +1,14 @@
+# Ruff configuration for Locust VS Code extension
+
+# Target Python version
+target-version = "py311"
+
+# Directories/files Ruff should skip
+extend-exclude = [
+  "mcp-generated/**",     # HAR→Locust output
+  "templates/locustfile_from_har.py",
+  "locustfile_from_har.py"
+]
+
+# Optionally: enable stricter linting elsewhere
+lint.select = ["E", "F", "W"]   # Errors, Flake8, Warnings

@@ -5,9 +5,9 @@
   "files.exclude": {
     "out": true
   },
-  
-  // workspace venv setup.ts configures
-  "python.defaultInterpreterPath": "/home/pablo/dev24/extension/locust_env/bin/python",
+
+  // Use workspace-relative interpreter (created by your setup flow)
+  "python.defaultInterpreterPath": "${workspaceFolder}/locust_env/bin/python",
 
   // Stronger analysis = better completions & errors
   "python.analysis.typeCheckingMode": "basic",
@@ -30,7 +30,7 @@
   "typescript.tsdk": "node_modules/typescript/lib",
   "diffEditor.wordWrap": "on",
 
-  
+  // Ruff: lint on type, but don't auto-fix on save (protects generated files)
   "[python]": {
     "editor.codeActionsOnSave": {
       "source.fixAll.ruff": false

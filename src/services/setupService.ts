@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import * as fs from 'fs/promises'; // NEW
 import { EnvService } from './envService';
 import { McpService } from './mcpService';
 import { getConfig, WS_SETUP_KEY, MCP_REQ_REL, WORKSPACE_REQ_REL } from '../core/config';
@@ -76,6 +77,75 @@ async function ensureCopilotInstalled() {
   }
 }
 
+// Write a minimal .ruff.toml if it doesn't exist
+async function ensureRuffToml(workspacePath: string) {
+  const ruffPath = path.join(workspacePath, '.ruff.toml');
+  try {
+    await fs.stat(ruffPath);
+    return; // exists
+  } catch {
+    // fallthrough
+  }
+
+  const ruffToml = `target-version = "py311"
+
+extend-exclude = [
+  "mcp-generated/**",
+  "templates/locustfile_from_har.py",
+  "locustfile_from_har.py"
+]
+
+lint.select = ["E", "F", "W"]
+`;
+  await fs.writeFile(ruffPath, ruffToml, 'utf8');
+}
+
+// Merge/update workspace .vscode/settings.json with best-practice bits
+async function ensureWorkspaceSettingsPatched(workspacePath: string) {
+  const vscodeDir = path.join(workspacePath, '.vscode');
+  const settingsPath = path.join(vscodeDir, 'settings.json');
+
+  try { await fs.mkdir(vscodeDir, { recursive: true }); } catch {}
+
+  // Read current (if any)
+  let current: any = {};
+  try {
+    const buf = await fs.readFile(settingsPath, 'utf8');
+    current = JSON.parse(buf);
+  } catch {
+    current = {};
+  }
+
+  // Desired minimal patch
+  const desired = {
+    "python.defaultInterpreterPath": "${workspaceFolder}/locust_env/bin/python",
+    "ruff.lint.run": "onType",
+    "[python]": {
+      "editor.codeActionsOnSave": {
+        "source.fixAll.ruff": false
+      },
+      "editor.formatOnSave": false
+    }
+  };
+
+  // Shallow merge + special merge for [python]
+  const merged: any = { ...current, ...desired };
+
+  if (current["[python]"]) {
+    merged["[python]"] = {
+      ...current["[python]"],
+      ...desired["[python]"],
+      // Merge editor.codeActionsOnSave and editor.formatOnSave at the top level
+      "editor.codeActionsOnSave": {
+        ...(current["[python]"]?.["editor.codeActionsOnSave"] ?? {}),
+        ...(desired["[python]"]?.["editor.codeActionsOnSave"] ?? {})
+      },
+      "editor.formatOnSave": desired["[python]"]["editor.formatOnSave"]
+    };
+  }
+
+  await fs.writeFile(settingsPath, JSON.stringify(merged, null, 2), 'utf8');
+}
 
 export class SetupService {
   constructor(
@@ -202,7 +272,7 @@ export class SetupService {
         // Ensure har2locust is present for MCP/CLI usage
         term.sendText(`"${pipPath}" install har2locust`);
 
-        // ✅ Also install ruff (used by har2locust default plugin)
+        // ✅ Also install ruff (used by har2locust default plugin and generally useful)
         term.sendText(`"${pipPath}" install ruff`);
 
         // Install MCP server requirements if present
@@ -226,7 +296,11 @@ export class SetupService {
 
         // Write/update MCP config for Copilot Chat
         await this.mcp.writeMcpConfig(envFolder);
-        
+
+        // NEW: Drop best-practice Ruff config and patch workspace settings
+        await ensureRuffToml(workspacePath);
+        await ensureWorkspaceSettingsPatched(workspacePath);
+
         // 🔸 Only offer Copilot if enabled in settings (defaults to true)
         const offer = vscode.workspace.getConfiguration().get<boolean>('locust.offerCopilotOnInit', true);
         if (offer) {
