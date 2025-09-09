@@ -1,0 +1,2 @@
+[console_scripts]
+har2locust = har2locust.__main__:__main__

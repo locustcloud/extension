@@ -16,7 +16,6 @@
   "exclude": [
     "node_modules",
     "out",
-    "locust_env",
     "**/__pycache__",
     ".vscode-test"
   ]

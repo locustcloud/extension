@@ -7,7 +7,7 @@
   },
   
   // workspace venv setup.ts configures
-  "python.defaultInterpreterPath": "${workspaceFolder}/locust_env/bin/python",
+  "python.defaultInterpreterPath": "/home/pablo/dev24/extension/locust_env/bin/python",
 
   // Stronger analysis = better completions & errors
   "python.analysis.typeCheckingMode": "basic",
@@ -27,5 +27,6 @@
   "python.analysis.stubPath": "typings",
 
   // Use workspace TypeScript version
-  "typescript.tsdk": "node_modules/typescript/lib"
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "diffEditor.wordWrap": "on"
 }

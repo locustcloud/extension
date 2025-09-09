@@ -204,10 +204,9 @@
     "out/**",
     "templates/**",
     "media/**",
-    "typings/**",
+    "mcp/**",
     "package.json",
-    "README.md",
-    "LICENSE"
+    "README.md"
   ],
   "repository": {
     "type": "git",

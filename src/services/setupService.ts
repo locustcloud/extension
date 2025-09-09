@@ -205,32 +205,6 @@ export class SetupService {
         // ✅ Also install ruff (used by har2locust default plugin)
         term.sendText(`"${pipPath}" install ruff`);
 
-        /** Add a shim so "har-to-locust" also works (Copilot workaround)
-        if (isWin) {
-          // Windows: create Scripts\har-to-locust.cmd
-          const shimPathWin = `${envFolder}\\Scripts\\har-to-locust.cmd`;
-          // Use PowerShell to create the file if it doesn't exist
-          term.sendText(
-            `$shim = "${shimPathWin}"; ` +
-            `if (!(Test-Path $shim)) { ` +
-              `@'` + // here-string start
-        `\@echo off
-        "%~dp0python.exe" -m har2locust %*` + // note: leading backslash escapes @ in PS here-string above
-        `'@ | Out-File -FilePath $shim -Encoding ascii -Force; ` +
-            `}`
-          );
-        } else {
-          // POSIX: create bin/har-to-locust
-          const shimPathPosix = `${envFolder}/bin/har-to-locust`;
-          term.sendText(
-            `SHIM="${shimPathPosix}"; ` +
-            `if [ ! -f "$SHIM" ]; then ` +
-              `printf '%s\n' '#!/usr/bin/env bash' '"${envFolder}/bin/python" -m har2locust "$@"' > "$SHIM"; ` +
-              `chmod +x "$SHIM"; ` +
-            `fi`
-          );
-        } */
-
         // Install MCP server requirements if present
         const mcpReqAbs = path.join(workspacePath, MCP_REQ_REL);
         if (await fileExists(mcpReqAbs)) {

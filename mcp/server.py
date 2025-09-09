@@ -66,7 +66,6 @@ def _run_har2locust(input_path: Path, extra_args: Optional[List[str]] = None) ->
     raise RuntimeError(last_err or "har2locust invocation failed")
 
 
-
 @server.tool(
     Tool(
         name="har.to_locust",
