@@ -34,8 +34,7 @@
     "python"
   ],
   "activationEvents": [
-    "workspaceContains:locustfile.py",
-    "onCommand:locust.openWalkthrough"
+    "workspaceContains:locustfile.py"
   ],
   "main": "./out/extension.js",
   "contributes": {

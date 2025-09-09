@@ -33,7 +33,7 @@
   // Ruff: lint on type, but don't auto-fix on save (protects generated files)
   "[python]": {
     "editor.codeActionsOnSave": {
-      "source.fixAll.ruff": false
+      "source.fixAll.ruff": "never"
     },
     "editor.formatOnSave": false
   },
