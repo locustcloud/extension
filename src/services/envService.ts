@@ -47,9 +47,6 @@ export class EnvService {
     return 'python';
   }
 
-  /* ─────────────────────────────────────────────────────────────
-     Optional helpers (kept for compatibility with other runners)
-     ───────────────────────────────────────────────────────────── */
 
   /** Create a fresh terminal for setup/runner usage. */
   createFreshLocustTerminal(name = 'Locust'): vscode.Terminal {
