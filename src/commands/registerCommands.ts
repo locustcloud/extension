@@ -23,12 +23,24 @@ export function registerCommands(
     vscode.commands.registerCommand('locust.refreshTree', () => tree.refresh()),
 
     // Tree/context commands
-    vscode.commands.registerCommand('locust.runFileUI', (node?: { filePath?: string; resourceUri?: vscode.Uri }) =>
-      runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'ui')
+    vscode.commands.registerCommand(
+      'locust.runFileUI',
+      async (node?: { filePath?: string; resourceUri?: vscode.Uri }) => {
+        // Start Locust with UI
+        await runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'ui');
+
+        // Open in VS Code’s built-in simple browser
+        vscode.commands.executeCommand(
+          'simpleBrowser.show',
+          vscode.Uri.parse('http://localhost:8089')
+        );
+      }
     ),
+    
     vscode.commands.registerCommand('locust.runFileHeadless', (node?: { filePath?: string; resourceUri?: vscode.Uri }) =>
       runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'headless')
     ),
+    
     vscode.commands.registerCommand('locust.runTaskHeadless', (node) => runner.runTaskHeadless(node)),
 
     // Setup (user-driven)

@@ -52,4 +52,4 @@ def har_to_locust(
 
 if __name__ == "__main__":
     # If FastMCP loads, this should block and respond to initialize
-    app.run_stdio()
+    app.run()
