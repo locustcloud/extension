@@ -8,6 +8,11 @@ import * as fs from 'fs/promises';
 
 const execFile = promisify(cp.execFile);
 
+// Fallback for older VS Code API: emulate Uri.joinPath
+function uriJoinPath(base: vscode.Uri, ...paths: string[]): vscode.Uri {
+  return vscode.Uri.file(path.join(base.fsPath, ...paths));
+}
+
 export class Har2LocustService {
   constructor(private env: EnvService) {}
 
@@ -30,8 +35,7 @@ export class Har2LocustService {
     if (!picked || picked.length === 0) return;
     const harPath = picked[0].fsPath;
 
-    // Use a dedicated output dir to avoid tooling races (e.g., Ruff)
-    const outDir = vscode.Uri.joinPath(ws.uri, 'mcp-generated');
+    const outDir = uriJoinPath(ws.uri, 'mcp-generated');
     try { await vscode.workspace.fs.stat(outDir); } catch { await vscode.workspace.fs.createDirectory(outDir); }
 
     const outName = await vscode.window.showInputBox({
@@ -41,7 +45,7 @@ export class Har2LocustService {
     });
     if (!outName) return;
 
-    const outUri = vscode.Uri.joinPath(outDir, outName);
+    const outUri = uriJoinPath(ws.uri, 'mcp-generated', outName);
 
     const applyOptions = await vscode.window.showQuickPick(
       [
@@ -85,15 +89,14 @@ export class Har2LocustService {
     if (!ws) return;
 
     const { envFolder } = getConfig();
-    const py = this.env.getEnvInterpreterPath(envFolder) || 'python';
+    const py = await this.env.resolvePython(envFolder);
 
-    // Build args safely (no shell needed)
     const args: string[] = ['-m', 'har2locust'];
-    if (opts.template) { args.push('--template', opts.template); }
-    if (opts.plugins) { args.push('--plugins', opts.plugins); }
-    if (opts.disablePlugins) { args.push('--disable-plugins', opts.disablePlugins); }
-    if (opts.resourceTypes) { args.push('--resource-types', opts.resourceTypes); }
-    if (opts.logLevel) { args.push('--loglevel', opts.logLevel); }
+    if (opts.template)        args.push('--template', opts.template);
+    if (opts.plugins)         args.push('--plugins', opts.plugins);
+    if (opts.disablePlugins)  args.push('--disable-plugins', opts.disablePlugins);
+    if (opts.resourceTypes)   args.push('--resource-types', opts.resourceTypes);
+    if (opts.logLevel)        args.push('--loglevel', opts.logLevel);
     args.push(harPath);
 
     const cwd = ws.uri.fsPath;
@@ -114,8 +117,8 @@ export class Har2LocustService {
 
 export interface Har2LocustOptions {
   template?: string;
-  plugins?: string;          // comma-separated
-  disablePlugins?: string;   // comma-separated
-  resourceTypes?: string;    // comma-separated
-  logLevel?: string;         // e.g. INFO / DEBUG
+  plugins?: string;
+  disablePlugins?: string;
+  resourceTypes?: string;
+  logLevel?: string;
 }

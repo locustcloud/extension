@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { getConfig } from '../core/config';
 import { EnvService } from '../services/envService';
+import path from 'path';
 
 /**
  * Locust run functions.
@@ -10,6 +11,11 @@ import { EnvService } from '../services/envService';
 
 type RunMode = 'ui' | 'headless';
 
+
+// Fallback for older VS Code API: emulate Uri.joinPath
+function uriJoinPath(base: vscode.Uri, ...paths: string[]): vscode.Uri {
+  return vscode.Uri.file(path.join(base.fsPath, ...paths));
+}
 
 export class LocustRunner {
   constructor(private env: EnvService, private extensionUri: vscode.Uri) {}
@@ -42,71 +48,7 @@ export class LocustRunner {
     term.sendText(this.buildLocustCommand(filePath, mode, extraArgs));
   }
 
-  async convertHar() {
-    if (!vscode.workspace.isTrusted) {
-      vscode.window.showWarningMessage('Trust this workspace to run commands.');
-      return;
-    }
-    const ws = vscode.workspace.workspaceFolders?.[0];
-    if (!ws) {
-      vscode.window.showWarningMessage('Open a folder first.');
-      return;
-    }
-
-    // Pick HAR
-    const chosen = await vscode.window.showOpenDialog({
-      canSelectMany: false,
-      openLabel: 'Select HAR file',
-      filters: { HAR: ['har'], All: ['*'] }
-    });
-    if (!chosen || chosen.length === 0) return;
-    const harPath = chosen[0].fsPath;
-
-    // Output name
-    const outName = await vscode.window.showInputBox({
-      prompt: 'Enter output locustfile name',
-      value: 'locustfile_from_har.py'
-    });
-    if (!outName) return;
-
-    // Write into <workspace>/templates/
-    const templatesDir = vscode.Uri.joinPath(ws.uri, 'templates');
-    const outUri = vscode.Uri.joinPath(templatesDir, outName);
-
-    // Ensure templates directory exists (needed for shell redirection to succeed)
-    try {
-      await vscode.workspace.fs.createDirectory(templatesDir);
-    } catch {
-      // ignore
-    }
-
-    // Reuse the Locust terminal and ensure venv is active
-    const term = this.getOrCreateLocustTerminal();
-    term.show();
-
-    const { envFolder } = getConfig();
-    const py = this.env.getEnvInterpreterPath(envFolder);
-    this.env.ensureTerminalEnv(term, envFolder);
-
-    term.sendText(`cd "${ws.uri.fsPath}"`);
-    // Use module entrypoint and disable the Ruff plugin to avoid missing-binary errors
-    term.sendText(`"${py}" -m har2locust --disable-plugins=ruff.py "${harPath}" > "${outUri.fsPath}"`);
-
-    // Open result (allow a short delay in case the shell redirection hasn't flushed yet)
-    const tryOpen = async () => {
-      try {
-        const doc = await vscode.workspace.openTextDocument(outUri);
-        await vscode.window.showTextDocument(doc, { preview: false });
-      } catch {
-        setTimeout(tryOpen, 400);
-      }
-    };
-    tryOpen();
-
-    // Optional: refresh Scenarios so new locustfile* shows up if it matches pattern
-    vscode.commands.executeCommand('locust.refreshTree').then(undefined, () => {});
-  }
-
+ 
   async runFile(filePath: string | undefined, mode: RunMode) {
     if (!filePath) {
       vscode.window.showWarningMessage('No file node provided.');
@@ -165,18 +107,18 @@ export class LocustRunner {
         vscode.window.showWarningMessage('Trust this workspace to create files.');
         return;
       }
-      const templatesDir = vscode.Uri.joinPath(this.extensionUri, 'templates');
+      const templatesDir = uriJoinPath(this.extensionUri, 'templates');
       try {
         const entries = await vscode.workspace.fs.readDirectory(templatesDir);
         const locustfileEntry = entries.find(
           ([name, type]) => type === vscode.FileType.File && name.toLowerCase() === 'locustfile.py'
         );
         const templateUri = locustfileEntry
-          ? vscode.Uri.joinPath(templatesDir, locustfileEntry[0])
-          : vscode.Uri.joinPath(templatesDir, entries.find(([, t]) => t === vscode.FileType.File)![0]);
+          ? uriJoinPath(templatesDir, locustfileEntry[0])
+          : uriJoinPath(templatesDir, entries.find(([, t]) => t === vscode.FileType.File)![0]);
 
         const bytes = await vscode.workspace.fs.readFile(templateUri);
-        const dest = vscode.Uri.joinPath(ws.uri, 'locustfile.py');
+        const dest = uriJoinPath(ws.uri, 'locustfile.py');
         await vscode.workspace.fs.writeFile(dest, bytes);
 
         const doc = await vscode.workspace.openTextDocument(dest);

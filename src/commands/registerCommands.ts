@@ -2,16 +2,21 @@ import * as vscode from 'vscode';
 import { SetupService } from '../services/setupService';
 import { LocustRunner } from '../runners/locustRunner';
 import { LocustTreeProvider } from '../tree/locustTree';
-import { Har2LocustService } from '../services/har2locustService';
+import { Har2LocustRunner } from '../runners/har2locustRunner';
 
 /**
  * Register commands for the Locust extension.
  */
 export function registerCommands(
   ctx: vscode.ExtensionContext,
-  deps: { setup: SetupService; runner: LocustRunner; har: Har2LocustService; tree: LocustTreeProvider }
+  deps: {
+    setup: SetupService;
+    runner: LocustRunner;
+    harRunner: Har2LocustRunner;
+    tree: LocustTreeProvider;
+  }
 ) {
-  const { setup, runner, har, tree } = deps;
+  const { setup, runner, harRunner, tree } = deps;
 
   ctx.subscriptions.push(
     // Tree refresh – call provider directly (no recursive command invocation)
@@ -26,7 +31,7 @@ export function registerCommands(
     ),
     vscode.commands.registerCommand('locust.runTaskHeadless', (node) => runner.runTaskHeadless(node)),
 
-    // Setup
+    // Setup (user-driven)
     vscode.commands.registerCommand('locust.init', () => setup.checkAndOfferSetup({ forcePrompt: true })),
 
     // Walkthrough
@@ -37,10 +42,10 @@ export function registerCommands(
       )
     ),
 
-    // HAR → Locustfile
-    vscode.commands.registerCommand('locust.convertHar', () => har.convertHarInteractive()),
+    // HAR → Locustfile (delegate to runner -> service)
+    vscode.commands.registerCommand('locust.convertHar', () => harRunner.convertHar()),
 
-    // Palette commands
+    // Palette convenience
     vscode.commands.registerCommand('locust.runUI', () => runner.runSelected('ui')),
     vscode.commands.registerCommand('locust.runHeadless', () => runner.runSelected('headless')),
     vscode.commands.registerCommand('locust.runByTag', () => runner.runByTag()),

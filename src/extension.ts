@@ -1,32 +1,41 @@
 import * as vscode from 'vscode';
-import { LocustTreeProvider } from './tree/locustTree';
+import { registerCommands } from './commands/registerCommands';
 import { EnvService } from './services/envService';
 import { McpService } from './services/mcpService';
 import { SetupService } from './services/setupService';
 import { LocustRunner } from './runners/locustRunner';
 import { Har2LocustService } from './services/har2locustService';
-import { registerCommands } from './commands/registerCommands';
+import { Har2LocustRunner } from './runners/har2locustRunner';
+import { LocustTreeProvider } from './tree/locustTree';
 
-/**
-* This method is called when your extension is activated
-* the extension is activated the very first time the command is executed
-*/
-export function activate(ctx: vscode.ExtensionContext) {
+export async function activate(ctx: vscode.ExtensionContext) {
+  // Core services
   const env = new EnvService();
-  const mcp = new McpService(env);
+  const mcp = new McpService();
   const setup = new SetupService(env, mcp, ctx);
-  const runner = new LocustRunner(env, ctx.extensionUri);
-  const har = new Har2LocustService(env);
 
+  // Runners / Services
+  const locustRunner = new LocustRunner(env, ctx.extensionUri);
+  const harService = new Har2LocustService(env);
+  const harRunner = new Har2LocustRunner(env, harService);
+
+  // Tree
   const tree = new LocustTreeProvider();
   const treeView = vscode.window.createTreeView('locust.scenarios', { treeDataProvider: tree });
   ctx.subscriptions.push(treeView, tree);
 
-  // Pass tree 
-  registerCommands(ctx, { setup, runner, har, tree });
+  // Commands
+  registerCommands(ctx, {
+    setup,
+    runner: locustRunner,
+    harRunner,
+    tree,
+  });
 
-  setup.repairWorkspaceInterpreterIfBroken().catch(err => console.error(err));
-  setup.checkAndOfferSetup().catch(err => console.error(err));
+  // Optional: lightweight health check or auto-repair on activation
+  // await setup.repairWorkspaceInterpreterIfBroken(); // uncomment if you want auto-repair
 }
 
-export function deactivate() {}
+export function deactivate() {
+  // noop
+}

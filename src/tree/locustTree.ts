@@ -18,7 +18,7 @@ interface LocustNode {
 }
 
 export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, vscode.Disposable {
-  private emitter = new vscode.EventEmitter<LocustNode | void>();
+  private emitter = new vscode.EventEmitter<LocustNode | null | undefined>();
   readonly onDidChangeTreeData = this.emitter.event;
 
   private watchers: vscode.FileSystemWatcher[] = [];
@@ -43,7 +43,7 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
   }
 
   refresh(): void {
-    this.emitter.fire();
+    this.emitter.fire(undefined);
   }
 
   private refreshDebounced(ms = 250) {
@@ -76,8 +76,8 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     if (element.kind === 'file') {
       const text = await this.read(element.fileUri);
       const users: LocustNode[] = [];
-      // class MyUser(HttpUser): or class MyUser(User):
-      const userRegex = /class\s+([A-Za-z_]\w*)\s*\(\s*(HttpUser|User)\s*\)\s*:/g;
+      // class MyUser(FastHttpUser|HttpUser|User):
+      const userRegex = /class\s+([A-Za-z_]\w*)\s*\(\s*(FastHttpUser|HttpUser|User)\s*\)\s*:/g;
       let m: RegExpExecArray | null;
       while ((m = userRegex.exec(text)) !== null) {
         users.push({
@@ -141,14 +141,9 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
       };
     }
 
-    // Icons
-    if (element.kind === 'file') item.iconPath = new vscode.ThemeIcon('file-code');
-    if (element.kind === 'user') item.iconPath = new vscode.ThemeIcon('account');
-    if (element.kind === 'task') item.iconPath = new vscode.ThemeIcon('run');
-
     return item;
   }
-
+ 
   // Utils
   private async read(uri: vscode.Uri): Promise<string> {
     const bytes = await vscode.workspace.fs.readFile(uri);

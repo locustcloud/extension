@@ -84,16 +84,46 @@
       ]
     },
     "commands": [
-      { "command": "locust.init", "title": "Locust: Initialize (Install/Detect)" },
-      { "command": "locust.openWalkthrough", "title": "Locust: Open Getting Started Walkthrough" },
-      { "command": "locust.runUI", "title": "Locust: Run Scenario (Web UI)" },
-      { "command": "locust.runHeadless", "title": "Locust: Run Scenario (Headless)" },
-      { "command": "locust.refreshTree", "title": "Locust: Refresh Scenarios" },
-      { "command": "locust.runFileUI", "title": "Locust: Run File (Web UI)" },
-      { "command": "locust.runFileHeadless", "title": "Locust: Run File (Headless)" },
-      { "command": "locust.runTaskHeadless", "title": "Locust: Run Task (Headless)" },
-      { "command": "locust.runByTag", "title": "Locust: Run by Tag…" },
-      { "command": "locust.convertHar", "title": "Locust: Convert HAR → Locustfile…" }
+      {
+        "command": "locust.init",
+        "title": "Locust: Initialize (Install/Detect)"
+      },
+      {
+        "command": "locust.openWalkthrough",
+        "title": "Locust: Open Getting Started Walkthrough"
+      },
+      {
+        "command": "locust.runUI",
+        "title": "Locust: Run Scenario (Web UI)"
+      },
+      {
+        "command": "locust.runHeadless",
+        "title": "Locust: Run Scenario (Headless)"
+      },
+      {
+        "command": "locust.refreshTree",
+        "title": "Locust: Refresh Scenarios"
+      },
+      {
+        "command": "locust.runFileUI",
+        "title": "Locust: Run File (Web UI)"
+      },
+      {
+        "command": "locust.runFileHeadless",
+        "title": "Locust: Run File (Headless)"
+      },
+      {
+        "command": "locust.runTaskHeadless",
+        "title": "Locust: Run Task (Headless)"
+      },
+      {
+        "command": "locust.runByTag",
+        "title": "Locust: Run by Tag…"
+      },
+      {
+        "command": "locust.convertHar",
+        "title": "Locust: Convert HAR → Locustfile…"
+      }
     ],
     "configuration": {
       "title": "Locust",
@@ -115,7 +145,11 @@
         },
         "locust.autoSetup": {
           "type": "string",
-          "enum": ["prompt", "always", "never"],
+          "enum": [
+            "prompt",
+            "always",
+            "never"
+          ],
           "default": "prompt",
           "description": "When the extension activates: prompt to set up the Locust environment, always set it up automatically, or never run setup."
         },
@@ -219,12 +253,13 @@
     "@types/chai": "^5.2.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.0.0",
-    "@types/vscode": "^1.90.0",
+    "@types/vscode": "1.90.0",
     "@vscode/test-electron": "^2.5.2",
     "chai": "^6.0.1",
     "glob": "^11.0.3",
     "mocha": "^11.7.2",
     "typescript": "^5.4.0",
-    "vsce": "^2.15.0"
+    "vsce": "^2.15.0",
+    "vscode": "^1.1.37"
   }
 }

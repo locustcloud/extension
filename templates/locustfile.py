@@ -36,9 +36,3 @@ class MockTarget(FastHttpUser):
                 ok = False
             if not ok:
                 resp.failure("orderId missing in checkout response")
-
-
-@mcp.tool("locust.template")
-def locust_template() -> str:
-    """Return a minimal FastHttpUser template."""
-    return Path(__file__).parent.parent / "templates" / "locust.py"
