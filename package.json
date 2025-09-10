@@ -49,7 +49,7 @@
     "viewsWelcome": [
       {
         "view": "locust.scenarios",
-        "contents": "Welcome to **Locust**.\n\n- [Open Getting Started](command:locust.openWalkthrough)\n- [Initialize (Install/Detect)](command:locust.init)\n- [Run Headless Scenario](command:locust.runHeadless)"
+        "contents": "Welcome to **Locust**.\n\n- [Open Getting Started](command:locust.openWalkthrough)\n- [Initialize (Install/Detect)](command:locust.init)"
       }
     ],
     "menus": {
@@ -75,11 +75,6 @@
           "command": "locust.runTaskHeadless",
           "when": "view == locust.scenarios && viewItem == task",
           "group": "inline"
-        },
-        {
-          "command": "locust.convertHar",
-          "when": "view == locust.scenarios",
-          "group": "navigation"
         }
       ]
     },
