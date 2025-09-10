@@ -1,5 +1,12 @@
 {
-  // See http://go.microsoft.com/fwlink/?LinkId=827846
-  // for the documentation about the extensions.json format
-  "recommendations": ["dbaeumer.vscode-eslint", "amodio.tsl-problem-matcher", "ms-vscode.extension-test-runner"]
+  "recommendations": [
+    "ms-python.python",          // Python language support
+    "ms-python.vscode-pylance",  // Pylance for fast IntelliSense
+    "dbaeumer.vscode-eslint",    // ESLint for TS/JS sources
+    "esbenp.prettier-vscode",    // Prettier formatting consistency
+    "github.copilot"             // GitHub Copilot
+  ],
+  "unwantedRecommendations": [
+    "ms-vscode.vscode-typescript-next" // avoid experimental TS
+  ]
 }

@@ -1,0 +1,40 @@
+{
+  "Locust task": {
+    "prefix": "loctask",
+    "body": [
+      "@task",
+      "def ${1:name}(self):",
+      "    self.client.${2|get,post,put,delete|}(\"${3:/}\")$0"
+    ],
+    "description": "Insert a Locust @task method that makes a simple request"
+  },
+
+  "Locust FastHttpUser class": {
+    "prefix": "locuser",
+    "body": [
+      "from locust import FastHttpUser, task, constant",
+      "",
+      "class ${1:MyUser}(FastHttpUser):",
+      "    \"\"\"Example user with a simple GET task.\"\"\"",
+      "    wait_time = constant(${2:1})",
+      "",
+      "    @task",
+      "    def ${3:example}(self):",
+      "        self.client.get(\"${4:/}\")$0"
+    ],
+    "description": "Boilerplate FastHttpUser with a basic GET task"
+  },
+
+  "Locust tagged task": {
+    "prefix": "loctag",
+    "body": [
+      "from locust import tag, task",
+      "",
+      "@tag(\"${1:checkout}\")",
+      "@task",
+      "def ${2:name}(self):",
+      "    self.client.${3|post,get,put,delete|}(\"${4:/api}\", ${5:json=${6:{}}})$0"
+    ],
+    "description": "Task with a @tag for selective runs (use --tags <tag>)"
+  }
+}

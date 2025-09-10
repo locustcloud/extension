@@ -1,0 +1,22 @@
+{
+  "include": [
+    "locustfile.py",
+    "mcp",
+    "src"
+  ],
+  "exclude": [
+    "locust_env",
+    "**/__pycache__",
+    "node_modules",
+    "out",
+    ".vscode-test"
+  ],
+  "venvPath": ".",
+  "venv": "locust_env",
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic",
+  "reportMissingTypeStubs": "warning",
+  "reportMissingImports": true,
+  "reportMissingModuleSource": true,
+  "autoImportCompletions": true
+}

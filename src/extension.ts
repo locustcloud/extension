@@ -1,26 +1,41 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { registerCommands } from './commands/registerCommands';
+import { EnvService } from './services/envService';
+import { McpService } from './services/mcpService';
+import { SetupService } from './services/setupService';
+import { LocustRunner } from './runners/locustRunner';
+import { Har2LocustService } from './services/har2locustService';
+import { Har2LocustRunner } from './runners/har2locustRunner';
+import { LocustTreeProvider } from './tree/locustTree';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(ctx: vscode.ExtensionContext) {
+  // Core services
+  const env = new EnvService();
+  const mcp = new McpService();
+  const setup = new SetupService(env, mcp, ctx);
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "locust" is now active!');
+  // Runners / Services
+  const locustRunner = new LocustRunner(env, ctx.extensionUri);
+  const harService = new Har2LocustService(env);
+  const harRunner = new Har2LocustRunner(env, harService);
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('locust.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from Locust!');
-	});
+  // Tree
+  const tree = new LocustTreeProvider();
+  const treeView = vscode.window.createTreeView('locust.scenarios', { treeDataProvider: tree });
+  ctx.subscriptions.push(treeView, tree);
 
-	context.subscriptions.push(disposable);
+  // Commands
+  registerCommands(ctx, {
+    setup,
+    runner: locustRunner,
+    harRunner,
+    tree,
+  });
+
+  // Optional: lightweight health check or auto-repair on activation
+  // await setup.repairWorkspaceInterpreterIfBroken(); // uncomment if you want auto-repair
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() {
+  // noop
+}
