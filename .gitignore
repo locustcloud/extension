@@ -6,3 +6,4 @@ node_modules
 .vscode/mcp.json
 locust_env
 locustfile_from_har.py
+mcp_generated
