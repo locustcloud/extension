@@ -1,4 +1,3 @@
-# mcp/server.py
 from pathlib import Path
 import subprocess, sys
 try:
