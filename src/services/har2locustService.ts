@@ -102,7 +102,7 @@ export class Har2LocustService {
 
     let py: string;
     try {
-      // 🔑 strict resolver: throws if nothing usable is found
+      // Strict resolver: throws if nothing usable is found
       py = await this.env.resolvePythonStrict(envFolder);
     } catch (e: any) {
       vscode.window.showErrorMessage(
@@ -130,7 +130,6 @@ export class Har2LocustService {
       vscode.commands.executeCommand('locust.refreshTree').then(undefined, () => {});
     } catch (err: any) {
       const stderr = err?.stderr || '';
-      // helpful hint if har2locust isn't installed in this interpreter
       const extra =
         /No module named ['"]?har2locust['"]?/.test(stderr) || /ModuleNotFoundError:.*har2locust/.test(stderr)
           ? ' Tip: run “Locust: Initialize (Install/Detect)” to install har2locust into the selected interpreter.'

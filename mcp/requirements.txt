@@ -3,4 +3,3 @@ har2locust>=0.9.3
 locust>=2.15.1
 pydantic>=2.7
 ruff>=0.12.12
-fastmcp>=2.12.2
