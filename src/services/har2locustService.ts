@@ -37,21 +37,29 @@ export class Har2LocustService {
       filters: { HAR: ['har'], All: ['*'] }
     });
     if (!picked || picked.length === 0) {return;}
+
     const harPath = picked[0].fsPath;
+    const harBase = path.basename(harPath, '.har'); // strip extension
 
-    // Output dir
-    const outDir = uriJoinPath(ws.uri, 'mcp-generated');
-    try { await vscode.workspace.fs.stat(outDir); } catch { await vscode.workspace.fs.createDirectory(outDir); }
+    // Output dir = <workspace>/templates
+    const outDir = uriJoinPath(ws.uri, 'templates');
+    try {
+      await vscode.workspace.fs.stat(outDir);
+    } catch {
+      await vscode.workspace.fs.createDirectory(outDir);
+    }
 
-    // Output name
+    // Default output file name based on HAR name
+    const defaultOut = `${harBase}_locustfile.py`;
+
     const outName = await vscode.window.showInputBox({
       prompt: 'Enter output locustfile name',
-      value: 'locustfile_from_har.py',
+      value: defaultOut,
       validateInput: (v) => v.trim() ? undefined : 'File name is required'
     });
     if (!outName) {return;}
 
-    const outUri = uriJoinPath(ws.uri, 'mcp-generated', outName);
+    const outUri = uriJoinPath(ws.uri, 'templates', outName); 
 
     // Optional flags
     const applyOptions = await vscode.window.showQuickPick(
