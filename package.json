@@ -162,6 +162,69 @@
       }
     ],
     "walkthroughs": [
+        {
+        "id": "locust.copilotWalkthrough",
+        "title": "Copilot Walkthrough",
+        "description": "Use GitHub Copilot + MCP to generate Locustfiles from HAR, run them in UI or headless mode, and explore tasks/tags.",
+        "steps": [
+        {
+          "id": "convertHar",
+          "title": "Convert HAR → Locustfile",
+          "description": "Ask Copilot: `Convert samples/sample.har to a locustfile and save it as templates/sample_locustfile.py`",
+          "media": {
+            "markdown": "./walkthrough/08-copilot.md"
+          }
+        },
+        {
+          "id": "listTasks",
+          "title": "List tasks and tags",
+          "description": "Ask Copilot: `List tasks and tags in templates/sample_locustfile.py`",
+          "media": {
+            "markdown": "./walkthrough/08-copilot.md"
+          }
+        },
+        {
+          "id": "runUI",
+          "title": "Run Locust in UI mode",
+          "description": "Ask Copilot: `Start Locust UI using templates/sample_locustfile.py against https://mock-test-target.eu-north-1.locust.cloud`",
+          "media": {
+            "markdown": "./walkthrough/08-copilot.md"
+          }
+        },
+        {
+          "id": "stopProcess",
+          "title": "Stop Locust",
+          "description": "Ask Copilot: `Stop Locust process PID <pid>`",
+          "media": {
+            "markdown": "./walkthrough/08-copilot.md"
+          }
+        },
+        {
+          "id": "runHeadless",
+          "title": "Run Locust in headless mode",
+          "description": "Ask Copilot: `Run headless for 1m with 10 users, spawn rate 2, tags=checkout using templates/sample_locustfile.py`",
+          "media": {
+            "markdown": "./walkthrough/08-copilot.md"
+          }
+        },
+        {
+          "id": "openTree",
+          "title": "Open Locust Scenarios tree",
+          "description": "Ask Copilot: `Open Locust Scenarios tree view`",
+          "media": {
+            "markdown": "./walkthrough/08-copilot.md"
+          }
+        },
+        {
+          "id": "runTask",
+          "title": "Run a specific task",
+          "description": "Ask Copilot: `Run headless for 1m with 10 users, spawn rate 2, task=checkout using templates/sample_locustfile.py`",
+          "media": {
+            "markdown": "./walkthrough/08-copilot.md"
+          }
+        }
+        ]
+      },
       {
         "id": "locust.gettingStarted",
         "title": "Getting started with Locust",
@@ -195,7 +258,7 @@
           {
             "id": "locust.step.runUI",
             "title": "Run with the Web UI",
-            "description": "Launch Locust’s Web UI and watch requests live.\n\n[Run Web UI](command:locust.runUI)",
+            "description": "Launch Locust Web UI and watch requests live.\n\n[Run Web UI](command:locust.runUI)",
             "media": {
               "markdown": "media/walkthrough/04-ui.md"
             }

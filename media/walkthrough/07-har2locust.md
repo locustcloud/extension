@@ -36,7 +36,7 @@ Open **Copilot Chat** inside VS Code and run:
 /har.to_locust {
   "har_path": "/absolute/path/to/recording.har",
   "user_class": "RecordedUser",
-  "write_to": "locustfile_from_har.py"
+  "write_to": "templates/recording_locustfile.py"
 }
 ````
 
@@ -53,13 +53,13 @@ The generated Locustfile will also be displayed inline in Copilot Chat.
 Once created, run the scenario just like any other Locust test:
 
 ```bash
-locust -f locustfile_from_har.py --headless -u 20 -r 2 -t 1m
+locust -f recording_locustfile.py --headless -u 20 -r 2 -t 1m
 ```
 
 or open the Web UI:
 
 ```bash
-locust -f locustfile_from_har.py
+locust -f recording_locustfile.py
 ```
 
 ---
