@@ -42,7 +42,7 @@ async function canImport(python: string, moduleName: string, cwd?: string): Prom
 //Ruff + settings (best-practice)
 async function ensureRuffToml(workspacePath: string) {
   const ruffPath = path.join(workspacePath, '.ruff.toml');
-  if (await fileExists(ruffPath)) return;
+  if (await fileExists(ruffPath)) {return;}
 
   const ruffToml = `target-version = "py311"
 
@@ -104,7 +104,7 @@ async function ensureWorkspaceSettingsPatched(workspacePath: string) {
 async function ensureCopilotInstalled() {
   const ids = ['github.copilot', 'github.copilot-chat'];
   const hasCopilot = ids.some(id => !!vscode.extensions.getExtension(id));
-  if (hasCopilot) return;
+  if (hasCopilot) {return;}
 
   const choice = await vscode.window.showInformationMessage(
     'Optional: Install GitHub Copilot to use HAR → Locust via Copilot Chat (MCP).',
@@ -112,12 +112,14 @@ async function ensureCopilotInstalled() {
     'Install Copilot',
     'Skip'
   );
-  if (choice !== 'Install Copilot') return;
+  if (choice !== 'Install Copilot') {return;}
 
   try {
     await vscode.commands.executeCommand('workbench.extensions.installExtension', 'github.copilot');
     const reload = await vscode.window.showInformationMessage('GitHub Copilot installed. Reload now?', 'Reload', 'Later');
-    if (reload === 'Reload') await vscode.commands.executeCommand('workbench.action.reloadWindow');
+    if (reload === 'Reload') {
+      await vscode.commands.executeCommand('workbench.action.reloadWindow');
+    }
   } catch (err: any) {
     vscode.window.showErrorMessage(`Could not install GitHub Copilot: ${err?.message ?? String(err)}`);
   }
@@ -136,10 +138,10 @@ export class SetupService {
   }
 
   async checkAndOfferSetup(opts: { forcePrompt?: boolean } = {}) {
-    if (!vscode.workspace.isTrusted) return;
+    if (!vscode.workspace.isTrusted) {return;}
 
     const wsPath = guessWorkspacePath();
-    if (!wsPath) return;
+    if (!wsPath) {return;}
 
     const python = await this.resolveInterpreter();
 
@@ -158,7 +160,7 @@ export class SetupService {
     ];
 
     const choice = await vscode.window.showQuickPick(picks, { placeHolder: 'Missing dependencies detected. How do you want to proceed?' });
-    if (!choice || choice.label.startsWith('Skip')) return;
+    if (!choice || choice.label.startsWith('Skip')) {return;}
 
     if (choice.label.startsWith('Install into current interpreter')) {
       await this.installIntoInterpreter(python, wsPath);
@@ -208,11 +210,13 @@ export class SetupService {
   }
 
   private async finalizeWorkspace(wsPath: string, python: string) {
-    await this.mcp.writeMcpConfig('locust_env');
+    // Use the same interpreter for MCP that we just validated/installed into
+    await this.mcp.writeMcpConfig(python);
+
     await ensureRuffToml(wsPath);
     await ensureWorkspaceSettingsPatched(wsPath);
 
     const offer = vscode.workspace.getConfiguration().get<boolean>('locust.offerCopilotOnInit', true);
-    if (offer) await ensureCopilotInstalled();
+    if (offer) {await ensureCopilotInstalled();}
   }
 }

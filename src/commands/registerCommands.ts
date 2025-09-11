@@ -56,11 +56,13 @@ export function registerCommands(
     ),
 
     vscode.commands.registerCommand('locust.mcp.rewriteAndReload', async () => {
-      const mcp = new McpService();
-      // choose one of these depending on your environment
-      // await mcp.writeMcpConfigFixedPython("${workspaceFolder}/locust_env/bin/python");
+      // Write mcp.json with a known-good interpreter, then nudge Copilot to reload MCP servers
+      const envService = new (require('../services/envService').EnvService)();
+      const mcp = new McpService(envService);
+      
+      // await mcp.writeMcpConfig("${workspaceFolder}/locust_env/bin/python");
       await mcp.writeMcpConfig("python"); // your current preference
-      await mcp.reloadCopilotMcpServers();
+      //await mcp.reloadCopilotMcpServers();
     }),
 
     // HAR → Locustfile (delegate to runner -> service)
