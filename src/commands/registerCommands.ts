@@ -59,7 +59,7 @@ export function registerCommands(
       const mcp = new McpService();
       // choose one of these depending on your environment
       // await mcp.writeMcpConfigFixedPython("${workspaceFolder}/locust_env/bin/python");
-      await mcp.writeMcpConfigFixedPython("python"); // your current preference
+      await mcp.writeMcpConfig("python"); // your current preference
       await mcp.reloadCopilotMcpServers();
     }),
 
