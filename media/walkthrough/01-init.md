@@ -4,4 +4,8 @@
 - Sets VS Code’s interpreter to the venv
 - Writes `.vscode/mcp.json` so Copilot MCP tools work
 
+- Copilot prompt:
+```prompt
+    init locust environment
+
 If you already have Locust globally, this still sets up a local, isolated environment.
