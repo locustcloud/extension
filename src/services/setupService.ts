@@ -22,11 +22,21 @@ function expandWs(p?: string): string | undefined {
 async function fileExists(p: string): Promise<boolean> {
   try { await fs.stat(p); return true; } catch { return false; }
 }
-async function runPythonCmd(python: string, args: string[], cwd?: string) {
-  return execFileAsync(python, args, { cwd, maxBuffer: 20 * 1024 * 1024 });
+async function runPythonCmd(python: string, args: string[], cwd?: string, env?: NodeJS.ProcessEnv) {
+  return execFileAsync(python, args, { cwd, env, maxBuffer: 20 * 1024 * 1024 });
 }
 async function canImport(python: string, moduleName: string, cwd?: string): Promise<boolean> {
   try { await runPythonCmd(python, ['-c', `import ${moduleName}`], cwd); return true; } catch { return false; }
+}
+
+/** Build an environment similar to `source .venv/bin/activate` for child processes. */
+function envForVenv(absPy: string): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  const venvDir = path.dirname(path.dirname(absPy)); // .../.locust_env/{bin|Scripts}/python -> .../.locust_env
+  const binDir = path.join(venvDir, process.platform === 'win32' ? 'Scripts' : 'bin');
+  env.VIRTUAL_ENV = venvDir;
+  env.PATH = `${binDir}${path.delimiter}${env.PATH ?? ''}`;
+  return env;
 }
 
 // Ruff + settings
@@ -37,7 +47,7 @@ async function ensureRuffToml(workspacePath: string) {
   const ruffToml = `target-version = "py311"
 
 extend-exclude = [
-  "/.locust_env",
+  ".locust_env/**",
   "templates/**"
 ]
 
@@ -57,8 +67,9 @@ async function ensureWorkspaceSettingsPatched(workspacePath: string) {
     current = JSON.parse(buf);
   } catch { current = {}; }
 
-  // Write ABS path during venv creation.
+  // We set python.defaultInterpreterPath separately (after venv creation).
   const desired = {
+    "python.terminal.activateEnvironment": true,
     "ruff.lint.run": "onType",
     "[python]": {
       "editor.codeActionsOnSave": { "source.fixAll.ruff": false },
@@ -122,7 +133,7 @@ export class SetupService {
   }
 
   /**
-   * Main setup. Installs deps into current interpreter or creates venv.
+   * Main setup. Creates a hidden venv and installs deps.
    */
   async checkAndOfferSetup(opts: { forcePrompt?: boolean } = {}) {
     if (!vscode.workspace.isTrusted) {return;}
@@ -130,26 +141,26 @@ export class SetupService {
     const wsPath = wsRoot();
     if (!wsPath) {return;}
 
-    const python = await this.resolveInterpreter();
+    const interp = await this.resolveInterpreter();
 
-    const hasLocust = await canImport(python, 'locust', wsPath);
-    const hasH2L   = await canImport(python, 'har2locust', wsPath);
-    const hasFMCP  = await canImport(python, 'mcp', wsPath);
-    if (hasLocust && hasH2L && hasFMCP && !opts.forcePrompt) {
-      await this.finalizeWorkspace(wsPath, python);
+    const hasLocust = await canImport(interp, 'locust', wsPath);
+    const hasH2L   = await canImport(interp, 'har2locust', wsPath);
+    const hasMCP   = await canImport(interp, 'mcp', wsPath);
+    if (hasLocust && hasH2L && hasMCP && !opts.forcePrompt) {
+      await this.finalizeWorkspace(wsPath, interp);
       await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
       return;
     }
 
     const picks: vscode.QuickPickItem[] = [
-      { label: 'Create venv here and install', detail: `python -m venv /.locust_env && pip install -r mcp/requirements.txt` },
+      { label: 'Create hidden venv (.locust_env) and install', detail: `python -m venv .locust_env && pip install -r mcp/requirements.txt` },
       { label: 'Skip for now', detail: 'You can run “Locust: Initialize (Install/Detect)” later' }
     ];
 
-    const choice = await vscode.window.showQuickPick(picks, { placeHolder: 'Missing dependencies detected. How do you want to proceed?' });
+    const choice = await vscode.window.showQuickPick(picks, { placeHolder: 'Set up a dedicated environment for Locust + MCP?' });
     if (!choice || choice.label.startsWith('Skip')) {return;}
 
-    if (choice.label.startsWith('Create venv here')) {
+    if (choice.label.startsWith('Create hidden venv')) {
       await this.createVenvAndInstall(wsPath);
     }
 
@@ -157,35 +168,14 @@ export class SetupService {
     await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
   }
 
-  private async installIntoInterpreter(python: string, cwd: string) {
-    try {
-      await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: 'Installing into current interpreter…', cancellable: false },
-        async () => {
-          // Prefer MCP requirements if present
-          const reqPath = path.join(cwd, 'mcp', 'requirements.txt');
-          if (await fileExists(reqPath)) {
-            await runPythonCmd(python, ['-m', 'pip', 'install', '--upgrade', 'pip'], cwd);
-            await runPythonCmd(python, ['-m', 'pip', 'install', '-r', reqPath], cwd);
-          } else {
-            await runPythonCmd(python, ['-m', 'pip', 'install', '--upgrade', 'pip'], cwd);
-            await runPythonCmd(python, ['-m', 'pip', 'install', 'locust', 'har2locust', 'ruff', 'mcp', "pytest"], cwd);
-          }
-        }
-      );
-      vscode.window.showInformationMessage('Installed Python deps for Locust + MCP into current interpreter.');
-    } catch (e: any) {
-      vscode.window.showErrorMessage(`pip install failed: ${e?.stderr || e?.message || String(e)}`);
-    }
-  }
-
   private async createVenvAndInstall(wsPath: string) {
     const isWin = process.platform === 'win32';
-    const envFolder = '/.locust_env';
+    const envFolder = '.locust_env';
     const absPy = path.join(wsPath, envFolder, isWin ? 'Scripts' : 'bin', 'python');
+    const venvEnv = envForVenv(absPy);
 
     await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: 'Creating venv and installing…', cancellable: false },
+      { location: vscode.ProgressLocation.Notification, title: 'Creating .locust_env and installing…', cancellable: false },
       async () => {
         // Create venv
         try {
@@ -194,15 +184,15 @@ export class SetupService {
           await execFileAsync('python3', ['-m', 'venv', envFolder], { cwd: wsPath });
         }
 
-        // Upgrade pip
-        await execFileAsync(absPy, ['-m', 'pip', 'install', '--upgrade', 'pip'], { cwd: wsPath });
+        // Upgrade pip inside the venv (with venv-like env)
+        await execFileAsync(absPy, ['-m', 'pip', 'install', '--upgrade', 'pip'], { cwd: wsPath, env: venvEnv });
 
         // Install deps: prefer MCP requirements if present
         const reqPath = path.join(wsPath, 'mcp', 'requirements.txt');
         if (await fileExists(reqPath)) {
-          await execFileAsync(absPy, ['-m', 'pip', 'install', '-r', reqPath], { cwd: wsPath });
+          await execFileAsync(absPy, ['-m', 'pip', 'install', '-r', reqPath], { cwd: wsPath, env: venvEnv });
         } else {
-          await execFileAsync(absPy, ['-m', 'pip', 'install', 'locust', 'har2locust', 'ruff', 'mcp', 'pytest'], { cwd: wsPath });
+          await execFileAsync(absPy, ['-m', 'pip', 'install', 'locust', 'har2locust', 'ruff', 'mcp', 'pytest'], { cwd: wsPath, env: venvEnv });
         }
 
         // Write ABSOLUTE interpreter path into workspace settings

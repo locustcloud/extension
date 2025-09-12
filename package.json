@@ -97,7 +97,7 @@
       },
       {
         "command": "locust.refreshTree",
-        "title": "Locust: Refresh Scenarios"
+        "title": "Locust: Refresh Tests"
       },
       {
         "command": "locust.runFileUI",
@@ -130,7 +130,7 @@
         },
         "locust.envFolder": {
           "type": "string",
-          "default": "/.locust_env",
+          "default": ".locust_env",
           "description": "Local locust_env directory."
         },
         "locust.defaultHost": {
