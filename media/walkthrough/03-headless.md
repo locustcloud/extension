@@ -1,6 +1,6 @@
 **Headless example:**
 
-locust -f locustfile.py --headless -u 10 -r 2 -t 1m URL (No worries we set it for you already)
+locust -f templates/pytest_locstfile.py --headless -u 10 -r 2 -t 1m URL (No worries we set it for you already)
 
 Command button uses your configured default host if set in settings, or the `host` on the class
 
@@ -16,7 +16,7 @@ Run headless for 1m with 10 users, spawn rate 2, tags=checkout using templates/s
 * Runs:
 
   ```bash
-  locust -f templates/sample_locustfile.py \
+  locust -f templates/locustfile.py \
          --headless -u 10 -r 2 -t 1m \
          --tags checkout \
          --host=https://mock-test-target.eu-north-1.locust.cloud

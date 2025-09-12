@@ -1,10 +1,10 @@
 {
-  "python.defaultInterpreterPath": "/home/pablo/dev24/extension/locust_env/bin/python",
+  "python.defaultInterpreterPath": "/home/pablo/dev24/extension/.locust_env/bin/python",
   "python.terminal.activateEnvironment": true,
   "ruff.lint.run": "onType",
   "[python]": {
     "editor.codeActionsOnSave": {
-      "source.fixAll.ruff": "never"
+      "source.fixAll.ruff": false
     },
     "editor.formatOnSave": false
   }

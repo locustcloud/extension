@@ -51,13 +51,13 @@ Convert samples/sample.har to a locustfile and save it as templates/sample\_locu
 Once created, run the scenario just like any other Locust test:
 
 ```bash
-locust -f recording_locustfile.py --headless -u 20 -r 2 -t 1m
+locust -f sample_locustfile.py --headless -u 20 -r 2 -t 1m
 ```
 
 or open the Web UI:
 
 ```bash
-locust -f recording_locustfile.py
+locust -f sample_locustfile.py
 ```
 
 ---

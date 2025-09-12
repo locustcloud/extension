@@ -4,7 +4,8 @@
 ```markdown
 # Copilot Walkthrough: HAR → Locustfile → Running UI / Headless
 
-This walkthrough shows how GitHub Copilot (with MCP enabled) can generate a Locustfile from a HAR capture, list available tasks/tags, and run Locust in either **UI** mode or **headless** mode against the demo target.
+This walkthrough shows how GitHub Copilot (with MCP enabled) can generate a Locustfile from a HAR capture, list available tasks/tags, and run Locust in either **UI** mode or **headless** mode against the demo target. Run prompt examples use templates/locustfile.py
+when HAR file is converted propmt for the new locustfile ex: templates/sample\_locustfile.py
 
 ---
 
@@ -23,12 +24,12 @@ Convert samples/sample.har to a locustfile and save it as templates/sample\_locu
 
 ---
 
-## Step 2. Ask Copilot to list tasks and tags
+## Step 2. Ask Copilot to list tasks and tags in a locustfile.
 
 **Prompt:**
 ```
 
-List tasks and tags in templates/sample\_locustfile.py
+List tasks and tags in templates/locustfile.py
 
 ````
 
@@ -38,7 +39,7 @@ List tasks and tags in templates/sample\_locustfile.py
 - Example:
   ```json
   {
-    "file": "templates/sample_locustfile.py",
+    "file": "templates/locustfile.py",
     "tasks": ["browse_home", "add_items_and_checkout"],
     "tags": ["checkout"]
   }
@@ -51,7 +52,7 @@ List tasks and tags in templates/sample\_locustfile.py
 **Prompt:**
 
 ```
-Start Locust UI using templates/sample_locustfile.py against https://mock-test-target.eu-north-1.locust.cloud
+Start Locust UI using templates/locustfile.py against https://mock-test-target.eu-north-1.locust.cloud
 ```
 
 **Copilot:**
@@ -60,7 +61,7 @@ Start Locust UI using templates/sample_locustfile.py against https://mock-test-t
 * Launches Locust with:
 
   ```bash
-  locust -f templates/sample_locustfile.py \
+  locust -f templates/locustfile.py \
          --host=https://mock-test-target.eu-north-1.locust.cloud
   ```
 * Returns a PID and the URL `http://localhost:8089`.
@@ -94,7 +95,7 @@ Stop Locust process PID 12345
 **Prompt:**
 
 ```
-Run headless for 1m with 10 users, spawn rate 2, tags=checkout using templates/sample_locustfile.py
+Run headless for 1m with 10 users, spawn rate 2, tags=checkout using templates/locustfile.py
 ```
 
 **Copilot:**
@@ -103,7 +104,7 @@ Run headless for 1m with 10 users, spawn rate 2, tags=checkout using templates/s
 * Runs:
 
   ```bash
-  locust -f templates/sample_locustfile.py \
+  locust -f templates/locustfile.py \
          --headless -u 10 -r 2 -t 1m \
          --tags checkout \
          --host=https://mock-test-target.eu-north-1.locust.cloud

@@ -37,9 +37,8 @@ async function ensureRuffToml(workspacePath: string) {
   const ruffToml = `target-version = "py311"
 
 extend-exclude = [
-  "mcp-generated/**",
-  "templates/locustfile_from_har.py",
-  "locustfile_from_har.py"
+  "/.locust_env",
+  "templates/**"
 ]
 
 lint.select = ["E", "F", "W"]
@@ -135,7 +134,7 @@ export class SetupService {
 
     const hasLocust = await canImport(python, 'locust', wsPath);
     const hasH2L   = await canImport(python, 'har2locust', wsPath);
-    const hasFMCP  = await canImport(python, 'fastmcp', wsPath);
+    const hasFMCP  = await canImport(python, 'mcp', wsPath);
     if (hasLocust && hasH2L && hasFMCP && !opts.forcePrompt) {
       await this.finalizeWorkspace(wsPath, python);
       await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
@@ -143,7 +142,7 @@ export class SetupService {
     }
 
     const picks: vscode.QuickPickItem[] = [
-      { label: 'Create venv here and install', detail: `python -m venv locust_env && pip install -r mcp/requirements.txt` },
+      { label: 'Create venv here and install', detail: `python -m venv /.locust_env && pip install -r mcp/requirements.txt` },
       { label: 'Skip for now', detail: 'You can run “Locust: Initialize (Install/Detect)” later' }
     ];
 
@@ -170,7 +169,7 @@ export class SetupService {
             await runPythonCmd(python, ['-m', 'pip', 'install', '-r', reqPath], cwd);
           } else {
             await runPythonCmd(python, ['-m', 'pip', 'install', '--upgrade', 'pip'], cwd);
-            await runPythonCmd(python, ['-m', 'pip', 'install', 'locust', 'har2locust', 'ruff', 'mcp'], cwd);
+            await runPythonCmd(python, ['-m', 'pip', 'install', 'locust', 'har2locust', 'ruff', 'mcp', "pytest"], cwd);
           }
         }
       );
@@ -182,7 +181,7 @@ export class SetupService {
 
   private async createVenvAndInstall(wsPath: string) {
     const isWin = process.platform === 'win32';
-    const envFolder = 'locust_env';
+    const envFolder = '/.locust_env';
     const absPy = path.join(wsPath, envFolder, isWin ? 'Scripts' : 'bin', 'python');
 
     await vscode.window.withProgress(
@@ -203,7 +202,7 @@ export class SetupService {
         if (await fileExists(reqPath)) {
           await execFileAsync(absPy, ['-m', 'pip', 'install', '-r', reqPath], { cwd: wsPath });
         } else {
-          await execFileAsync(absPy, ['-m', 'pip', 'install', 'locust', 'har2locust', 'ruff', 'mcp'], { cwd: wsPath });
+          await execFileAsync(absPy, ['-m', 'pip', 'install', 'locust', 'har2locust', 'ruff', 'mcp', 'pytest'], { cwd: wsPath });
         }
 
         // Write ABSOLUTE interpreter path into workspace settings
