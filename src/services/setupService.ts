@@ -143,7 +143,6 @@ export class SetupService {
     }
 
     const picks: vscode.QuickPickItem[] = [
-      { label: 'Install into current interpreter', detail: `pip install -r mcp/requirements.txt (or locust har2locust ruff fastmcp)` },
       { label: 'Create venv here and install', detail: `python -m venv locust_env && pip install -r mcp/requirements.txt` },
       { label: 'Skip for now', detail: 'You can run “Locust: Initialize (Install/Detect)” later' }
     ];
@@ -151,9 +150,7 @@ export class SetupService {
     const choice = await vscode.window.showQuickPick(picks, { placeHolder: 'Missing dependencies detected. How do you want to proceed?' });
     if (!choice || choice.label.startsWith('Skip')) {return;}
 
-    if (choice.label.startsWith('Install into current interpreter')) {
-      await this.installIntoInterpreter(python, wsPath);
-    } else if (choice.label.startsWith('Create venv here')) {
+    if (choice.label.startsWith('Create venv here')) {
       await this.createVenvAndInstall(wsPath);
     }
 
@@ -173,7 +170,7 @@ export class SetupService {
             await runPythonCmd(python, ['-m', 'pip', 'install', '-r', reqPath], cwd);
           } else {
             await runPythonCmd(python, ['-m', 'pip', 'install', '--upgrade', 'pip'], cwd);
-            await runPythonCmd(python, ['-m', 'pip', 'install', 'locust', 'har2locust', 'ruff', 'fastmcp'], cwd);
+            await runPythonCmd(python, ['-m', 'pip', 'install', 'locust', 'har2locust', 'ruff', 'mcp'], cwd);
           }
         }
       );
@@ -206,7 +203,7 @@ export class SetupService {
         if (await fileExists(reqPath)) {
           await execFileAsync(absPy, ['-m', 'pip', 'install', '-r', reqPath], { cwd: wsPath });
         } else {
-          await execFileAsync(absPy, ['-m', 'pip', 'install', 'locust', 'har2locust', 'ruff', 'fastmcp'], { cwd: wsPath });
+          await execFileAsync(absPy, ['-m', 'pip', 'install', 'locust', 'har2locust', 'ruff', 'mcp'], { cwd: wsPath });
         }
 
         // Write ABSOLUTE interpreter path into workspace settings

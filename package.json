@@ -230,7 +230,8 @@
           {
             "id": "runUI",
             "title": "Run Locust in UI mode",
-            "description": "Ask Copilot: `Start Locust UI using templates/sample_locustfile.py against https://mock-test-target.eu-north-1.locust.cloud`"
+            "description": "Ask Copilot: `Start Locust UI using templates/sample_locustfile.py against https://mock-test-target.eu-north-1.locust.cloud`",
+            "media": { "markdown": "./walkthrough/04-ui.md" }
           },
           {
             "id": "stopProcess",
@@ -240,7 +241,8 @@
           {
             "id": "runHeadless",
             "title": "Run Locust in headless mode",
-            "description": "Ask Copilot: `Run headless for 1m with 10 users, spawn rate 2, tags=checkout using templates/sample_locustfile.py`"
+            "description": "Ask Copilot: `Run headless for 1m with 10 users, spawn rate 2, tags=checkout using templates/sample_locustfile.py`",
+            "media": { "markdown": "./walkthrough/03-headless.md" }
           }
         ]
       }

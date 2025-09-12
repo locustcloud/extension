@@ -20,6 +20,7 @@ mcp = FastMCP("mcp-har2locust")
 # Helpers
 WORKDIR = Path.cwd()
 
+
 def _default_locustfile() -> Path:
     """Prefer templates/locustfile.py, else ./locustfile.py."""
     cand = [
@@ -32,6 +33,7 @@ def _default_locustfile() -> Path:
     # If neither exists, still return the first so callers get a sensible path
     return cand[0]
 
+
 def _ensure_file(path: Optional[str], fallback: Path | None = None) -> Path:
     if path:
         p = (WORKDIR / path).resolve() if not os.path.isabs(path) else Path(path)
@@ -40,6 +42,7 @@ def _ensure_file(path: Optional[str], fallback: Path | None = None) -> Path:
     if not p.exists():
         raise FileNotFoundError(f"File not found: {p}")
     return p
+
 
 def _run_h2l(python_cmd: Optional[str], cwd: Path, har: Path, args: List[str]) -> str:
     """
@@ -53,6 +56,7 @@ def _run_h2l(python_cmd: Optional[str], cwd: Path, har: Path, args: List[str]) -
         return p.stdout
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"har2locust failed: {e.stderr or e.stdout or e}") from e
+
 
 def _parse_tasks_and_tags(source: str) -> Dict[str, Any]:
     """
