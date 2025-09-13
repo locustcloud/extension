@@ -28,23 +28,21 @@ This gives you a file like `recording.har` with the full request/response log.
 
 ---
 
-## 2. Convert with MCP
+## 2. Ask Copilot to convert HAR to Locustfile
 
-Open **Copilot Chat** inside VS Code and run:
 
-```json
-/har.to_locust {
-  "har_path": "/absolute/path/to/recording.har",
-  "user_class": "RecordedUser",
-  "write_to": "locustfile_from_har.py"
-}
-````
+**Prompt:**
+```
 
-* `har_path`: absolute path to your `.har` file.
-* `user_class`: optional: the class name for the generated user.
-* `write_to`: optional: path where the `locustfile.py` should be written.
+Convert samples/sample.har to a locustfile and save it as templates/sample\_locustfile.py
 
-The generated Locustfile will also be displayed inline in Copilot Chat.
+```
+
+**Copilot:**
+- Calls the `har.to_locust` MCP tool.
+- Produces `templates/sample_locustfile.py` with a runnable Locust test class.
+
+---
 
 ---
 
@@ -53,13 +51,13 @@ The generated Locustfile will also be displayed inline in Copilot Chat.
 Once created, run the scenario just like any other Locust test:
 
 ```bash
-locust -f locustfile_from_har.py --headless -u 20 -r 2 -t 1m
+locust -f sample_locustfile.py --headless -u 20 -r 2 -t 1m
 ```
 
 or open the Web UI:
 
 ```bash
-locust -f locustfile_from_har.py
+locust -f sample_locustfile.py
 ```
 
 ---
@@ -71,5 +69,4 @@ locust -f locustfile_from_har.py
 * You can keep both **hand-written** and **HAR-generated** files in your workspace and run either.
 
 ```
-
 

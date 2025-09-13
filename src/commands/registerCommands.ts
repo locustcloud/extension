@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { SetupService } from '../services/setupService';
+import { McpService } from '../services/mcpService';
 import { LocustRunner } from '../runners/locustRunner';
 import { LocustTreeProvider } from '../tree/locustTree';
 import { Har2LocustRunner } from '../runners/har2locustRunner';
@@ -53,6 +54,16 @@ export function registerCommands(
         'locust.locust-vscode-extension#locust.gettingStarted'
       )
     ),
+
+    vscode.commands.registerCommand('locust.mcp.rewriteAndReload', async () => {
+      // Write mcp.json with a known-good interpreter, then nudge Copilot to reload MCP servers
+      const envService = new (require('../services/envService').EnvService)();
+      const mcp = new McpService(envService);
+      
+      // await mcp.writeMcpConfig("${workspaceFolder}/locust_env/bin/python");
+      await mcp.writeMcpConfig("python"); // your current preference
+      //await mcp.reloadCopilotMcpServers();
+    }),
 
     // HAR → Locustfile (delegate to runner -> service)
     vscode.commands.registerCommand('locust.convertHar', () => harRunner.convertHar()),

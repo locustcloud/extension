@@ -1,71 +1,75 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 
-/**
- * EnvService
- * - Single source of truth for which Python to use.
- * - Handy helpers for venv paths and (optional) terminal activation.
- */
+const execFileAsync = promisify(execFile);
+
+// Workspace helpers
+function wsRoot(): string | undefined {
+  return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+}
+function expandWsVar(p: string | undefined): string | undefined {
+  if (!p) {return p;}
+  const root = wsRoot();
+  return root ? p.replace('${workspaceFolder}', root) : p;
+}
+async function exists(p?: string): Promise<boolean> {
+  if (!p) {return false;}
+  try { await fs.stat(p); return true; } catch { return false; }
+}
+async function cmdExists(cmd: string): Promise<boolean> {
+  try { await execFileAsync(cmd, ['-V'], { timeout: 3000 }); return true; } catch { return false; }
+}
+
 export class EnvService {
-  constructor() {}
-
-  /** Returns the first workspace folder path, or undefined if none is open. */
-  getWorkspaceRoot(): string | undefined {
-    return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-  }
-
-  /** Build the absolute path to the workspace venv's python (even if it doesn't exist). */
+  /** Absolute path to the workspace venv's python (even if it doesn't exist yet). */
   getEnvInterpreterPath(envFolder: string): string {
-    const root = this.getWorkspaceRoot() ?? '';
+    const root = wsRoot() ?? '';
     const isWin = process.platform === 'win32';
     return path.join(root, envFolder, isWin ? 'Scripts' : 'bin', 'python');
   }
 
-  private async exists(p: string): Promise<boolean> {
-    try {
-      await fs.stat(p);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   /**
-   * Resolve the best Python to use, in order:
-   *  1) workspace venv python (if it exists),
-   *  2) python.defaultInterpreterPath (if set and exists),
-   *  3) 'python' (fall back to PATH).
+   * Strict resolver: returns a runnable python, or throws with guidance.
+   * Resolution order:
+   *  1) workspace venv python (file exists)
+   *  2) python.defaultInterpreterPath (expanded, file exists)
+   *  3) 'python' on PATH (runnable)
+   *  4) 'python3' on PATH (runnable)
    */
-  async resolvePython(envFolder: string): Promise<string> {
+  async resolvePythonStrict(envFolder: string): Promise<string> {
     const venvPy = this.getEnvInterpreterPath(envFolder);
-    if (await this.exists(venvPy)) return venvPy;
+    if (await exists(venvPy)) {return venvPy;}
 
-    const cfgPy = vscode.workspace.getConfiguration('python').get<string>('defaultInterpreterPath');
-    if (cfgPy && (await this.exists(cfgPy))) return cfgPy;
+    const cfgRaw = vscode.workspace.getConfiguration('python').get<string>('defaultInterpreterPath');
+    const cfgPy = expandWsVar(cfgRaw);
+    if (await exists(cfgPy)) {return cfgPy!;}
 
-    return 'python';
+    if (await cmdExists('python')) {return 'python';}
+    if (await cmdExists('python3')) {return 'python3';}
+
+    throw new Error('No usable Python found. Create a venv (Locust: Initialize) or set python.defaultInterpreterPath.');
   }
 
+  /** Backwards-compatible alias. Prefer resolvePythonStrict() in new code. */
+  async resolvePython(envFolder: string): Promise<string> {
+    try { return await this.resolvePythonStrict(envFolder); }
+    catch { return 'python'; }
+  }
 
-  /** Create a fresh terminal for setup/runner usage. */
+  // Optional terminal helpers (for interactive Locust runs)
   createFreshLocustTerminal(name = 'Locust'): vscode.Terminal {
     return vscode.window.createTerminal({ name });
   }
-
-  /**
-   * Best-effort venv activation in a Terminal (useful for interactive sessions).
-   * Not required for programmatic execFile calls (which should use resolvePython()).
-   */
   ensureTerminalEnv(term: vscode.Terminal, envFolder: string) {
-    const root = this.getWorkspaceRoot();
-    if (!root) return;
+    const root = wsRoot();
+    if (!root) {return;}
     const isWin = process.platform === 'win32';
-
     const activateCmd = isWin
       ? `if (Test-Path "${envFolder}\\Scripts\\Activate.ps1") { . "${envFolder}\\Scripts\\Activate.ps1" }`
       : `if [ -f "${envFolder}/bin/activate" ]; then . "${envFolder}/bin/activate"; fi`;
-
     term.sendText(`cd "${root}"`);
     term.sendText(activateCmd);
   }

@@ -1,41 +1,11 @@
 {
-  // Package manager: Yarn
-  "npm.packageManager": "yarn",
-
-  "files.exclude": {
-    "out": true
-  },
-
-  // Use workspace-relative interpreter (created by your setup flow)
-  "python.defaultInterpreterPath": "${workspaceFolder}/locust_env/bin/python",
-
-  // Stronger analysis = better completions & errors
-  "python.analysis.typeCheckingMode": "basic",
-  "python.analysis.logLevel": "Information",
-
-  // Enable auto-imports
-  "python.analysis.autoImportCompletions": true,
+  "python.defaultInterpreterPath": "/home/pablo/dev24/extension/.locust_env/bin/python",
   "python.terminal.activateEnvironment": true,
-
-  // Ignore our venv and build output
-  "python.analysis.exclude": [
-    "**/locust_env/**",
-    "**/.venv/**"
-  ],
-
-  // Point to custom typings
-  "python.analysis.stubPath": "typings",
-
-  // Use workspace TypeScript version
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "diffEditor.wordWrap": "on",
-
-  // Ruff: lint on type, but don't auto-fix on save (protects generated files)
+  "ruff.lint.run": "onType",
   "[python]": {
     "editor.codeActionsOnSave": {
       "source.fixAll.ruff": "never"
     },
     "editor.formatOnSave": false
-  },
-  "ruff.lint.run": "onType"
+  }
 }
