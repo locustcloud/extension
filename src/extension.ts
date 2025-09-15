@@ -11,7 +11,7 @@ import { LocustTreeProvider } from './tree/locustTree';
 export async function activate(ctx: vscode.ExtensionContext) {
   // Core services
   const env = new EnvService();
-  const mcp = new McpService();
+  const mcp = new McpService(env);
   const setup = new SetupService(env, mcp, ctx);
 
   // Runners / Services

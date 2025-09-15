@@ -1,4 +1,4 @@
-Open `locustfile.py` and tweak a request.
+Open ex: `locustfile.py` and tweak a request.
 
 ### Add custom headers
 Change:
