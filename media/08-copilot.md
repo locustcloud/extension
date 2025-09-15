@@ -2,7 +2,7 @@
 ---
 
 ```markdown
-# Copilot Walkthrough: HAR → Locustfile → Running UI / Headless
+# Copilot Workflow: HAR → Locustfile → Running UI / Headless
 
 This walkthrough shows how GitHub Copilot (with MCP enabled) can generate a Locustfile from a HAR capture, list available tasks/tags, and run Locust in either **UI** mode or **headless** mode against the demo target. Run prompt examples use templates/locustfile.py
 when HAR file is converted propmt for the new locustfile ex: templates/sample\_locustfile.py
@@ -70,8 +70,7 @@ Start Locust UI using templates/locustfile.py against https://mock-test-target.e
 
 ## Step 4. Open Locust UI
 
-* VS Code’s **Simple Browser** opens to `http://localhost:8089`.
-* You can configure number of users, spawn rate, and start the load test.
+* VS Code’s **Simple Browser** opens to `http://localhost:8089` in VSCode.
 
 ---
 
