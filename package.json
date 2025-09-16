@@ -62,20 +62,13 @@
       ],
       "view/item/context": [
         {
-          "command": "locust.runFileUI",
-          "when": "view == locust.scenarios && viewItem == file",
-          "group": "inline"
-        },
+        "command": "locust.runUI",
+        "title": "Locust: Run Test (Web UI)"
+      },
         {
-          "command": "locust.runFileHeadless",
-          "when": "view == locust.scenarios && viewItem == file",
-          "group": "inline"
-        },
-        {
-          "command": "locust.runTaskHeadless",
-          "when": "view == locust.scenarios && viewItem == task",
-          "group": "inline"
-        }
+        "command": "locust.runHeadless",
+        "title": "Locust: Run Test (Headless)"
+      }
       ]
     },
     "commands": [
@@ -87,6 +80,7 @@
         "command": "locust.openWalkthrough",
         "title": "Locust: Open Getting Started Walkthrough"
       },
+
       {
         "command": "locust.runUI",
         "title": "Locust: Run Test (Web UI)"
@@ -145,7 +139,7 @@
             "always",
             "never"
           ],
-          "default": "prompt",
+          "default": "always",
           "description": "When the extension activates: prompt to set up the Locust environment, always set it up automatically, or never run setup."
         },
         "locust.offerCopilotOnInit": {
@@ -258,12 +252,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/<you>/locust-vscode-extension.git"
+    "url": "https://github.com/locustcloud/extension.git"
   },
   "bugs": {
-    "url": "https://github.com/<you>/locust-vscode-extension/issues"
+    "url": "https://github.com/locustcloud/extension/issues"
   },
-  "homepage": "https://github.com/<you>/locust-vscode-extension",
+  "homepage": "https://www.locust.cloud/",
   "license": "MIT",
   "scripts": {
     "vscode:prepublish": "yarn run compile",

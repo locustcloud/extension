@@ -2,7 +2,9 @@
 ---
 
 ```markdown
-# Copilot Walkthrough: HAR → Locustfile → Running UI / Headless
+
+# Copilot Workflow: HAR → Locustfile → Running UI / Headless
+
 
 This walkthrough shows how GitHub Copilot (with MCP enabled) can generate a Locustfile from a HAR capture, list available tasks/tags, and run Locust in either **UI** mode or **headless** mode against the demo target. Run prompt examples use templates/locustfile.py
 when HAR file is converted propmt for the new locustfile ex: templates/sample\_locustfile.py
