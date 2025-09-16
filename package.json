@@ -80,7 +80,11 @@
         "command": "locust.openWalkthrough",
         "title": "Locust: Open Getting Started Walkthrough"
       },
-      
+
+      {
+        "command": "locust.runUI",
+        "title": "Locust: Run Test (Web UI)"
+      },
       {
         "command": "locust.runHeadless",
         "title": "Locust: Run Test (Headless)"
