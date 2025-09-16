@@ -28,7 +28,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Update version based on tag
-        run: yarn version --new-version $(git describe --tags --abbrev=0 | sed 's/^v//')
+        run: yarn version --new-version $(git describe --tags --abbrev=0 | sed 's/^v//') --no-git-tag-version
 
       # Build your extension using your script
       - name: Build
