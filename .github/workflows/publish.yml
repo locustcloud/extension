@@ -1,0 +1,66 @@
+name: Publish VS Code Extension
+
+on:
+  push:
+    tags:
+      - "v*"            # e.g. v0.0.2, v1.2.3, v1.2.3-beta.1
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+
+      - name: Enable Corepack (Yarn)
+        run: corepack enable
+
+      - name: Install deps
+        run: yarn install --frozen-lockfile
+
+      # Build your extension using your script
+      - name: Build
+        run: yarn compile
+
+      # Decide if this is a pre-release based on the tag (e.g. v1.2.3-beta.1)
+      - name: Detect pre-release
+        id: prerelease
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [[ "$TAG" == *"-"* ]]; then
+            echo "value=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Publish to Open VSX first (packages & uploads; emits vsixPath)
+      - name: Publish to Open VSX
+        id: ovsx
+        uses: HaaLeo/publish-vscode-extension@v2
+        with:
+          pat: ${{ secrets.OPEN_VSX_TOKEN }}
+          preRelease: ${{ steps.prerelease.outputs.value }}
+          skipDuplicate: true
+          baseContentUrl: https://github.com/locustcloud/extension/blob/${{ github.ref_name }}/
+          baseImagesUrl:  https://raw.githubusercontent.com/locustcloud/extension/${{ github.ref_name }}/
+
+      # Publish the exact same .vsix to the VS Marketplace
+      - name: Publish to VS Marketplace
+        uses: HaaLeo/publish-vscode-extension@v2
+        with:
+          pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
+          registryUrl: https://marketplace.visualstudio.com
+          extensionFile: ${{ steps.ovsx.outputs.vsixPath }}
+          preRelease: ${{ steps.prerelease.outputs.value }}
+          skipDuplicate: true
+          baseContentUrl: https://github.com/locustcloud/extension/blob/${{ github.ref_name }}/
+          baseImagesUrl:  https://raw.githubusercontent.com/locustcloud/extension/${{ github.ref_name }}/
