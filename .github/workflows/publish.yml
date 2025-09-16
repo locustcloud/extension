@@ -42,22 +42,11 @@ jobs:
             echo "value=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Publish to Open VSX first (packages & uploads; emits vsixPath)
-      - name: Publish to Open VSX
-        id: ovsx
-        uses: HaaLeo/publish-vscode-extension@v2
-        with:
-          pat: ${{ secrets.OPEN_VSX_TOKEN }}
-          preRelease: ${{ steps.prerelease.outputs.value }}
-          skipDuplicate: true
-          baseContentUrl: https://github.com/locustcloud/extension/blob/${{ github.ref_name }}/
-          baseImagesUrl:  https://raw.githubusercontent.com/locustcloud/extension/${{ github.ref_name }}/
-
       # Publish the exact same .vsix to the VS Marketplace
       - name: Publish to VS Marketplace
         uses: HaaLeo/publish-vscode-extension@v2
         with:
-          pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
+          pat: ${{ secrets.VSCE_PERSONAL_ACCESS_TOKEN }}
           registryUrl: https://marketplace.visualstudio.com
           extensionFile: ${{ steps.ovsx.outputs.vsixPath }}
           preRelease: ${{ steps.prerelease.outputs.value }}
