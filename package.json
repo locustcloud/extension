@@ -52,6 +52,7 @@
           "id": "locust.welcome",
           "name": "Locust — Welcome",
           "icon": "media/icon.png",
+          "type": "webview",
           "when": "locust.hideWelcome != true"
         },
         {
@@ -95,10 +96,26 @@
         }
       ],
       "view/item/context": [
-        { "command": "locust.runFileUI",       "when": "view == locust.scenarios && viewItem == locust.file", "group": "inline" },
-        { "command": "locust.runFileHeadless", "when": "view == locust.scenarios && viewItem == locust.file", "group": "inline" },
-        { "command": "locust.runTaskUI",       "when": "view == locust.scenarios && viewItem == locust.task", "group": "inline" },
-        { "command": "locust.runTaskHeadless", "when": "view == locust.scenarios && viewItem == locust.task", "group": "inline" }
+        {
+          "command": "locust.runFileUI",
+          "when": "view == locust.scenarios && viewItem == locust.file",
+          "group": "inline"
+        },
+        {
+          "command": "locust.runFileHeadless",
+          "when": "view == locust.scenarios && viewItem == locust.file",
+          "group": "inline"
+        },
+        {
+          "command": "locust.runTaskUI",
+          "when": "view == locust.scenarios && viewItem == locust.task",
+          "group": "inline"
+        },
+        {
+          "command": "locust.runTaskHeadless",
+          "when": "view == locust.scenarios && viewItem == locust.task",
+          "group": "inline"
+        }
       ],
       "commandPalette": [
         { "command": "locust.runFileUI", "when": "false" },
@@ -262,7 +279,7 @@
             "id": "convertHar",
             "title": "Convert HAR → Locustfile (with Copilot)",
             "description": "Ask Copilot: `Convert samples/sample.har to a locustfile and save it as templates/sample_locustfile.py`",
-            "media": { "markdown": "./walkthrough/08-copilot.md" }
+            "media": { "markdown": "media/08-copilot.md" }
           },
           {
             "id": "listTasks",
@@ -273,7 +290,7 @@
             "id": "runUI",
             "title": "Run Locust in UI mode",
             "description": "Ask Copilot: `Start Locust UI using templates/locustfile.py against https://mock-test-target.eu-north-1.locust.cloud`",
-            "media": { "markdown": "./walkthrough/04-ui.md" }
+            "media": { "markdown": "media/walkthrough/04-ui.md" }
           },
           {
             "id": "stopProcess",
@@ -284,7 +301,7 @@
             "id": "runHeadless",
             "title": "Run Locust in headless mode",
             "description": "Ask Copilot: `Run headless for 1m with 10 users, spawn rate 2, tags=checkout using templates/locustfile.py`",
-            "media": { "markdown": "./walkthrough/03-headless.md" }
+            "media": { "markdown": "media/walkthrough/03-headless.md" }
           }
         ]
       }

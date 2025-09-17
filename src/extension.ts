@@ -100,7 +100,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const treeView = vscode.window.createTreeView('locust.scenarios', { treeDataProvider: tree });
   ctx.subscriptions.push(treeView, tree);
 
-  // Welcome view provider + show/hide controls
+  // Welcome view provider + show/hide controls + copilot walkthrough opener
   ctx.subscriptions.push(
     vscode.window.registerWebviewViewProvider('locust.welcome', new LocustWelcomeViewProvider(ctx))
   );
@@ -121,7 +121,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
     )
   );
 
-  // Commands (existing)
+  // Commands
   registerCommands(ctx, {
     setup,
     runner: locustRunner,
@@ -129,10 +129,9 @@ export async function activate(ctx: vscode.ExtensionContext) {
     tree,
   });
 
-  // Silent auto-setup on activation
   setup.autoSetupSilently();
 
-  // Re-run setup when folders change
+  // If the user opens/closes folders in a multi-root workspace, try setup again.
   ctx.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(() => setup.autoSetupSilently())
   );
