@@ -34,22 +34,26 @@
     "python"
   ],
   "activationEvents": [
-    "workspaceContains:locustfile.py"
+    "workspaceContains:locustfile.py",
+    "onView:locust.welcome",
+    "onView:locust.scenarios",
+    "onCommand:locust.openWalkthrough",
+    "onCommand:locust.openCopilotWalkthrough",
+    "onCommand:locust.showWelcome",
+    "onCommand:locust.hideWelcome",
+    "onCommand:locust.createSimulation",
+    "onCommand:locust.convertHar"
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "viewsWelcome": [
-      {
-        "id": "locust.viewsWelcome",
-        "name": "Locust Welcome",
-        "icon": "media/icon.png",
-        "command": "locust.openWalkthrough",
-        "view": "locust.openWalkthrough",
-        "contents": "Welcome to **Locust**.\n\n- [Open Getting Started](command:locust.openWalkthrough)\n [Copilot Walkthrough (MCP)](command:workbench.action.openWalkthrough?%5B%22locust.copilotWalkthrough%22%5D)"
-      }
-    ],
     "views": {
       "explorer": [
+        {
+          "id": "locust.welcome",
+          "name": "Locust — Welcome",
+          "icon": "media/icon.png",
+          "when": "locust.hideWelcome != true"
+        },
         {
           "id": "locust.scenarios",
           "name": "Locust Tests",
@@ -68,36 +72,60 @@
           "command": "locust.createSimulation",
           "when": "view == locust.scenarios",
           "group": "navigation@1"
+        },
+        {
+          "command": "locust.openWalkthrough",
+          "when": "view == locust.scenarios",
+          "group": "navigation@0"
+        },
+        {
+          "command": "locust.openCopilotWalkthrough",
+          "when": "view == locust.scenarios",
+          "group": "navigation@0"
+        },
+        {
+          "command": "locust.showWelcome",
+          "when": "view == locust.scenarios && locust.hideWelcome == true",
+          "group": "navigation@9"
+        },
+        {
+          "command": "locust.hideWelcome",
+          "when": "view == locust.welcome",
+          "group": "navigation@9"
         }
       ],
-
       "view/item/context": [
-      { "command": "locust.runFileUI",      "when": "view == locust.scenarios && viewItem == locust.file", "group": "inline" },
-      { "command": "locust.runFileHeadless","when": "view == locust.scenarios && viewItem == locust.file", "group": "inline" },
-
-      { "command": "locust.runTaskUI",      "when": "view == locust.scenarios && viewItem == locust.task", "group": "inline" },
-      { "command": "locust.runTaskHeadless","when": "view == locust.scenarios && viewItem == locust.task", "group": "inline" }
-    ],
-    "commandPalette": [
-      { "command": "locust.runFileUI", "when": "false" },
-      { "command": "locust.runFileHeadless", "when": "false" },
-      { "command": "locust.runTaskUI", "when": "false" },
-      { "command": "locust.runTaskHeadless", "when": "false" }
-    ]
- },
+        { "command": "locust.runFileUI",       "when": "view == locust.scenarios && viewItem == locust.file", "group": "inline" },
+        { "command": "locust.runFileHeadless", "when": "view == locust.scenarios && viewItem == locust.file", "group": "inline" },
+        { "command": "locust.runTaskUI",       "when": "view == locust.scenarios && viewItem == locust.task", "group": "inline" },
+        { "command": "locust.runTaskHeadless", "when": "view == locust.scenarios && viewItem == locust.task", "group": "inline" }
+      ],
+      "commandPalette": [
+        { "command": "locust.runFileUI", "when": "false" },
+        { "command": "locust.runFileHeadless", "when": "false" },
+        { "command": "locust.runTaskUI", "when": "false" },
+        { "command": "locust.runTaskHeadless", "when": "false" }
+      ]
+    },
     "commands": [
       {
         "command": "locust.init",
         "title": "Locust: Initialize (Install/Detect)"
       },
-      { "command": "locust.createSimulation", 
-      "title": "Locust: Create Simulation (locustfile_###.py)" 
+      {
+        "command": "locust.createSimulation",
+        "title": "Locust: Create Simulation (locustfile_###.py)"
       },
       {
         "command": "locust.openWalkthrough",
-        "title": "Locust: Open Getting Started Walkthrough"
+        "title": "Locust: Open Getting Started Walkthrough",
+        "icon": "$(book)"
       },
-      
+      {
+        "command": "locust.openCopilotWalkthrough",
+        "title": "Locust: Open Copilot Walkthrough",
+        "icon": "$(sparkle)"
+      },
       {
         "command": "locust.runHeadless",
         "title": "Locust: Run Test (Headless)"
@@ -130,9 +158,19 @@
         "command": "locust.convertHar",
         "title": "Locust: Convert HAR → Locustfile…"
       },
-      { 
-        "command": "locust.runTaskUI", 
-        "title": "Locust: Run Task (Web UI)" 
+      {
+        "command": "locust.runTaskUI",
+        "title": "Locust: Run Task (Web UI)"
+      },
+      {
+        "command": "locust.showWelcome",
+        "title": "Locust: Show Welcome",
+        "icon": "$(home)"
+      },
+      {
+        "command": "locust.hideWelcome",
+        "title": "Locust: Hide Welcome",
+        "icon": "$(close)"
       }
     ],
     "configuration": {
@@ -155,11 +193,7 @@
         },
         "locust.autoSetup": {
           "type": "string",
-          "enum": [
-            "prompt",
-            "always",
-            "never"
-          ],
+          "enum": ["prompt", "always", "never"],
           "default": "always",
           "description": "When the extension activates: prompt to set up the Locust environment, always set it up automatically, or never run setup."
         },
