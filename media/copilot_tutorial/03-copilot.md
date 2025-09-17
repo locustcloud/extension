@@ -1,0 +1,19 @@
+## Run Locust in browser UI
+
+**Prompt:**
+
+```
+Start Locust UI using templates/locustfile.py against https://mock-test-target.eu-north-1.locust.cloud
+```
+
+**Copilot:**
+
+* Calls the `locust.run_ui` MCP tool.
+* Launches Locust with:
+
+  ```bash
+  locust -f templates/locustfile.py \
+         --host=https://mock-test-target.eu-north-1.locust.cloud
+  ```
+* Returns a PID and the URL `http://localhost:8089`.
+
