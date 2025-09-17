@@ -34,41 +34,94 @@
     "python"
   ],
   "activationEvents": [
-    "workspaceContains:locustfile.py"
+    "workspaceContains:locustfile.py",
+    "onView:locust.welcome",
+    "onView:locust.scenarios",
+    "onCommand:locust.openWalkthrough",
+    "onCommand:locust.openCopilotWalkthrough",
+    "onCommand:locust.showWelcome",
+    "onCommand:locust.hideWelcome",
+    "onCommand:locust.createSimulation",
+    "onCommand:locust.convertHar"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "views": {
       "explorer": [
         {
+          "id": "locust.welcome",
+          "name": "Locust — Welcome",
+          "icon": "media/icon.png",
+          "type": "webview",
+          "when": "locust.hideWelcome != true"
+        },
+        {
           "id": "locust.scenarios",
-          "name": "Locust Tests"
+          "name": "Locust Tests",
+          "icon": "media/icon.png"
         }
       ]
     },
-    "viewsWelcome": [
-      {
-        "view": "locust.scenarios",
-        "contents": "Welcome to **Locust**.\n\n- [Open Getting Started](command:locust.openWalkthrough)\n- [Initialize (Install/Detect)](command:locust.init)"
-      }
-    ],
     "menus": {
       "view/title": [
         {
           "command": "locust.refreshTree",
           "when": "view == locust.scenarios",
           "group": "navigation"
+        },
+        {
+          "command": "locust.createSimulation",
+          "when": "view == locust.scenarios",
+          "group": "navigation@1"
+        },
+        {
+          "command": "locust.openWalkthrough",
+          "when": "view == locust.scenarios",
+          "group": "navigation@0"
+        },
+        {
+          "command": "locust.openCopilotWalkthrough",
+          "when": "view == locust.scenarios",
+          "group": "navigation@0"
+        },
+        {
+          "command": "locust.showWelcome",
+          "when": "view == locust.scenarios && locust.hideWelcome == true",
+          "group": "navigation@9"
+        },
+        {
+          "command": "locust.hideWelcome",
+          "when": "view == locust.welcome",
+          "group": "navigation@9"
         }
       ],
       "view/item/context": [
         {
-        "command": "locust.runUI",
-        "title": "Locust: Run Test (Web UI)"
-      },
+          "command": "locust.runFileUI",
+          "when": "view == locust.scenarios && viewItem == locust.file",
+          "group": "inline"
+        },
         {
-        "command": "locust.runHeadless",
-        "title": "Locust: Run Test (Headless)"
-      }
+          "command": "locust.runFileHeadless",
+          "when": "view == locust.scenarios && viewItem == locust.file",
+          "group": "inline"
+        },
+        {
+          "command": "locust.runTaskUI",
+          "when": "view == locust.scenarios && viewItem == locust.task",
+          "group": "inline"
+        },
+        {
+          "command": "locust.runTaskHeadless",
+          "when": "view == locust.scenarios && viewItem == locust.task",
+          "group": "inline"
+        }
+      ],
+      "commandPalette": [
+        { "command": "locust.runFileUI", "when": "false" },
+        { "command": "locust.runFileHeadless", "when": "false" },
+        { "command": "locust.runTaskUI", "when": "false" },
+        { "command": "locust.runTaskHeadless", "when": "false" }
       ]
     },
     "commands": [
@@ -77,13 +130,19 @@
         "title": "Locust: Initialize (Install/Detect)"
       },
       {
+        "command": "locust.createSimulation",
+        "title": "Locust: Create Simulation (locustfile_###.py)"
+      },
+      {
         "command": "locust.openWalkthrough",
-        "title": "Locust: Open Getting Started Walkthrough"
+        "title": "Locust: Open Getting Started Walkthrough",
+        "icon": "$(book)"
       },
 
       {
-        "command": "locust.runUI",
-        "title": "Locust: Run Test (Web UI)"
+        "command": "locust.openCopilotWalkthrough",
+        "title": "Locust: Open Copilot Walkthrough",
+        "icon": "$(sparkle)"
       },
       {
         "command": "locust.runHeadless",
@@ -92,6 +151,10 @@
       {
         "command": "locust.refreshTree",
         "title": "Locust: Refresh Tests"
+      },
+      {
+        "command": "locust.runUI",
+        "title": "Locust: Run Test (Web UI)"
       },
       {
         "command": "locust.runFileUI",
@@ -112,6 +175,20 @@
       {
         "command": "locust.convertHar",
         "title": "Locust: Convert HAR → Locustfile…"
+      },
+      {
+        "command": "locust.runTaskUI",
+        "title": "Locust: Run Task (Web UI)"
+      },
+      {
+        "command": "locust.showWelcome",
+        "title": "Locust: Show Welcome",
+        "icon": "$(home)"
+      },
+      {
+        "command": "locust.hideWelcome",
+        "title": "Locust: Hide Welcome",
+        "icon": "$(close)"
       }
     ],
     "configuration": {
@@ -134,11 +211,7 @@
         },
         "locust.autoSetup": {
           "type": "string",
-          "enum": [
-            "prompt",
-            "always",
-            "never"
-          ],
+          "enum": ["prompt", "always", "never"],
           "default": "always",
           "description": "When the extension activates: prompt to set up the Locust environment, always set it up automatically, or never run setup."
         },
@@ -162,20 +235,6 @@
         "description": "Install Locust, scaffold a locustfile, run headless or with the Web UI, and tweak requests (manual flow, no Copilot).",
         "visibility": "default",
         "steps": [
-          {
-            "id": "locust.step.init",
-            "title": "Initialize Locust and environment",
-            "description": "Provision a local Python virtual environment, install Locust and MCP deps, and set VS Code's interpreter.\n\n[Initialize (Install/Detect)](command:locust.init)",
-            "media": { "markdown": "media/walkthrough/01-init.md" },
-            "completionEvents": ["onCommand:locust.init"]
-          },
-          {
-            "id": "locust.step.create",
-            "title": "Create a sample locustfile",
-            "description": "Scaffold a minimal `locustfile.py` into your workspace.\n\n[Create Simulation](command:locust.createSimulation)",
-            "media": { "markdown": "media/walkthrough/02-create.md" },
-            "completionEvents": ["onCommand:locust.createSimulation"]
-          },
           {
             "id": "locust.step.runHeadless",
             "title": "Run headless",
@@ -202,6 +261,13 @@
             "title": "Edit requests (headers, auth)",
             "description": "Open `locustfile.py` and tweak a request — for example add custom headers to `self.client.get(\"/\")`.\n\n[Open Explorer](command:workbench.view.explorer)",
             "media": { "markdown": "media/walkthrough/06-edit.md" }
+          },
+          {
+            "id": "locust.step.create",
+            "title": "Create a sample locustfile",
+            "description": "Scaffold a minimal `locustfile.py` into your workspace.\n\n[Create Simulation](command:locust.createSimulation)",
+            "media": { "markdown": "media/walkthrough/02-create.md" },
+            "completionEvents": ["onCommand:locust.createSimulation"]
           }
         ]
       },
@@ -214,7 +280,7 @@
             "id": "convertHar",
             "title": "Convert HAR → Locustfile (with Copilot)",
             "description": "Ask Copilot: `Convert samples/sample.har to a locustfile and save it as templates/sample_locustfile.py`",
-            "media": { "markdown": "./walkthrough/08-copilot.md" }
+            "media": { "markdown": "media/08-copilot.md" }
           },
           {
             "id": "listTasks",
@@ -225,7 +291,7 @@
             "id": "runUI",
             "title": "Run Locust in UI mode",
             "description": "Ask Copilot: `Start Locust UI using templates/locustfile.py against https://mock-test-target.eu-north-1.locust.cloud`",
-            "media": { "markdown": "./walkthrough/04-ui.md" }
+            "media": { "markdown": "media/walkthrough/04-ui.md" }
           },
           {
             "id": "stopProcess",
@@ -236,7 +302,7 @@
             "id": "runHeadless",
             "title": "Run Locust in headless mode",
             "description": "Ask Copilot: `Run headless for 1m with 10 users, spawn rate 2, tags=checkout using templates/locustfile.py`",
-            "media": { "markdown": "./walkthrough/03-headless.md" }
+            "media": { "markdown": "media/walkthrough/03-headless.md" }
           }
         ]
       }
