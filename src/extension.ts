@@ -32,8 +32,12 @@ export async function activate(ctx: vscode.ExtensionContext) {
     tree,
   });
 
-  // Optional: lightweight health check or auto-repair on activation
-  // await setup.repairWorkspaceInterpreterIfBroken(); // uncomment if you want auto-repair
+  setup.autoSetupSilently();
+
+  // If the user opens/closes folders in a multi-root workspace, try setup again.
+  ctx.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => setup.autoSetupSilently())
+  );
 }
 
 export function deactivate() {

@@ -11,7 +11,6 @@ import path from 'path';
 
 type RunMode = 'ui' | 'headless';
 
-
 // Fallback for older VS Code API: emulate Uri.joinPath
 function uriJoinPath(base: vscode.Uri, ...paths: string[]): vscode.Uri {
   return vscode.Uri.file(path.join(base.fsPath, ...paths));
@@ -36,6 +35,26 @@ export class LocustRunner {
     return `${locustPath} -f "${filePath}" ${headless} ${host} ${extras}`.trim();
   }
 
+  /**
+   * Opens the Locust UI in VS Code's Simple Browser with a short delay.
+   * Falls back to external browser if the Simple Browser command is unavailable.
+   */
+  private openLocustUIBrowser(url: vscode.Uri = vscode.Uri.parse('http://127.0.0.1:8089')) {
+    // Small delay gives Locust a moment to start its web UI
+    const open = () => {
+      // Try Simple Browser first
+      vscode.commands.executeCommand('simpleBrowser.show', url).then(
+        undefined,
+        // Fallback: open in external browser
+        () => vscode.env.openExternal(url)
+      );
+    };
+
+    // Try quickly, then once more as a gentle fallback
+    setTimeout(open, 600);
+    setTimeout(open, 1800);
+  }
+
   private runLocustFile(filePath: string, mode: RunMode, extraArgs: string[] = []) {
     if (!vscode.workspace.isTrusted) {
       vscode.window.showWarningMessage('Trust this workspace to run commands.');
@@ -46,16 +65,38 @@ export class LocustRunner {
     const { envFolder } = getConfig();
     this.env.ensureTerminalEnv(term, envFolder);
     term.sendText(this.buildLocustCommand(filePath, mode, extraArgs));
+
+    // Always open Simple Browser when starting in UI mode
+    if (mode === 'ui') {
+      this.openLocustUIBrowser();
+    }
   }
 
- 
-  async runFile(filePath: string | undefined, mode: RunMode) {
-    if (!filePath) {
-      vscode.window.showWarningMessage('No file node provided.');
+    async runFile(filePath: string | undefined, mode: RunMode) {
+    let targetPath = filePath;
+
+    // Fallback 1: active editor if it's a locustfile
+    if (!targetPath) {
+      const active = vscode.window.activeTextEditor?.document;
+      if (active && /(?:^|\/)locustfile.*\.py$/i.test(active.fileName)) {
+        targetPath = active.fileName;
+      }
+    }
+
+    // Fallback 2: quick pick a locustfile
+    if (!targetPath) {
+      const picked = await this.pickLocustfile();
+      if (picked) targetPath = picked.fsPath;
+    }
+
+    if (!targetPath) {
+      vscode.window.showWarningMessage('No locustfile selected.');
       return;
     }
-    this.runLocustFile(filePath, mode);
+
+    this.runLocustFile(targetPath, mode);
   }
+
 
   async runTaskHeadless(node: any) {
     const { filePath, taskName } = node ?? {};
@@ -67,7 +108,7 @@ export class LocustRunner {
     this.runLocustFile(filePath, 'headless');
   }
 
-  //  Palette helpers.
+  // Palette helpers.
   async runSelected(mode: RunMode) {
     const file = await this.pickLocustfile();
     if (!file) return;

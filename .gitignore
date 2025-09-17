@@ -5,4 +5,5 @@ node_modules
 *.vsix
 .vscode/mcp.json
 .locust_env
-.vscode/mcp.json
+.vscode/settings.json
+

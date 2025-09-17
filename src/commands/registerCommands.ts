@@ -27,21 +27,17 @@ export function registerCommands(
     vscode.commands.registerCommand(
       'locust.runFileUI',
       async (node?: { filePath?: string; resourceUri?: vscode.Uri }) => {
-        // Start Locust with UI
         await runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'ui');
-
-        // Open in VS Code’s built-in simple browser
-        vscode.commands.executeCommand(
-          'simpleBrowser.show',
-          vscode.Uri.parse('http://localhost:8089')
-        );
+        // No direct browser call here anymore; the runner handles Simple Browser opening.
       }
     ),
-    
-    vscode.commands.registerCommand('locust.runFileHeadless', (node?: { filePath?: string; resourceUri?: vscode.Uri }) =>
-      runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'headless')
+
+    vscode.commands.registerCommand(
+      'locust.runFileHeadless',
+      (node?: { filePath?: string; resourceUri?: vscode.Uri }) =>
+        runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'headless')
     ),
-    
+
     vscode.commands.registerCommand('locust.runTaskHeadless', (node) => runner.runTaskHeadless(node)),
 
     // Setup (user-driven)
@@ -56,13 +52,10 @@ export function registerCommands(
     ),
 
     vscode.commands.registerCommand('locust.mcp.rewriteAndReload', async () => {
-      // Write mcp.json with a known-good interpreter, then nudge Copilot to reload MCP servers
       const envService = new (require('../services/envService').EnvService)();
       const mcp = new McpService(envService);
-      
-      // await mcp.writeMcpConfig("${workspaceFolder}/locust_env/bin/python");
-      await mcp.writeMcpConfig("python"); // your current preference
-      //await mcp.reloadCopilotMcpServers();
+      await mcp.writeMcpConfig('python');
+      // await mcp.reloadCopilotMcpServers();
     }),
 
     // HAR → Locustfile (delegate to runner -> service)

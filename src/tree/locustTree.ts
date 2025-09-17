@@ -31,7 +31,7 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     // Watch for relevant file changes
     if (vscode.workspace.workspaceFolders?.length) {
       this.watchers.push(
-        vscode.workspace.createFileSystemWatcher('**/locustfile*.py'),
+        vscode.workspace.createFileSystemWatcher('**/templates*.py'),
         vscode.workspace.createFileSystemWatcher('**/*.py') // tasks may move between files
       );
       for (const w of this.watchers) {
@@ -64,7 +64,7 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
 
     if (!element) {
       // Root: list locust files
-      const files = await vscode.workspace.findFiles('**/locustfile*.py', '**/{.venv,.git,__pycache__}/**');
+      const files = await vscode.workspace.findFiles('**/templates/*.py', '**/{.venv,.git,__pycache__}/**');
       return files.map((f) => ({
         kind: 'file',
         label: vscode.workspace.asRelativePath(f),

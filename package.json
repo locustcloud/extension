@@ -42,17 +42,32 @@
       "explorer": [
         {
           "id": "locust.scenarios",
-          "name": "Locust Tests"
+          "name": "Locust Tests",
+          "icon": "media/icon.png"
+        },
+        {
+          "id": "locust.runUI",
+          "name": "Run Test (Web UI)",
+          "icon": "media/icon.png"
+        },
+        {
+          "id": "locust.runHeadless",
+          "name": "Run Test (Headless)",
+          "icon": "media/icon.png"
         }
       ]
     },
-    "viewsWelcome": [
-      {
-        "view": "locust.scenarios",
-        "contents": "Welcome to **Locust**.\n\n- [Open Getting Started](command:locust.openWalkthrough)\n- [Initialize (Install/Detect)](command:locust.init)"
-      }
-    ],
     "menus": {
+      "viewsWelcome": [
+        {
+          "id": "locust.viewsWelcome",
+          "name": "Locust Welcome",
+          "icon": "media/icon.png",
+          "command": "locust.openWalkthrough",
+          "view": "locust.openWalkthrough",
+          "contents": "Welcome to **Locust**.\n\n- [Open Getting Started](command:locust.openWalkthrough)\n [Copilot Walkthrough (MCP)](command:workbench.action.openWalkthrough?%5B%22locust.copilotWalkthrough%22%5D)"
+        } 
+      ],
       "view/title": [
         {
           "command": "locust.refreshTree",
@@ -62,13 +77,19 @@
       ],
       "view/item/context": [
         {
-        "command": "locust.runUI",
-        "title": "Locust: Run Test (Web UI)"
-      },
+          "command": "locust.runUI",
+          "title": "Locust: Run Test (Web UI)"
+        },
         {
-        "command": "locust.runHeadless",
-        "title": "Locust: Run Test (Headless)"
-      }
+          "command": "locust.runHeadless",
+          "title": "Locust: Run Test (Headless)"
+        }
+      ],
+      "commandPalette": [
+        { "command": "locust.init", "when": "false"},
+        { "command": "locust.runFileUI", "when": "false" },
+        { "command": "locust.runFileHeadless", "when": "false" },
+        { "command": "locust.runTaskHeadless", "when": "false" }
       ]
     },
     "commands": [
@@ -80,11 +101,7 @@
         "command": "locust.openWalkthrough",
         "title": "Locust: Open Getting Started Walkthrough"
       },
-
-      {
-        "command": "locust.runUI",
-        "title": "Locust: Run Test (Web UI)"
-      },
+      
       {
         "command": "locust.runHeadless",
         "title": "Locust: Run Test (Headless)"
@@ -92,6 +109,10 @@
       {
         "command": "locust.refreshTree",
         "title": "Locust: Refresh Tests"
+      },
+      {
+        "command": "locust.runUI",
+        "title": "Locust: Run Test (Web UI)"
       },
       {
         "command": "locust.runFileUI",
