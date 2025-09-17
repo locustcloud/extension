@@ -31,14 +31,6 @@ jobs:
       - name: Build
         run: yarn compile
 
-      # Package the extension into a VSIX file
-      - name: Package Extension
-        id: ovsx
-        run: |
-          yarn vsce package
-          VSIX_PATH=$(ls *.vsix | head -n 1)
-          echo "vsixPath=$VSIX_PATH" >> "$GITHUB_OUTPUT"
-
       # Decide if this is a pre-release based on the tag (e.g. v1.2.3-beta.1)
       - name: Detect pre-release
         id: prerelease

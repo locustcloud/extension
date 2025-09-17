@@ -138,6 +138,7 @@
         "title": "Locust: Open Getting Started Walkthrough",
         "icon": "$(book)"
       },
+
       {
         "command": "locust.openCopilotWalkthrough",
         "title": "Locust: Open Copilot Walkthrough",
