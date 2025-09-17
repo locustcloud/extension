@@ -23,25 +23,35 @@ export function registerCommands(
     // Tree refresh – call provider directly (no recursive command invocation)
     vscode.commands.registerCommand('locust.refreshTree', () => tree.refresh()),
 
+    // Create a new (numbered) locustfile
+    vscode.commands.registerCommand('locust.createSimulation', async () => {
+      const pick = await vscode.window.showQuickPick(
+        [
+          { label: 'Workspace root', description: 'Create locustfile_###.py at the repo root', id: 'root' },
+          { label: 'templates/', description: 'Create locustfile_###.py under templates/', id: 'templates' }
+        ],
+        { placeHolder: 'Where should I create the new locustfile?' }
+      );
+      const where = (pick?.id === 'templates' ? 'templates' : 'root') as 'root' | 'templates';
+      await runner.createLocustfile({ where, open: true });
+    }),
+
     // Tree/context commands
     vscode.commands.registerCommand(
       'locust.runFileUI',
       async (node?: { filePath?: string; resourceUri?: vscode.Uri }) => {
-        // Start Locust with UI
         await runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'ui');
-
-        // Open in VS Code’s built-in simple browser
-        vscode.commands.executeCommand(
-          'simpleBrowser.show',
-          vscode.Uri.parse('http://localhost:8089')
-        );
+        // Browser opening handled inside the runner.
       }
     ),
-    
-    vscode.commands.registerCommand('locust.runFileHeadless', (node?: { filePath?: string; resourceUri?: vscode.Uri }) =>
-      runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'headless')
+
+    vscode.commands.registerCommand(
+      'locust.runFileHeadless',
+      (node?: { filePath?: string; resourceUri?: vscode.Uri }) =>
+        runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'headless')
     ),
-    
+
+    vscode.commands.registerCommand('locust.runTaskUI', (node) => runner.runTaskUI(node)),
     vscode.commands.registerCommand('locust.runTaskHeadless', (node) => runner.runTaskHeadless(node)),
 
     // Setup (user-driven)
@@ -56,16 +66,13 @@ export function registerCommands(
     ),
 
     vscode.commands.registerCommand('locust.mcp.rewriteAndReload', async () => {
-      // Write mcp.json with a known-good interpreter, then nudge Copilot to reload MCP servers
       const envService = new (require('../services/envService').EnvService)();
       const mcp = new McpService(envService);
-      
-      // await mcp.writeMcpConfig("${workspaceFolder}/locust_env/bin/python");
-      await mcp.writeMcpConfig("python"); // your current preference
-      //await mcp.reloadCopilotMcpServers();
+      await mcp.writeMcpConfig('python');
+      // await mcp.reloadCopilotMcpServers();
     }),
 
-    // HAR → Locustfile (delegate to runner -> service)
+    // HAR → Locustfile
     vscode.commands.registerCommand('locust.convertHar', () => harRunner.convertHar()),
 
     // Palette convenience

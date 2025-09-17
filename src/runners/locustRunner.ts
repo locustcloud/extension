@@ -11,7 +11,6 @@ import path from 'path';
 
 type RunMode = 'ui' | 'headless';
 
-
 // Fallback for older VS Code API: emulate Uri.joinPath
 function uriJoinPath(base: vscode.Uri, ...paths: string[]): vscode.Uri {
   return vscode.Uri.file(path.join(base.fsPath, ...paths));
@@ -36,6 +35,21 @@ export class LocustRunner {
     return `${locustPath} -f "${filePath}" ${headless} ${host} ${extras}`.trim();
   }
 
+  /**
+   * Opens the Locust UI in VS Code's Simple Browser with a short delay.
+   * Falls back to external browser if the Simple Browser command is unavailable.
+   */
+  private openLocustUIBrowser(url: vscode.Uri = vscode.Uri.parse('http://127.0.0.1:8089')) {
+    const open = () => {
+      vscode.commands.executeCommand('simpleBrowser.show', url).then(
+        undefined,
+        () => vscode.env.openExternal(url)
+      );
+    };
+    setTimeout(open, 600);
+    setTimeout(open, 1800);
+  }
+
   private runLocustFile(filePath: string, mode: RunMode, extraArgs: string[] = []) {
     if (!vscode.workspace.isTrusted) {
       vscode.window.showWarningMessage('Trust this workspace to run commands.');
@@ -46,28 +60,127 @@ export class LocustRunner {
     const { envFolder } = getConfig();
     this.env.ensureTerminalEnv(term, envFolder);
     term.sendText(this.buildLocustCommand(filePath, mode, extraArgs));
+
+    if (mode === 'ui') {
+      this.openLocustUIBrowser();
+    }
   }
 
- 
-  async runFile(filePath: string | undefined, mode: RunMode) {
-    if (!filePath) {
-      vscode.window.showWarningMessage('No file node provided.');
+  /** Compute next available locustfile name: locustfile_001.py, 002, ... in given directory. */
+  private async nextLocustfileUri(dir: vscode.Uri): Promise<vscode.Uri> {
+    let maxIndex = 0;
+    try {
+      const entries = await vscode.workspace.fs.readDirectory(dir);
+      for (const [name, type] of entries) {
+        if (type !== vscode.FileType.File) continue;
+        // Match: locustfile.py  OR  locustfile_###.py
+        const m = /^locustfile(?:_(\d+))?\.py$/i.exec(name);
+        if (m) {
+          const idx = m[1] ? parseInt(m[1], 10) : 0; // treat plain locustfile.py as index 0
+          if (!Number.isNaN(idx)) maxIndex = Math.max(maxIndex, idx);
+        }
+      }
+    } catch {
+      // dir may not exist yet; caller will create it
+    }
+    const next = Math.max(1, maxIndex + 1);
+    const nextName = `locustfile_${String(next).padStart(3, '0')}.py`;
+    return uriJoinPath(dir, nextName);
+  }
+
+  /** Create a starter, uniquely-numbered locustfile and return its URI. */
+  async createLocustfile(opts: { where?: 'root' | 'templates'; open?: boolean } = {}) {
+    const { where = 'root', open = true } = opts;
+    const ws = vscode.workspace.workspaceFolders?.[0];
+    if (!ws) {
+      vscode.window.showWarningMessage('Open a folder first.');
       return;
     }
-    this.runLocustFile(filePath, mode);
+
+    const dir = where === 'templates' ? uriJoinPath(ws.uri, 'templates') : ws.uri;
+
+    // ensure target dir exists (especially for templates/)
+    try {
+      await vscode.workspace.fs.stat(dir);
+    } catch {
+      await vscode.workspace.fs.createDirectory(dir);
+    }
+
+    const dest = await this.nextLocustfileUri(dir);
+
+    // Minimal, snippet-inspired boilerplate
+    const content = `from locust import FastHttpUser, task, tag, constant
+
+class MyUser(FastHttpUser):
+    \"\"\"Example user making a simple GET request.\"\"\"
+    wait_time = constant(1)
+
+    @task
+    def example(self):
+        self.client.get("/")
+
+    @tag("checkout")
+    @task
+    def checkout(self):
+        self.client.post("/api/checkout", json={})
+    `;
+
+    await vscode.workspace.fs.writeFile(dest, Buffer.from(content, 'utf8'));
+
+    if (open) {
+      const doc = await vscode.workspace.openTextDocument(dest);
+      await vscode.window.showTextDocument(doc, { preview: false });
+    }
+    vscode.commands.executeCommand('locust.refreshTree').then(undefined, () => {});
+    vscode.window.showInformationMessage(`Created ${vscode.workspace.asRelativePath(dest)}.`);
+    return dest;
+  }
+
+  async runFile(filePath: string | undefined, mode: RunMode) {
+    let targetPath = filePath;
+
+    // Fallback 1: active editor if it's a locustfile
+    if (!targetPath) {
+      const active = vscode.window.activeTextEditor?.document;
+      if (active && /(?:^|\/)locustfile.*\.py$/i.test(active.fileName)) {
+        targetPath = active.fileName;
+      }
+    }
+
+    // Fallback 2: quick pick a locustfile
+    if (!targetPath) {
+      const picked = await this.pickLocustfile();
+      if (picked) targetPath = picked.fsPath;
+    }
+
+    if (!targetPath) {
+      vscode.window.showWarningMessage('No locustfile selected.');
+      return;
+    }
+
+    this.runLocustFile(targetPath, mode);
+  }
+
+  // Task helper
+  private async runTask(node: any, mode: RunMode) {
+    const { filePath, taskName } = node ?? {};
+    if (!filePath || !taskName) {
+      vscode.window.showWarningMessage('No task selected.');
+      return;
+    }
+    // Filter by tag = taskName (recommend @tag("<taskName>") on the task)
+    this.runLocustFile(filePath, mode, [`--tags "${taskName}"`]);
   }
 
   async runTaskHeadless(node: any) {
-    const { filePath, taskName } = node ?? {};
-    if (!filePath || !taskName) {
-      vscode.window.showWarningMessage('No task node provided.');
-      return;
-    }
-    // Runs whole file; TODO: custom filters per-task later
-    this.runLocustFile(filePath, 'headless');
+    await this.runTask(node, 'headless');
   }
 
-  //  Palette helpers.
+  async runTaskUI(node: any) {
+    await this.runTask(node, 'ui');
+  }
+
+  // Palette helpers.
   async runSelected(mode: RunMode) {
     const file = await this.pickLocustfile();
     if (!file) return;
@@ -84,7 +197,7 @@ export class LocustRunner {
     });
     if (!tag) return;
 
-    this.runLocustFile(file.fsPath, 'headless', [`--tags ${tag}`]);
+    this.runLocustFile(file.fsPath, 'headless', [`--tags "${tag}"`]);
   }
 
   private async pickLocustfile(): Promise<vscode.Uri | undefined> {
@@ -99,40 +212,17 @@ export class LocustRunner {
     const ignoreList = Array.from(ignoreDirs).filter(Boolean);
     const ignoreGlob = ignoreList.length ? `**/{${ignoreList.join(',')}}/**` : '';
 
+    // Look for common patterns
     const files = await vscode.workspace.findFiles('**/locustfile*.py', ignoreGlob, 50);
 
     if (files.length === 0) {
-      // AUTO-CREATE from extension template on first run
       if (!vscode.workspace.isTrusted) {
         vscode.window.showWarningMessage('Trust this workspace to create files.');
         return;
       }
-      const templatesDir = uriJoinPath(this.extensionUri, 'templates');
-      try {
-        const entries = await vscode.workspace.fs.readDirectory(templatesDir);
-        const locustfileEntry = entries.find(
-          ([name, type]) => type === vscode.FileType.File && name.toLowerCase() === 'locustfile.py'
-        );
-        const templateUri = locustfileEntry
-          ? uriJoinPath(templatesDir, locustfileEntry[0])
-          : uriJoinPath(templatesDir, entries.find(([, t]) => t === vscode.FileType.File)![0]);
-
-        const bytes = await vscode.workspace.fs.readFile(templateUri);
-        const dest = uriJoinPath(ws.uri, 'locustfile.py');
-        await vscode.workspace.fs.writeFile(dest, bytes);
-
-        const doc = await vscode.workspace.openTextDocument(dest);
-        await vscode.window.showTextDocument(doc, { preview: false });
-
-        // Refresh the Locust tree immediately
-        vscode.commands.executeCommand('locust.refreshTree').then(undefined, () => {});
-
-        vscode.window.showInformationMessage('Created locustfile.py from template.');
-        return dest;
-      } catch {
-        vscode.window.showErrorMessage('No templates directory or template file found in the extension.');
-        return;
-      }
+      // Create a uniquely-numbered locustfile at the repo root
+      const created = await this.createLocustfile({ where: 'root', open: true });
+      return created;
     }
 
     if (files.length === 1) return files[0];
