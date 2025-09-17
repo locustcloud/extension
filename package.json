@@ -184,20 +184,6 @@
         "visibility": "default",
         "steps": [
           {
-            "id": "locust.step.init",
-            "title": "Initialize Locust and environment",
-            "description": "Provision a local Python virtual environment, install Locust and MCP deps, and set VS Code's interpreter.\n\n[Initialize (Install/Detect)](command:locust.init)",
-            "media": { "markdown": "media/walkthrough/01-init.md" },
-            "completionEvents": ["onCommand:locust.init"]
-          },
-          {
-            "id": "locust.step.create",
-            "title": "Create a sample locustfile",
-            "description": "Scaffold a minimal `locustfile.py` into your workspace.\n\n[Create Simulation](command:locust.createSimulation)",
-            "media": { "markdown": "media/walkthrough/02-create.md" },
-            "completionEvents": ["onCommand:locust.createSimulation"]
-          },
-          {
             "id": "locust.step.runHeadless",
             "title": "Run headless",
             "description": "Start a headless run with users, spawn rate, and duration.\n\n[Run Headless](command:locust.runHeadless)",
@@ -223,6 +209,13 @@
             "title": "Edit requests (headers, auth)",
             "description": "Open `locustfile.py` and tweak a request — for example add custom headers to `self.client.get(\"/\")`.\n\n[Open Explorer](command:workbench.view.explorer)",
             "media": { "markdown": "media/walkthrough/06-edit.md" }
+          },
+          {
+            "id": "locust.step.create",
+            "title": "Create a sample locustfile",
+            "description": "Scaffold a minimal `locustfile.py` into your workspace.\n\n[Create Simulation](command:locust.createSimulation)",
+            "media": { "markdown": "media/walkthrough/02-create.md" },
+            "completionEvents": ["onCommand:locust.createSimulation"]
           }
         ]
       },

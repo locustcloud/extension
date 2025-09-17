@@ -97,16 +97,31 @@ export class LocustRunner {
     this.runLocustFile(targetPath, mode);
   }
 
-
-  async runTaskHeadless(node: any) {
+  // add this helper inside LocustRunner
+  private async runTask(node: any, mode: RunMode) {
     const { filePath, taskName } = node ?? {};
     if (!filePath || !taskName) {
-      vscode.window.showWarningMessage('No task node provided.');
+      vscode.window.showWarningMessage('No task selected.');
       return;
     }
-    // Runs whole file; TODO: custom filters per-task later
-    this.runLocustFile(filePath, 'headless');
+
+    // Filter by tag = taskName. Recommend decorating the task:
+    // from locust import tag
+    // @tag("add_items_and_checkout")
+    // @task def add_items_and_checkout(self): ...
+    this.runLocustFile(filePath, mode, [`--tags "${taskName}"`]);
   }
+
+  // replace your existing runTaskHeadless with:
+  async runTaskHeadless(node: any) {
+    await this.runTask(node, 'headless');
+  }
+
+  // add a UI version:
+  async runTaskUI(node: any) {
+    await this.runTask(node, 'ui');
+  }
+
 
   // Palette helpers.
   async runSelected(mode: RunMode) {
