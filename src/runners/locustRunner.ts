@@ -40,17 +40,12 @@ export class LocustRunner {
    * Falls back to external browser if the Simple Browser command is unavailable.
    */
   private openLocustUIBrowser(url: vscode.Uri = vscode.Uri.parse('http://127.0.0.1:8089')) {
-    // Small delay gives Locust a moment to start its web UI
     const open = () => {
-      // Try Simple Browser first
       vscode.commands.executeCommand('simpleBrowser.show', url).then(
         undefined,
-        // Fallback: open in external browser
         () => vscode.env.openExternal(url)
       );
     };
-
-    // Try quickly, then once more as a gentle fallback
     setTimeout(open, 600);
     setTimeout(open, 1800);
   }
@@ -66,13 +61,82 @@ export class LocustRunner {
     this.env.ensureTerminalEnv(term, envFolder);
     term.sendText(this.buildLocustCommand(filePath, mode, extraArgs));
 
-    // Always open Simple Browser when starting in UI mode
     if (mode === 'ui') {
       this.openLocustUIBrowser();
     }
   }
 
-    async runFile(filePath: string | undefined, mode: RunMode) {
+  /** Compute next available locustfile name: locustfile_001.py, 002, ... in given directory. */
+  private async nextLocustfileUri(dir: vscode.Uri): Promise<vscode.Uri> {
+    let maxIndex = 0;
+    try {
+      const entries = await vscode.workspace.fs.readDirectory(dir);
+      for (const [name, type] of entries) {
+        if (type !== vscode.FileType.File) continue;
+        // Match: locustfile.py  OR  locustfile_###.py
+        const m = /^locustfile(?:_(\d+))?\.py$/i.exec(name);
+        if (m) {
+          const idx = m[1] ? parseInt(m[1], 10) : 0; // treat plain locustfile.py as index 0
+          if (!Number.isNaN(idx)) maxIndex = Math.max(maxIndex, idx);
+        }
+      }
+    } catch {
+      // dir may not exist yet; caller will create it
+    }
+    const next = Math.max(1, maxIndex + 1);
+    const nextName = `locustfile_${String(next).padStart(3, '0')}.py`;
+    return uriJoinPath(dir, nextName);
+  }
+
+  /** Create a starter, uniquely-numbered locustfile and return its URI. */
+  async createLocustfile(opts: { where?: 'root' | 'templates'; open?: boolean } = {}) {
+    const { where = 'root', open = true } = opts;
+    const ws = vscode.workspace.workspaceFolders?.[0];
+    if (!ws) {
+      vscode.window.showWarningMessage('Open a folder first.');
+      return;
+    }
+
+    const dir = where === 'templates' ? uriJoinPath(ws.uri, 'templates') : ws.uri;
+
+    // ensure target dir exists (especially for templates/)
+    try {
+      await vscode.workspace.fs.stat(dir);
+    } catch {
+      await vscode.workspace.fs.createDirectory(dir);
+    }
+
+    const dest = await this.nextLocustfileUri(dir);
+
+    // Minimal, snippet-inspired boilerplate
+    const content = `from locust import FastHttpUser, task, tag, constant
+
+    class MyUser(FastHttpUser):
+        \"\"\"Example user making a simple GET request.\"\"\"
+        wait_time = constant(1)
+
+        @task
+        def example(self):
+            self.client.get("/")
+
+        @tag("checkout")
+        @task
+        def checkout(self):
+            self.client.post("/api/checkout", json={})
+    `;
+
+    await vscode.workspace.fs.writeFile(dest, Buffer.from(content, 'utf8'));
+
+    if (open) {
+      const doc = await vscode.workspace.openTextDocument(dest);
+      await vscode.window.showTextDocument(doc, { preview: false });
+    }
+    vscode.commands.executeCommand('locust.refreshTree').then(undefined, () => {});
+    vscode.window.showInformationMessage(`Created ${vscode.workspace.asRelativePath(dest)}.`);
+    return dest;
+  }
+
+  async runFile(filePath: string | undefined, mode: RunMode) {
     let targetPath = filePath;
 
     // Fallback 1: active editor if it's a locustfile
@@ -97,31 +161,24 @@ export class LocustRunner {
     this.runLocustFile(targetPath, mode);
   }
 
-  // add this helper inside LocustRunner
+  // Task helper
   private async runTask(node: any, mode: RunMode) {
     const { filePath, taskName } = node ?? {};
     if (!filePath || !taskName) {
       vscode.window.showWarningMessage('No task selected.');
       return;
     }
-
-    // Filter by tag = taskName. Recommend decorating the task:
-    // from locust import tag
-    // @tag("add_items_and_checkout")
-    // @task def add_items_and_checkout(self): ...
+    // Filter by tag = taskName (recommend @tag("<taskName>") on the task)
     this.runLocustFile(filePath, mode, [`--tags "${taskName}"`]);
   }
 
-  // replace your existing runTaskHeadless with:
   async runTaskHeadless(node: any) {
     await this.runTask(node, 'headless');
   }
 
-  // add a UI version:
   async runTaskUI(node: any) {
     await this.runTask(node, 'ui');
   }
-
 
   // Palette helpers.
   async runSelected(mode: RunMode) {
@@ -140,7 +197,7 @@ export class LocustRunner {
     });
     if (!tag) return;
 
-    this.runLocustFile(file.fsPath, 'headless', [`--tags ${tag}`]);
+    this.runLocustFile(file.fsPath, 'headless', [`--tags "${tag}"`]);
   }
 
   private async pickLocustfile(): Promise<vscode.Uri | undefined> {
@@ -155,40 +212,17 @@ export class LocustRunner {
     const ignoreList = Array.from(ignoreDirs).filter(Boolean);
     const ignoreGlob = ignoreList.length ? `**/{${ignoreList.join(',')}}/**` : '';
 
+    // Look for common patterns
     const files = await vscode.workspace.findFiles('**/locustfile*.py', ignoreGlob, 50);
 
     if (files.length === 0) {
-      // AUTO-CREATE from extension template on first run
       if (!vscode.workspace.isTrusted) {
         vscode.window.showWarningMessage('Trust this workspace to create files.');
         return;
       }
-      const templatesDir = uriJoinPath(this.extensionUri, 'templates');
-      try {
-        const entries = await vscode.workspace.fs.readDirectory(templatesDir);
-        const locustfileEntry = entries.find(
-          ([name, type]) => type === vscode.FileType.File && name.toLowerCase() === 'locustfile.py'
-        );
-        const templateUri = locustfileEntry
-          ? uriJoinPath(templatesDir, locustfileEntry[0])
-          : uriJoinPath(templatesDir, entries.find(([, t]) => t === vscode.FileType.File)![0]);
-
-        const bytes = await vscode.workspace.fs.readFile(templateUri);
-        const dest = uriJoinPath(ws.uri, 'locustfile.py');
-        await vscode.workspace.fs.writeFile(dest, bytes);
-
-        const doc = await vscode.workspace.openTextDocument(dest);
-        await vscode.window.showTextDocument(doc, { preview: false });
-
-        // Refresh the Locust tree immediately
-        vscode.commands.executeCommand('locust.refreshTree').then(undefined, () => {});
-
-        vscode.window.showInformationMessage('Created locustfile.py from template.');
-        return dest;
-      } catch {
-        vscode.window.showErrorMessage('No templates directory or template file found in the extension.');
-        return;
-      }
+      // Create a uniquely-numbered locustfile at the repo root
+      const created = await this.createLocustfile({ where: 'root', open: true });
+      return created;
     }
 
     if (files.length === 1) return files[0];

@@ -23,12 +23,25 @@ export function registerCommands(
     // Tree refresh – call provider directly (no recursive command invocation)
     vscode.commands.registerCommand('locust.refreshTree', () => tree.refresh()),
 
+    // Create a new (numbered) locustfile
+    vscode.commands.registerCommand('locust.createSimulation', async () => {
+      const pick = await vscode.window.showQuickPick(
+        [
+          { label: 'Workspace root', description: 'Create locustfile_###.py at the repo root', id: 'root' },
+          { label: 'templates/', description: 'Create locustfile_###.py under templates/', id: 'templates' }
+        ],
+        { placeHolder: 'Where should I create the new locustfile?' }
+      );
+      const where = (pick?.id === 'templates' ? 'templates' : 'root') as 'root' | 'templates';
+      await runner.createLocustfile({ where, open: true });
+    }),
+
     // Tree/context commands
     vscode.commands.registerCommand(
       'locust.runFileUI',
       async (node?: { filePath?: string; resourceUri?: vscode.Uri }) => {
         await runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'ui');
-        // No direct browser call here anymore; the runner handles Simple Browser opening.
+        // Browser opening handled inside the runner.
       }
     ),
 
@@ -38,6 +51,7 @@ export function registerCommands(
         runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'headless')
     ),
 
+    vscode.commands.registerCommand('locust.runTaskUI', (node) => runner.runTaskUI(node)),
     vscode.commands.registerCommand('locust.runTaskHeadless', (node) => runner.runTaskHeadless(node)),
 
     // Setup (user-driven)
@@ -58,7 +72,7 @@ export function registerCommands(
       // await mcp.reloadCopilotMcpServers();
     }),
 
-    // HAR → Locustfile (delegate to runner -> service)
+    // HAR → Locustfile
     vscode.commands.registerCommand('locust.convertHar', () => harRunner.convertHar()),
 
     // Palette convenience

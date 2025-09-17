@@ -2,8 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 
 /**
- * Locustfile manipulation, refresh and discard changes
- * Tree data provider for Locust files, users, and tasks
+ * Locustfile tree: files → users → tasks
  */
 
 type NodeKind = 'file' | 'user' | 'task';
@@ -17,6 +16,12 @@ interface LocustNode {
   filePath?: string; // convenience for commands
 }
 
+const CV = {
+  file: 'locust.file',
+  user: 'locust.user',
+  task: 'locust.task',
+} as const;
+
 export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, vscode.Disposable {
   private emitter = new vscode.EventEmitter<LocustNode | null | undefined>();
   readonly onDidChangeTreeData = this.emitter.event;
@@ -25,14 +30,11 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
   private refreshTimer?: NodeJS.Timeout;
 
   constructor() {
-    // Refresh when workspace changes
     vscode.workspace.onDidChangeWorkspaceFolders(() => this.refresh());
 
-    // Watch for relevant file changes
     if (vscode.workspace.workspaceFolders?.length) {
       this.watchers.push(
-        vscode.workspace.createFileSystemWatcher('**/templates*.py'),
-        vscode.workspace.createFileSystemWatcher('**/*.py') // tasks may move between files
+        vscode.workspace.createFileSystemWatcher('**/*.py')
       );
       for (const w of this.watchers) {
         w.onDidCreate(() => this.refreshDebounced());
@@ -63,9 +65,14 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     if (!folders || folders.length === 0) return [];
 
     if (!element) {
-      // Root: list locust files
-      const files = await vscode.workspace.findFiles('**/templates/*.py', '**/{.venv,.git,__pycache__}/**');
-      return files.map((f) => ({
+      // Root: list locust files (support both conventional name and templates folder)
+      const ignore = '**/{.locust_env,.venv,.git,__pycache__,node_modules}/**';
+      const a = await vscode.workspace.findFiles('**/locustfile*.py', ignore);
+      const b = await vscode.workspace.findFiles('**/templates/*.py', ignore);
+
+      const byPath = new Map<string, vscode.Uri>();
+      [...a, ...b].forEach(u => byPath.set(u.fsPath, u));
+      return [...byPath.values()].map((f) => ({
         kind: 'file',
         label: vscode.workspace.asRelativePath(f),
         fileUri: f,
@@ -126,14 +133,20 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
         : vscode.TreeItemCollapsibleState.None;
 
     const item = new vscode.TreeItem(element.label, collapsible);
-    item.contextValue = element.kind;
 
+    // namespaced context keys for menus: viewItem == locust.file|user|task
+    item.contextValue = CV[element.kind];
+
+    // nice icons/tooltip
+    item.resourceUri = element.fileUri;
+    item.tooltip = element.kind === 'task'
+      ? `${element.userName}.${element.taskName} — ${path.basename(element.fileUri.fsPath)}`
+      : element.kind === 'user'
+      ? `${element.userName} — ${path.basename(element.fileUri.fsPath)}`
+      : element.label;
+
+    // double-click to open file for any child node; keep files collapsible only
     if (element.kind !== 'file') {
-      item.description = path.basename(element.fileUri.fsPath);
-    }
-
-    // Optional double-click behavior
-    if (element.kind === 'user' || element.kind === 'task') {
       item.command = {
         command: 'vscode.open',
         title: 'Open locustfile',
@@ -143,7 +156,7 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
 
     return item;
   }
- 
+
   // Utils
   private async read(uri: vscode.Uri): Promise<string> {
     const bytes = await vscode.workspace.fs.readFile(uri);
