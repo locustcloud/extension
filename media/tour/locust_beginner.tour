@@ -1,0 +1,73 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "Locust — Beginner Tour",
+  "description": "Learn Locust from zero: write a locustfile, add tasks and weights, run UI/headless, tag tests, model multiple users, add login/logout, validate responses, use FastHttpUser, run distributed, and export reports.",
+  "ref": "main",
+  "steps": [
+    {
+      "file": "locustfile.py",
+      "line": 1,
+      "description": "# What is a locustfile?\nA `locustfile.py` is a regular Python module where you define simulated users and their tasks.\nLocust automatically looks for `locustfile.py` when you run `locust`."
+    },
+    {
+      "file": "locustfile.py",
+      "line": 1,
+      "description": "# Your first User class\n```python\nfrom locust import HttpUser, task, between\n\nclass WebsiteUser(HttpUser):\n    wait_time = between(1, 3)\n\n    @task\n    def home(self):\n        self.client.get(\"/\")\n```\nEach simulated user is an instance of this class."
+    },
+    {
+      "description": "# Run the test (Web UI)\nFrom your project folder run:\n```bash\nlocust\n```\nOpen http://localhost:8089 and start a load test."
+    },
+    {
+      "description": "# Run the test (Headless)\n```bash\nlocust --headless --users 50 --spawn-rate 5 --run-time 1m \\\n  --csv results/run --html results/report.html\n```"
+    },
+    {
+      "file": "locustfile.py",
+      "line": 1,
+      "description": "# Multiple tasks and weights\n```python\nclass WebsiteUser(HttpUser):\n    wait_time = between(1, 2)\n\n    @task(3)\n    def browse(self):\n        self.client.get(\"/\")\n\n    @task(1)\n    def about(self):\n        self.client.get(\"/about\")\n```\nThe `browse` task runs ~3× as often as `about`."
+    },
+    {
+      "file": "locustfile.py",
+      "line": 1,
+      "description": "# Naming requests\n```python\nself.client.get(f\"/item/{42}\", name=\"/item/[id]\")\n```\nGroup dynamic URLs under a stable name in the statistics."
+    },
+    {
+      "file": "locustfile.py",
+      "line": 1,
+      "description": "# Tags\n```python\nfrom locust import tag\n\nclass WebsiteUser(HttpUser):\n    @tag(\"smoke\")\n    @task\n    def home(self):\n        self.client.get(\"/\")\n\n    @tag(\"catalog\")\n    @task\n    def item(self):\n        self.client.get(\"/item/123\", name=\"/item/[id]\")\n```\nRun only smoke tests with `--tags smoke`."
+    },
+    {
+      "file": "locustfile.py",
+      "line": 1,
+      "description": "# Multiple user classes\n```python\nclass Shopper(HttpUser):\n    weight = 3\n    @task\n    def browse(self):\n        self.client.get(\"/\")\n\nclass Admin(HttpUser):\n    weight = 1\n    @task\n    def dashboard(self):\n        self.client.get(\"/admin\")\n```\nLocust spawns users proportional to `weight`."
+    },
+    {
+      "file": "locustfile.py",
+      "line": 1,
+      "description": "# Wait time\n```python\nfrom locust import between\nclass WebsiteUser(HttpUser):\n    wait_time = between(1, 3)\n```\nOr custom logic:\n```python\nimport random\nclass CustomWait(HttpUser):\n    @property\n    def wait_time(self):\n        return random.uniform(0.5, 1.0)\n```"
+    },
+    {
+      "file": "locustfile.py",
+      "line": 1,
+      "description": "# Login / Logout\n```python\nclass AuthedUser(HttpUser):\n    def on_start(self):\n        self.client.post(\"/login\", json={\"u\": \"alice\", \"p\": \"secret\"})\n\n    @task\n    def profile(self):\n        self.client.get(\"/me\")\n\n    def on_stop(self):\n        self.client.post(\"/logout\")\n```"
+    },
+    {
+      "file": "locustfile.py",
+      "line": 1,
+      "description": "# Validate responses\n```python\nwith self.client.get(\"/status\", catch_response=True) as r:\n    if r.status_code != 200 or \"ok\" not in r.text:\n        r.failure(\"unhealthy\")\n    else:\n        r.success()\n```"
+    },
+    {
+      "file": "locustfile.py",
+      "line": 1,
+      "description": "# FastHttpUser\n```python\nfrom locust import FastHttpUser, task\nclass HighThroughputUser(FastHttpUser):\n    @task\n    def ping(self):\n        self.client.get(\"/\")\n```"
+    },
+    {
+      "description": "# Distributed mode\nStart a master:\n```bash\nlocust --master --users 200 --spawn-rate 20\n```\nConnect workers:\n```bash\nlocust --worker --master-host 127.0.0.1\n```"
+    },
+    {
+      "description": "# Reports\nUse `--csv out/prefix` for CSVs and `--html out/report.html` for a shareable HTML report."
+    },
+    {
+      "description": "# Attribution\nThis tour is based on the official Locust documentation. Always check the docs for the latest features."
+    }
+  ]
+}
