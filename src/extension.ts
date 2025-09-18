@@ -49,6 +49,8 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   <div class="row">
     <button class="primary" id="btnGetting">Getting Started</button>
     <button id="btnCopilot">Copilot Walkthrough</button>
+    <button id="btnRunUI">Run Test (Web UI)</button>
+    <button id="btnRunHeadless">Run Test (Headless)</button>
     <button id="btnCreate">Create Simulation</button>
     <button id="btnConvert">Convert HAR → Locustfile</button>
   </div>
@@ -63,6 +65,8 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   const run = cmd => vscode.postMessage({ type: 'run', command: cmd });
   document.getElementById('btnGetting').onclick = () => run('locust.openWalkthrough');
   document.getElementById('btnCopilot').onclick = () => run('locust.openCopilotWalkthrough');
+  document.getElementById('btnRunUI').onclick = () => run('locust.runUI');
+  document.getElementById('btnRunHeadless').onclick = () => run('locust.runHeadless');
   document.getElementById('btnCreate').onclick = () => run('locust.createSimulation');
   document.getElementById('btnConvert').onclick = () => run('locust.convertHar');
   document.getElementById('btnHide').onclick = () => run('locust.hideWelcome');
