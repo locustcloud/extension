@@ -17,7 +17,7 @@
   "capabilities": {
     "untrustedWorkspaces": { "supported": false }
   },
-  "extensionDependencies": ["ms-python.python"],
+  "extensionDependencies": ["ms-python.python", "vsls-contrib.codetour"],
   "categories": ["Testing"],
   "keywords": ["locust", "load testing", "performance", "python"],
   "activationEvents": [
@@ -53,7 +53,7 @@
       "view/title": [
         { "command": "locust.refreshTree", "when": "view == locust.scenarios", "group": "navigation" },
         { "command": "locust.createSimulation", "when": "view == locust.scenarios", "group": "navigation@1" },
-        { "command": "locust.startBeginnerTour", "when": "view == locust.welcome", "group": "navigation@0" },
+        { "command": "locust.startBeginnerTour", "when": "view == locust.scenarios", "group": "navigation@0" },
         { "command": "locust.openCopilotWalkthrough", "when": "view == locust.scenarios", "group": "navigation@0" },
         { "command": "locust.showWelcome", "when": "view == locust.scenarios && locust.hideWelcome == true", "group": "navigation@9" },
         { "command": "locust.hideWelcome", "when": "view == locust.welcome", "group": "navigation@9" }

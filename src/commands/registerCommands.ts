@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { SetupService } from '../services/setupService';
-import { McpService } from '../services/mcpService';
 import { LocustRunner } from '../runners/locustRunner';
 import { LocustTreeProvider } from '../tree/locustTree';
 import { Har2LocustRunner } from '../runners/har2locustRunner';
@@ -41,7 +40,6 @@ export function registerCommands(
       'locust.runFileUI',
       async (node?: { filePath?: string; resourceUri?: vscode.Uri }) => {
         await runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'ui');
-        // Browser opening handled inside the runner.
       }
     ),
 
@@ -57,19 +55,48 @@ export function registerCommands(
     // Setup (user-driven)
     vscode.commands.registerCommand('locust.init', () => setup.checkAndOfferSetup({ forcePrompt: true })),
 
-    // Walkthrough
-    vscode.commands.registerCommand('locust.openWalkthrough', () =>
+    // --- Tutorials ---
+    vscode.commands.registerCommand('locust.startBeginnerTour', async () => {
+      // Resolve to the tour bundled with the extension
+      const ext = vscode.extensions.getExtension('locust.locust-vscode-extension');
+      if (!ext) {
+        vscode.window.showErrorMessage('Locust extension not found to resolve tour file.');
+        return;
+      }
+
+      const tourUri = vscode.Uri.file(
+        require('path').join(
+          ext.extensionUri.fsPath,
+          'media',
+          '.tours',
+          'locust_beginner.tour'
+        )
+      );
+
+      try {
+        await vscode.commands.executeCommand('codetour.openTourFile', tourUri);
+        await vscode.commands.executeCommand('codetour.startTour');
+      } catch (err) {
+        vscode.window.showErrorMessage(`Could not open Locust Beginner Tour: ${err}`);
+      }
+    }),
+
+    // Copilot walkthrough
+    vscode.commands.registerCommand('locust.openCopilotWalkthrough', () =>
       vscode.commands.executeCommand(
         'workbench.action.openWalkthrough',
-        'locust.locust-vscode-extension#locust.gettingStarted'
+        'locust.locust-vscode-extension#locust.copilotWalkthrough'
       )
     ),
 
-    vscode.commands.registerCommand('locust.mcp.rewriteAndReload', async () => {
-      const envService = new (require('../services/envService').EnvService)();
-      const mcp = new McpService(envService);
-      await mcp.writeMcpConfig('python');
-      // await mcp.reloadCopilotMcpServers();
+    // Welcome view show/hide
+    vscode.commands.registerCommand('locust.showWelcome', async () => {
+      await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', false);
+      await vscode.commands.executeCommand('locust.welcome.focus');
+    }),
+    vscode.commands.registerCommand('locust.hideWelcome', async () => {
+      await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', true);
+      await vscode.commands.executeCommand('locust.scenarios.focus');
     }),
 
     // HAR → Locustfile
@@ -78,6 +105,6 @@ export function registerCommands(
     // Palette convenience
     vscode.commands.registerCommand('locust.runUI', () => runner.runSelected('ui')),
     vscode.commands.registerCommand('locust.runHeadless', () => runner.runSelected('headless')),
-    vscode.commands.registerCommand('locust.runByTag', () => runner.runByTag()),
+    vscode.commands.registerCommand('locust.runByTag', () => runner.runByTag())
   );
 }
