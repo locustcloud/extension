@@ -63,8 +63,26 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     if (!folders || folders.length === 0) return [];
 
     if (!element) {
-      // Root: list locust files
-      const files = await vscode.workspace.findFiles('**/locustfile*.py', '**/{.venv,.git,__pycache__}/**');
+      // Root: list Locust files (canonical names + any *.py that import locust)
+      const exclude = '**/{.venv,.locust_env,.git,__pycache__,node_modules,site-packages,dist,build}/**';
+
+      // 1) Canonical names
+      const explicit = await vscode.workspace.findFiles('**/locustfile*.py', exclude);
+
+      // 2) Inferred from imports
+      const candidates = await vscode.workspace.findFiles('**/*.py', exclude);
+      const seen = new Set(explicit.map(u => u.fsPath));
+      const inferred: vscode.Uri[] = [];
+      for (const uri of candidates) {
+        if (seen.has(uri.fsPath)) continue;
+        if (await this.looksLikeLocustFile(uri)) {
+          inferred.push(uri);
+          seen.add(uri.fsPath);
+        }
+      }
+
+      const files = [...explicit, ...inferred];
+
       return files.map((f) => ({
         kind: 'file',
         label: vscode.workspace.asRelativePath(f),
@@ -148,5 +166,17 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
   private async read(uri: vscode.Uri): Promise<string> {
     const bytes = await vscode.workspace.fs.readFile(uri);
     return Buffer.from(bytes).toString('utf8');
+  }
+
+  // Heuristic: treat a *.py as a locust file if it imports locust
+  private async looksLikeLocustFile(uri: vscode.Uri): Promise<boolean> {
+    try {
+      const bytes = await vscode.workspace.fs.readFile(uri);
+      // Read only the first ~16KB to keep it snappy; imports are usually near the top.
+      const text = Buffer.from(bytes).toString('utf8', 0, Math.min(bytes.byteLength, 16 * 1024));
+      return /(from\s+locust\s+import\s+|import\s+locust\b)/.test(text);
+    } catch {
+      return false;
+    }
   }
 }

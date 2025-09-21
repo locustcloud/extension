@@ -1,0 +1,48 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "Locust — Beginner Tour",
+  "description": "Create a simulation, add core Locust features, and run it from the Locust Menu.",
+  "isPrimary": true,
+  "steps": [
+    {
+      "title": "#1 – Create a Simulation",
+      "description": "Open the **LOCUST — MENU** view (left sidebar) and click **Create Simulation**.\n\nThis generates a starter `locustfile_###.py`. We’ll extend it in the next steps.",
+      "gesture": "arrow",
+      "file": "locustfile_001.py"
+    },
+    {
+      "title": "#2 – Open the new locustfile",
+      "description": "In the Explorer you should see the new file (e.g. **`locustfile_001.py`**). Open it.\n\nThen insert this minimal starter that uses `FastHttpUser` and defines two tasks (one tagged `checkout`). Click **Insert Code** below to add it:",
+      "file": "locustfile_001.py",
+      "code": "from locust import FastHttpUser, task, tag, constant\\n\\nclass MyUser(FastHttpUser):\\n    \\\"\\\"\\\"Example user making a simple GET request.\\\"\\\"\\\"\\n    wait_time = constant(1)\\n\\n    @task\\n    def example(self):\\n        self.client.get('/')\\n\\n    @tag('checkout')\\n    @task\\n    def checkout(self):\\n        self.client.post('/api/checkout', json={})\\n"
+    },
+    {
+      "title": "#3 – Set your target host",
+      "description": "Tell Locust which host to load test by setting the `host` attribute on the user class. For this tour we use a mock target.\n\nClick **Insert Code** to add it:",
+      "file": "locustfile_001.py",
+      "code": "    # Base URL for all requests from this user\\n    host = 'https://mock-test-target.eu-north-1.locust.cloud'\\n"
+    },
+    {
+      "title": "#4 – Add wait time, product ids, and a client hint",
+      "description": "We’ll keep a constant wait time, a small product catalog, and (optionally) a type hint for `client` to improve completions in some editors.\n\nClick **Insert Code** to add these inside the class:",
+      "file": "locustfile_001.py",
+      "code": "    # Simulated think time between tasks\\n    wait_time = constant(1)\\n\\n    # Small catalog to pick from in examples\\n    product_ids = [1, 2, 42, 4711]\\n\\n    # Optional: helps editor completions (stringified to avoid import in runtime)\\n    client: 'HttpSession'\\n"
+    },
+    {
+      "title": "#5 – Log in on start (per simulated user)",
+      "description": "Use `on_start` to authenticate once per simulated user. If the login fails, we’ll flag the response as a failure.\n\nClick **Insert Code** to add this method:",
+      "file": "locustfile_001.py",
+      "code": "    def on_start(self):\\n        # Authenticate once per simulated user\\n        resp = self.client.post('/authenticate', json={'password': 'bar'})\\n        if resp.status_code != 200:\\n            resp.failure('Login failed')\\n"
+    },
+    {
+      "title": "#6 – Add items and checkout helper",
+      "description": "Here’s a helper that adds a couple of random items to the cart and then checks out. We use `catch_response=True` to control pass/fail based on the JSON body.\n\nClick **Insert Code** to add it:",
+      "file": "locustfile_001.py",
+      "code": "    def add_items_and_checkout(self):\\n        import random\\n        for pid in random.sample(self.product_ids, k=min(2, len(self.product_ids))):\\n            self.client.post('/cart/add', json={'productId': pid})\\n\\n        with self.client.post('/checkout/confirm', json={}, catch_response=True) as resp:\\n            try:\\n                ok = bool(resp.json().get('orderId'))\\n            except Exception:\\n                ok = false\\n            if not ok:\\n                resp.failure('orderId missing in checkout response')\\n"
+    },
+    {
+      "title": "#7 – Run the test (UI or Headless)",
+      "description": "You’re ready to run!\n\n- From **LOCUST — MENU**, click **Run Test (Web UI)** to start the UI on http://localhost:8089\n- Or click **Run Test (Headless)** to run without the UI and write stats to the console.\n\nTip: you can also run individual files or tasks from the **Locust Tests** tree."
+    }
+  ]
+}

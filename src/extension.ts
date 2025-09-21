@@ -8,6 +8,7 @@ import { Har2LocustService } from './services/har2locustService';
 import { Har2LocustRunner } from './runners/har2locustRunner';
 import { LocustTreeProvider } from './tree/locustTree';
 
+
 /** Small webview view that shows a persistent Welcome panel with quick actions. */
 class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   constructor(private ctx: vscode.ExtensionContext) {}
@@ -43,11 +44,10 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 </style>
 </head>
 <body>
-  <h1>Locust Action Menu</h1>
+  <h1>Action Menu</h1>
   <p>Quick Action Buttons for common Locust operations.</p>
 
   <div class="row">
-    <button class="primary" id="btnGetting">Locust Tour</button>
     <button id="btnCopilot">Copilot Walkthrough</button>
     <button id="btnRunUI">Run Test (Web UI)</button>
     <button id="btnRunHeadless">Run Test (Headless)</button>
@@ -58,12 +58,12 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   const run = cmd => vscode.postMessage({ type: 'run', command: cmd });
-  document.getElementById('btnGetting').onclick = () => run('locust.startBeginnerTour');
-  document.getElementById('btnCopilot').onclick = () => run('locust.openCopilotWalkthrough');
-  document.getElementById('btnRunUI').onclick = () => run('locust.runUI');
+
+  document.getElementById('btnCopilot').onclick   = () => run('locust.openCopilotWalkthrough');
+  document.getElementById('btnRunUI').onclick     = () => run('locust.runUI');
   document.getElementById('btnRunHeadless').onclick = () => run('locust.runHeadless');
-  document.getElementById('btnCreate').onclick = () => run('locust.createSimulation');
-  document.getElementById('btnConvert').onclick = () => run('locust.convertHar');
+  document.getElementById('btnCreate').onclick    = () => run('locust.createSimulation');
+  document.getElementById('btnConvert').onclick   = () => run('locust.convertHar');
 </script>
 </body>
 </html>
@@ -98,39 +98,12 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const treeView = vscode.window.createTreeView('locust.scenarios', { treeDataProvider: tree });
   ctx.subscriptions.push(treeView, tree);
 
-  // Welcome view provider + show/hide controls + tutorials
+  // Welcome view provider
   ctx.subscriptions.push(
     vscode.window.registerWebviewViewProvider('locust.welcome', new LocustWelcomeViewProvider(ctx))
   );
 
-  // --- Commands registered here ---
-  ctx.subscriptions.push(
-    vscode.commands.registerCommand('locust.showWelcome', async () => {
-      await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', false);
-      await vscode.commands.executeCommand('locust.welcome.focus');
-    }),
-    vscode.commands.registerCommand('locust.hideWelcome', async () => {
-      await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', true);
-      await vscode.commands.executeCommand('locust.scenarios.focus');
-    }),
-
-    // Copilot walkthrough
-    vscode.commands.registerCommand('locust.openCopilotWalkthrough', () =>
-      vscode.commands.executeCommand(
-        'workbench.action.openWalkthrough',
-        'locust.locust-vscode-extension#locust.copilotWalkthrough'
-      )
-    ),
-
-    // Start the Beginner CodeTour (opens CodeTour’s picker or the only tour)
-    vscode.commands.registerCommand('locust.startBeginnerTour', async () => {
-      // If you later want to target a specific tour file, you can pass args,
-      // but the generic picker is the most robust:
-      await vscode.commands.executeCommand('codetour.startTour');
-    })
-  );
-
-  // Commands from your other modules
+  // Centralized command registration (everything lives in registerCommands.ts)
   registerCommands(ctx, {
     setup,
     runner: locustRunner,
@@ -138,6 +111,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
     tree,
   });
 
+  // Run setup automatically on activation
   setup.autoSetupSilently();
 
   // If the user opens/closes folders in a multi-root workspace, try setup again.

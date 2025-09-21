@@ -29,7 +29,10 @@
     "onCommand:locust.hideWelcome",
     "onCommand:locust.createSimulation",
     "onCommand:locust.convertHar",
-    "onCommand:locust.startBeginnerTour"
+    "onCommand:locust.startBeginnerTour",
+    "onCommand:locust.openBeginnerWalkthrough",
+    "onCommand:locust.runUI",
+    "onCommand:locust.runHeadless"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -37,7 +40,7 @@
       "explorer": [
         {
           "id": "locust.welcome",
-          "name": "Locust — Menu",
+          "name": "Locust Menu",
           "icon": "media/icon.png",
           "type": "webview",
           "when": "locust.hideWelcome != true"
@@ -53,7 +56,7 @@
       "view/title": [
         { "command": "locust.refreshTree", "when": "view == locust.scenarios", "group": "navigation" },
         { "command": "locust.createSimulation", "when": "view == locust.scenarios", "group": "navigation@1" },
-        { "command": "locust.startBeginnerTour", "when": "view == locust.welcome", "group": "navigation@0" },
+        { "command": "locust.openBeginnerWalkthrough", "when": "view == locust.welcome", "group": "navigation@0" },
         { "command": "locust.openCopilotWalkthrough", "when": "view == locust.scenarios", "group": "navigation@0" },
         { "command": "locust.showWelcome", "when": "view == locust.scenarios && locust.hideWelcome == true", "group": "navigation@9" },
         { "command": "locust.hideWelcome", "when": "view == locust.welcome", "group": "navigation@9" }
@@ -89,7 +92,8 @@
       { "command": "locust.runTaskUI", "title": "Locust: Run Task (Web UI)", "icon": "$(globe)" },
       { "command": "locust.showWelcome", "title": "Locust: Show Welcome", "icon": "$(home)" },
       { "command": "locust.hideWelcome", "title": "Locust: Hide Welcome", "icon": "$(close)" },
-      { "command": "locust.startBeginnerTour", "title": "Locust: Start Beginner CodeTour", "icon": "$(walkthrough)" }
+      { "command": "locust.startBeginnerTour", "title": "Locust: Start Beginner CodeTour", "icon": "$(walkthrough)" },
+      { "command": "locust.openBeginnerWalkthrough", "title": "Locust: Open Beginner Walkthrough", "icon": "$(book)" }
     ],
     "configuration": {
       "title": "Locust",
@@ -126,6 +130,19 @@
       { "language": "python", "path": "./snippets/locust.json" }
     ],
     "walkthroughs": [
+      {
+        "id": "locust.beginnerWalkthrough",
+        "title": "Locust — Beginner Tour",
+        "description": "Start here for a guided, step-by-step tour that teaches Locust from scratch.",
+        "steps": [
+          {
+            "id": "tour-intro",
+            "title": "Start the guided CodeTour",
+            "description": "Opens a full-page intro with a button that launches the CodeTour.",
+            "media": { "markdown": "media/walkthrough/00-beginner-tour.md" }
+          }
+        ]
+      },
       {
         "id": "locust.copilotWalkthrough",
         "title": "Copilot Tutorial (MCP)",

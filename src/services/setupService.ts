@@ -67,7 +67,7 @@ async function ensureWorkspaceSettingsPatched(workspacePath: string) {
     current = JSON.parse(buf);
   } catch { current = {}; }
 
-  // We set python.defaultInterpreterPath separately (after venv creation).
+  // Set python.defaultInterpreterPath separately (after venv creation).
   const desired = {
     "python.terminal.activateEnvironment": true,
     "ruff.lint.run": "onType",
@@ -95,6 +95,78 @@ async function ensureWorkspaceSettingsPatched(workspacePath: string) {
   await fs.writeFile(settingsPath, JSON.stringify(merged, null, 2), 'utf8');
 }
 
+// --- Setup service
+async function readJson(uriOrPath: vscode.Uri | string): Promise<any | undefined> {
+  try {
+    const text =
+      typeof uriOrPath === 'string'
+        ? await fs.readFile(uriOrPath, 'utf8')
+        : Buffer.from(await vscode.workspace.fs.readFile(uriOrPath)).toString('utf8');
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+function bundledTourCandidates(ctx: vscode.ExtensionContext): vscode.Uri[] {
+  return [
+    vscode.Uri.file(path.join(ctx.extensionUri.fsPath, 'media', '.tours', 'locust_beginner.tour')),
+    vscode.Uri.file(path.join(ctx.extensionUri.fsPath, 'media', '.tour',  'locust_beginner.tour')),
+  ];
+}
+
+async function findBundledTour(ctx: vscode.ExtensionContext): Promise<vscode.Uri | undefined> {
+  for (const cand of bundledTourCandidates(ctx)) {
+    try {
+      await vscode.workspace.fs.stat(cand);
+      return cand;
+    } catch {
+      // try next
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Ensure <workspace>/.tours/locust_beginner.tour exists.
+ * If it exists, only overwrite when bundled locustTourVersion !== workspace version.
+ * (CodeTour ignores unknown keys, so 'locustTourVersion' is safe to include.)
+ */
+async function ensureWorkspaceTour(ctx: vscode.ExtensionContext, wsPath: string) {
+  const srcUri = await findBundledTour(ctx);
+  if (!srcUri) return;
+
+  const destDir = path.join(wsPath, '.tours');
+  const destPath = path.join(destDir, 'locust_beginner.tour');
+  const destUri = vscode.Uri.file(destPath);
+
+  let shouldCopy = false;
+
+  // Read version from bundled tour
+  const srcJson = await readJson(srcUri);
+  const srcVersion = srcJson?.locustTourVersion ?? '0';
+
+  // Ensure destination directory exists
+  try { await fs.mkdir(destDir, { recursive: true }); } catch {}
+
+  // Compare with existing workspace tour (if any)
+  const exists = await fileExists(destPath);
+  if (!exists) {
+    shouldCopy = true;
+  } else {
+    const dstJson = await readJson(destPath);
+    const dstVersion = dstJson?.locustTourVersion ?? '0';
+    if (dstVersion !== srcVersion) {
+      shouldCopy = true;
+    }
+  }
+
+  if (shouldCopy) {
+    const bytes = await vscode.workspace.fs.readFile(srcUri);
+    await vscode.workspace.fs.writeFile(destUri, bytes);
+  }
+}
+
 export class SetupService {
   constructor(
     private env: EnvService,
@@ -102,7 +174,7 @@ export class SetupService {
     private ctx: vscode.ExtensionContext
   ) {}
 
-  /** Use ABS path if present in settings, else 'python'. */
+  // Use ABS path if present in settings, else 'python'.
   async resolveInterpreter(): Promise<string> {
     const preferredRaw = await readWorkspaceSetting<string>('python', 'defaultInterpreterPath');
     const preferred = expandWs(preferredRaw);
@@ -116,6 +188,7 @@ export class SetupService {
    * - Sets workspace python interpreter to venv
    * - Writes MCP config
    * - Patches settings and ruff config
+   * - (NEW) Stages CodeTour into <workspace>/.tours
    */
   async autoSetupSilently() {
     try {
@@ -179,6 +252,9 @@ export class SetupService {
       await ensureRuffToml(wsPath);
       await ensureWorkspaceSettingsPatched(wsPath);
 
+      // NEW: ensure the tour is available in the workspace for CodeTour
+      await ensureWorkspaceTour(this.ctx, wsPath);
+
       // Mark as done
       await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
     } catch (err: any) {
@@ -190,12 +266,12 @@ export class SetupService {
     }
   }
 
-  // --- Legacy: keep the API around in case something still calls it. It now just delegates silently.
+  // Legacy: keep the API around in case something still calls it. It now just delegates silently.
   async checkAndOfferSetup(_opts: { forcePrompt?: boolean } = {}) {
     return this.autoSetupSilently();
   }
 
-  // --- Optional: manual re-run command could call this (not used automatically)
+  // Manual re-run command could call this (not used automatically)
   private async finalizeWorkspace(wsPath: string, python: string) {
     await this.mcp.writeMcpConfig(python);
     await ensureRuffToml(wsPath);

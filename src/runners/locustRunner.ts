@@ -88,18 +88,30 @@ export class LocustRunner {
     return uriJoinPath(dir, nextName);
   }
 
-  /** Create a starter, uniquely-numbered locustfile and return its URI. */
-  async createLocustfile(opts: { where?: 'root' | 'templates'; open?: boolean } = {}) {
-    const { where = 'root', open = true } = opts;
+  // Create a starter, uniquely-numbered locustfile and return its URI.
+  async createLocustfile(opts: { open?: boolean } = {}) {
+    const { open = true } = opts;
     const ws = vscode.workspace.workspaceFolders?.[0];
     if (!ws) {
       vscode.window.showWarningMessage('Open a folder first.');
       return;
     }
 
-    const dir = where === 'templates' ? uriJoinPath(ws.uri, 'templates') : ws.uri;
+    // Let user pick any folder within the workspace
+    const picked = await vscode.window.showOpenDialog({
+      canSelectFiles: false,
+      canSelectFolders: true,
+      canSelectMany: false,
+      openLabel: 'Select folder for new locustfile',
+      defaultUri: ws.uri,
+    });
+    if (!picked || picked.length === 0) {
+      vscode.window.showInformationMessage('Locustfile creation cancelled.');
+      return;
+    }
+    const dir = picked[0];
 
-    // ensure target dir exists (especially for templates/)
+    // Ensure chosen directory exists (should, but just in case)
     try {
       await vscode.workspace.fs.stat(dir);
     } catch {
@@ -112,7 +124,7 @@ export class LocustRunner {
     const content = `from locust import FastHttpUser, task, tag, constant
 
 class MyUser(FastHttpUser):
-    \"\"\"Example user making a simple GET request.\"\"\"
+    """Example user making a simple GET request."""
     wait_time = constant(1)
 
     @task
@@ -123,7 +135,7 @@ class MyUser(FastHttpUser):
     @task
     def checkout(self):
         self.client.post("/api/checkout", json={})
-    `;
+`;
 
     await vscode.workspace.fs.writeFile(dest, Buffer.from(content, 'utf8'));
 
@@ -131,6 +143,7 @@ class MyUser(FastHttpUser):
       const doc = await vscode.workspace.openTextDocument(dest);
       await vscode.window.showTextDocument(doc, { preview: false });
     }
+
     vscode.commands.executeCommand('locust.refreshTree').then(undefined, () => {});
     vscode.window.showInformationMessage(`Created ${vscode.workspace.asRelativePath(dest)}.`);
     return dest;
@@ -212,26 +225,54 @@ class MyUser(FastHttpUser):
     const ignoreList = Array.from(ignoreDirs).filter(Boolean);
     const ignoreGlob = ignoreList.length ? `**/{${ignoreList.join(',')}}/**` : '';
 
-    // Look for common patterns
-    const files = await vscode.workspace.findFiles('**/locustfile*.py', ignoreGlob, 50);
+    // 1) Fast path: prefer conventional names first
+    const named = await vscode.workspace.findFiles('**/locustfile*.py', ignoreGlob, 200);
+    if (named.length === 1) return named[0];
+    if (named.length > 1) {
+      const picks = named
+        .sort((a, b) => a.fsPath.localeCompare(b.fsPath))
+        .map(u => ({ label: vscode.workspace.asRelativePath(u), uri: u }));
+      const chosen = await vscode.window.showQuickPick(picks, { placeHolder: 'Choose a locustfile to run' });
+      return chosen?.uri;
+    }
 
-    if (files.length === 0) {
+    // 2) Fallback: scan python files for a Locust import
+    const candidates = await vscode.workspace.findFiles('**/*.py', ignoreGlob, 2000);
+    const locustRegex = /\bfrom\s+locust\s+import\b|\bimport\s+locust\b/;
+
+    const checks = await Promise.allSettled(
+      candidates.map(async (uri) => {
+        try {
+          // Read only the first few KB for speed
+          const bytes = await vscode.workspace.fs.readFile(uri);
+          const head = Buffer.from(bytes).toString('utf8', 0, Math.min(bytes.length, 4096));
+          return locustRegex.test(head) ? uri : undefined;
+        } catch {
+          return undefined;
+        }
+      })
+    );
+
+    const locustFiles = checks
+      .map(r => (r.status === 'fulfilled' ? r.value : undefined))
+      .filter((u): u is vscode.Uri => !!u);
+
+      if (locustFiles.length === 1) return locustFiles[0];
+      if (locustFiles.length > 1) {
+        const picks = locustFiles
+          .sort((a, b) => a.fsPath.localeCompare(b.fsPath))
+          .map(u => ({ label: vscode.workspace.asRelativePath(u), uri: u }));
+        const chosen = await vscode.window.showQuickPick(picks, { placeHolder: 'Choose a locustfile to run' });
+        return chosen?.uri;
+      }
+
+      // 3) Nothing found -> offer to create one (will prompt for destination folder)
       if (!vscode.workspace.isTrusted) {
         vscode.window.showWarningMessage('Trust this workspace to create files.');
         return;
       }
-      // Create a uniquely-numbered locustfile at the repo root
-      const created = await this.createLocustfile({ where: 'root', open: true });
+      const created = await this.createLocustfile({ open: true });
       return created;
     }
 
-    if (files.length === 1) return files[0];
-
-    const picks = files
-      .sort((a, b) => a.fsPath.length - b.fsPath.length)
-      .map(u => ({ label: vscode.workspace.asRelativePath(u), uri: u }));
-
-    const choice = await vscode.window.showQuickPick(picks, { placeHolder: 'Choose a locustfile to run' });
-    return choice?.uri;
-  }
 }
