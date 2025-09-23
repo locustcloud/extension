@@ -41,22 +41,25 @@
         {
           "id": "locust",
           "title": "Locust",
-          "icon": "media/activity-icon.svg"
+          "icon": "media/icon.png"
         }
       ]
-    },
-    "views": {
-      "locust": [
-        {
-          "id": "locust.welcome",
-          "name": "Locust Menu"
-        },
-        {
-          "id": "locust.scenarios",
-          "name": "Locust Tests"
-        }
-      ]
-    },
+      },
+      "views": {
+        "locust": [
+          {
+            "id": "locust.welcome",
+            "name": "Locust — Menu",
+            "type": "webview",
+            "when": "locust.hideWelcome != true"
+          },
+          {
+            "id": "locust.scenarios",
+            "name": "Locust Tests",
+            "icon": "media/icon.png"
+          }
+        ]
+      },
     "menus": {
       "view/title": [
         { "command": "locust.refreshTree", "when": "view == locust.scenarios", "group": "navigation" },
