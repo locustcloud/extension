@@ -1,39 +1,41 @@
 {
   "$schema": "https://aka.ms/codetour-schema",
-  "title": "Locust Beginner Tour",
+  "title": "Locust First Steps Tour",
   "description": "Create a simulation, add core Locust features, and run it from the Locust Menu.",
   "isPrimary": true,
   "steps": [
     {
       "title": "#1 Create a Simulation",
-      "description": "Open the **LOCUST MENU** view (left sidebar) and click **Create Simulation**.\n\nThis generates a starter `locustfile_###.py`. We’ll extend it in the next steps."
+      "description": "Open the **LOCUST MENU** view (left sidebar) and click **Create Simulation**.\n\nThis generates a starter `locustfile_###.py`. We’ll extend it in the next steps.",
+      "file": ".locust_tour/locustfile_tour.py"
     },
     {
       "title": "#2 Your active locustfile",
-      "description": "Your new file (e.g. **`locustfile_001.py`**) should now be **open and active**.\n\nTip: While this editor tab is active, the **Run Test (Web UI)** and **Run Test (Headless)** buttons in **LOCUST MENU** will run **this** file."
+      "description": "Your new file (e.g. **`locustfile_tour.py`**) should now be **open and active**.\n\nTip: While this editor tab is active, the **Run Test (Web UI)** and **Run Test (Headless)** buttons in **LOCUST MENU** will run **this** file.",
+      "file": ".locust_tour/locustfile_tour.py"
     },
     {
       "title": "#3 Set your target host",
       "description": "Tell Locust which host to load test by setting the `host` attribute on your user class. For this tour we use a mock target.\n\nIf the **Insert Code** button doesn’t work, copy/paste this inside the class (e.g., near the other class attributes):\n\n```python\n    # Base URL for all requests from this simulated user\n    host = \"https://mock-test-target.eu-north-1.locust.cloud\"\n```",
-      "file": "locustfile_001.py",
+      "file": ".locust_tour/locustfile_tour.py",
       "code": "    # Base URL for all requests from this simulated user\n    host = \"https://mock-test-target.eu-north-1.locust.cloud\"\n"
     },
     {
       "title": "#4 Add wait time, product ids, and a client hint",
       "description": "We’ll keep a constant wait time, a small product catalog, and (optionally) a type hint for `client` to improve completions in some editors.\n\nIf **Insert Code** doesn’t work, copy/paste the following **inside the class**:\n\n```python\n    # Simulated think time between tasks\n    wait_time = constant(1)\n\n    # Small catalog to pick from in examples\n    product_ids = [1, 2, 42, 4711]\n\n    # Optional: helps editor completions (stringified to avoid import in runtime)\n    client: \"HttpSession\"\n```",
-      "file": "locustfile_001.py",
+      "file": ".locust_tour/locustfile_tour.py",
       "code": "    # Simulated think time between tasks\n    wait_time = constant(1)\n\n    # Small catalog to pick from in examples\n    product_ids = [1, 2, 42, 4711]\n\n    # Optional: helps editor completions (stringified to avoid import in runtime)\n    client: \"HttpSession\"\n"
     },
     {
       "title": "#5 Log in on start (per simulated user)",
       "description": "Use `on_start` to authenticate once per simulated user. If the login fails, we’ll flag the response as a failure.\n\nIf **Insert Code** doesn’t work, copy/paste this **inside the class**:\n\n```python\n    def on_start(self):\n        # Authenticate once per simulated user\n        resp = self.client.post(\"/authenticate\", json={\"password\": \"bar\"})\n        if resp.status_code != 200:\n            resp.failure(\"Login failed\")\n```",
-      "file": "locustfile_001.py",
+      "file": "locustfile_tour.py",
       "code": "    def on_start(self):\n        # Authenticate once per simulated user\n        resp = self.client.post(\"/authenticate\", json={\"password\": \"bar\"})\n        if resp.status_code != 200:\n            resp.failure(\"Login failed\")\n"
     },
     {
       "title": "#6 Add items and checkout helper",
       "description": "Here’s a helper that adds a couple of random items to the cart and then checks out. We use `catch_response=True` to control pass/fail based on the JSON body.\n\nIf **Insert Code** doesn’t work, copy/paste this **inside the class**:\n\n```python\n    def add_items_and_checkout(self):\n        import random\n        for pid in random.sample(self.product_ids, k=min(2, len(self.product_ids))):\n            self.client.post(\"/cart/add\", json={\"productId\": pid})\n\n        with self.client.post(\"/checkout/confirm\", json={}, catch_response=True) as resp:\n            try:\n                ok = bool(resp.json().get(\"orderId\"))\n            except Exception:\n                ok = False\n            if not ok:\n                resp.failure(\"orderId missing in checkout response\")\n```",
-      "file": "locustfile_001.py",
+      "file": "locustfile_tour.py",
       "code": "    def add_items_and_checkout(self):\n        import random\n        for pid in random.sample(self.product_ids, k=min(2, len(self.product_ids))):\n            self.client.post(\"/cart/add\", json={\"productId\": pid})\n\n        with self.client.post(\"/checkout/confirm\", json={}, catch_response=True) as resp:\n            try:\n                ok = bool(resp.json().get(\"orderId\"))\n            except Exception:\n                ok = False\n            if not ok:\n                resp.failure(\"orderId missing in checkout response\")\n"
     },
     {
