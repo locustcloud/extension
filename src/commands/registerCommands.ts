@@ -4,10 +4,10 @@ import { McpService } from '../services/mcpService';
 import { LocustRunner } from '../runners/locustRunner';
 import { LocustTreeProvider } from '../tree/locustTree';
 import { Har2LocustRunner } from '../runners/har2locustRunner';
+import { TourRunner } from '../runners/tourRunner';
+import * as path from "path";
 
-/**
- * Register commands for the Locust extension.
- */
+
 export function registerCommands(
   ctx: vscode.ExtensionContext,
   deps: {
@@ -20,31 +20,30 @@ export function registerCommands(
   const { setup, runner, harRunner, tree } = deps;
 
   ctx.subscriptions.push(
-    // Tree refresh – call provider directly (no recursive command invocation)
     vscode.commands.registerCommand('locust.refreshTree', () => tree.refresh()),
 
-    // Create a new (numbered) locustfile
     vscode.commands.registerCommand('locust.createSimulation', async () => {
-      const pick = await vscode.window.showQuickPick(
-        [
-          { label: 'Workspace root', description: 'Create locustfile_###.py at the repo root', id: 'root' },
-          { label: 'templates/', description: 'Create locustfile_###.py under templates/', id: 'templates' }
-        ],
-        { placeHolder: 'Where should I create the new locustfile?' }
-      );
-      const where = (pick?.id === 'templates' ? 'templates' : 'root') as 'root' | 'templates';
-      await runner.createLocustfile({ where, open: true });
+      await runner.createLocustfile({ open: true });
     }),
 
-    // Tree/context commands
+    vscode.commands.registerCommand('locust.openBeginnerTourPage', async () => {
+      try {
+        const md = vscode.Uri.file(
+          path.join(ctx.extensionUri.fsPath, 'media', 'walkthrough', '00-beginner-tour.md')
+        );
+        // Open the Markdown in preview (like a welcome page)
+        await vscode.commands.executeCommand('markdown.showPreview', md);
+      } catch (err) {
+        vscode.window.showErrorMessage('Could not open the Locust Beginner page.');
+      }
+    }),
+
     vscode.commands.registerCommand(
       'locust.runFileUI',
       async (node?: { filePath?: string; resourceUri?: vscode.Uri }) => {
         await runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'ui');
-        // Browser opening handled inside the runner.
       }
     ),
-
     vscode.commands.registerCommand(
       'locust.runFileHeadless',
       (node?: { filePath?: string; resourceUri?: vscode.Uri }) =>
@@ -54,30 +53,76 @@ export function registerCommands(
     vscode.commands.registerCommand('locust.runTaskUI', (node) => runner.runTaskUI(node)),
     vscode.commands.registerCommand('locust.runTaskHeadless', (node) => runner.runTaskHeadless(node)),
 
-    // Setup (user-driven)
     vscode.commands.registerCommand('locust.init', () => setup.checkAndOfferSetup({ forcePrompt: true })),
 
-    // Walkthrough
-    vscode.commands.registerCommand('locust.openWalkthrough', () =>
+    // Show/hide welcome view
+    vscode.commands.registerCommand('locust.showWelcome', async () => {
+      await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', false);
+      await vscode.commands.executeCommand('locust.welcome.focus');
+    }),
+    vscode.commands.registerCommand('locust.hideWelcome', async () => {
+      await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', true);
+      await vscode.commands.executeCommand('locust.scenarios.focus');
+    }),
+
+    // Copilot walkthrough launcher
+    vscode.commands.registerCommand('locust.openCopilotWalkthrough', () =>
       vscode.commands.executeCommand(
         'workbench.action.openWalkthrough',
-        'locust.locust-vscode-extension#locust.gettingStarted'
+        'locust.locust-vscode-extension#locust.copilotWalkthrough'
       )
     ),
 
+    // Beginner walkthrough
+    vscode.commands.registerCommand('locust.openBeginnerWalkthrough', () =>
+      vscode.commands.executeCommand(
+        'workbench.action.openWalkthrough',
+        'locust.locust-vscode-extension#locust.beginnerWalkthrough'
+      )
+    ),
+
+    // Uses TourRunner to copy into workspace & open directly
+    vscode.commands.registerCommand('locust.startBeginnerTour', async () => {
+      const tr = new TourRunner(ctx);
+      await tr.runBeginnerTour();
+    }),
+
+    // Dev utility
     vscode.commands.registerCommand('locust.mcp.rewriteAndReload', async () => {
       const envService = new (require('../services/envService').EnvService)();
       const mcp = new McpService(envService);
       await mcp.writeMcpConfig('python');
-      // await mcp.reloadCopilotMcpServers();
     }),
 
-    // HAR → Locustfile
     vscode.commands.registerCommand('locust.convertHar', () => harRunner.convertHar()),
 
-    // Palette convenience
-    vscode.commands.registerCommand('locust.runUI', () => runner.runSelected('ui')),
-    vscode.commands.registerCommand('locust.runHeadless', () => runner.runSelected('headless')),
-    vscode.commands.registerCommand('locust.runByTag', () => runner.runByTag()),
+    // Prefer active editor's Python file from menu/welcome
+    vscode.commands.registerCommand('locust.runUI', async () => {
+      const doc = vscode.window.activeTextEditor?.document;
+      const activePy =
+        doc && doc.languageId === 'python' && doc.uri.scheme === 'file'
+          ? doc.uri.fsPath
+          : undefined;
+
+      if (activePy) {
+        return runner.runFile(activePy, 'ui');
+      }
+      return runner.runSelected('ui');
+    }),
+
+    vscode.commands.registerCommand('locust.runHeadless', async () => {
+      const doc = vscode.window.activeTextEditor?.document;
+      const activePy =
+        doc && doc.languageId === 'python' && doc.uri.scheme === 'file'
+          ? doc.uri.fsPath
+          : undefined;
+
+      if (activePy) {
+        return runner.runFile(activePy, 'headless');
+      }
+      return runner.runSelected('headless');
+    }),
+
+    vscode.commands.registerCommand('locust.runByTag', () => runner.runByTag())
   );
 }
