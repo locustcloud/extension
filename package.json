@@ -30,7 +30,7 @@
     "onCommand:locust.createSimulation",
     "onCommand:locust.convertHar",
     "onCommand:locust.startBeginnerTour",
-    "onCommand:locust.openBeginnerWalkthrough",
+    "onCommand:locust.openBeginnerTourPage",
     "onCommand:locust.runUI",
     "onCommand:locust.runHeadless"
   ],
@@ -64,8 +64,9 @@
       "view/title": [
         { "command": "locust.refreshTree", "when": "view == locust.scenarios", "group": "navigation" },
         { "command": "locust.createSimulation", "when": "view == locust.scenarios", "group": "navigation@1" },
-        { "command": "locust.openBeginnerWalkthrough", "when": "view == locust.welcome", "group": "navigation@0" },
         { "command": "locust.openCopilotWalkthrough", "when": "view == locust.scenarios", "group": "navigation@0" },
+        { "command": "locust.startBeginnerTour", "when": "view == locust.welcome",   "group": "navigation@-1" },
+        { "command": "locust.startBeginnerTour", "when": "view == locust.scenarios", "group": "navigation@-1" },  
         { "command": "locust.showWelcome", "when": "view == locust.scenarios && locust.hideWelcome == true", "group": "navigation@9" },
         { "command": "locust.hideWelcome", "when": "view == locust.welcome", "group": "navigation@9" }
       ],
@@ -101,7 +102,8 @@
       { "command": "locust.showWelcome", "title": "Locust: Show Welcome", "icon": "$(home)" },
       { "command": "locust.hideWelcome", "title": "Locust: Hide Welcome", "icon": "$(close)" },
       { "command": "locust.startBeginnerTour", "title": "Locust: Start Beginner CodeTour", "icon": "$(book)" },
-      { "command": "locust.openBeginnerWalkthrough", "title": "Locust: Open Beginner Walkthrough", "icon": "$(book)" }
+      { "command": "locust.openBeginnerTourPage", "title": "Locust: Open Beginner Page" },
+      { "command": "locust.openBeginnerWalkthrough", "title": "Locust: Open Beginner Walkthrough" }
     ],
     "configuration": {
       "title": "Locust",

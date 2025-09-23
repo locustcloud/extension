@@ -5,6 +5,8 @@ import { LocustRunner } from '../runners/locustRunner';
 import { LocustTreeProvider } from '../tree/locustTree';
 import { Har2LocustRunner } from '../runners/har2locustRunner';
 import { TourRunner } from '../runners/tourRunner';
+import * as path from "path";
+
 
 export function registerCommands(
   ctx: vscode.ExtensionContext,
@@ -24,6 +26,17 @@ export function registerCommands(
       await runner.createLocustfile({ open: true });
     }),
 
+    vscode.commands.registerCommand('locust.openBeginnerTourPage', async () => {
+      try {
+        const md = vscode.Uri.file(
+          path.join(ctx.extensionUri.fsPath, 'media', 'walkthrough', '00-beginner-tour.md')
+        );
+        // Open the Markdown in preview (like a welcome page)
+        await vscode.commands.executeCommand('markdown.showPreview', md);
+      } catch (err) {
+        vscode.window.showErrorMessage('Could not open the Locust Beginner page.');
+      }
+    }),
 
     vscode.commands.registerCommand(
       'locust.runFileUI',
