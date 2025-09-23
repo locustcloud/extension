@@ -71,11 +71,13 @@ async function ensureWorkspaceSettingsPatched(workspacePath: string) {
   const desired = {
     "python.terminal.activateEnvironment": true,
     "ruff.lint.run": "onType",
+    "markdown.preview.enableCommandUris": true,
     "[python]": {
       "editor.codeActionsOnSave": { "source.fixAll.ruff": false },
       "editor.formatOnSave": false
     }
   };
+
 
   const merged: any = { ...current, ...desired };
   if (current["[python]"]) {

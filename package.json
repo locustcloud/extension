@@ -36,19 +36,24 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "locust",
+          "title": "Locust",
+          "icon": "media/activity-icon.svg"
+        }
+      ]
+    },
     "views": {
-      "explorer": [
+      "locust": [
         {
           "id": "locust.welcome",
-          "name": "Locust Menu",
-          "icon": "media/icon.png",
-          "type": "webview",
-          "when": "locust.hideWelcome != true"
+          "name": "Locust Menu"
         },
         {
           "id": "locust.scenarios",
-          "name": "Locust Tests",
-          "icon": "media/icon.png"
+          "name": "Locust Tests"
         }
       ]
     },
@@ -92,7 +97,7 @@
       { "command": "locust.runTaskUI", "title": "Locust: Run Task (Web UI)", "icon": "$(globe)" },
       { "command": "locust.showWelcome", "title": "Locust: Show Welcome", "icon": "$(home)" },
       { "command": "locust.hideWelcome", "title": "Locust: Hide Welcome", "icon": "$(close)" },
-      { "command": "locust.startBeginnerTour", "title": "Locust: Start Beginner CodeTour", "icon": "$(walkthrough)" },
+      { "command": "locust.startBeginnerTour", "title": "Locust: Start Beginner CodeTour", "icon": "$(book)" },
       { "command": "locust.openBeginnerWalkthrough", "title": "Locust: Open Beginner Walkthrough", "icon": "$(book)" }
     ],
     "configuration": {
