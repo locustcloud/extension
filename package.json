@@ -4,7 +4,7 @@
   "description": "VS Code extension to scaffold, run, and manage Locust load tests.",
   "version": "0.0.1",
   "publisher": "locust",
-  "icon": "media/icon.png",
+  "icon": "media/icon_green.png",
   "galleryBanner": {
     "color": "#0e1116",
     "theme": "dark"
