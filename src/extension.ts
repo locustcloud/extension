@@ -7,6 +7,7 @@ import { LocustRunner } from './runners/locustRunner';
 import { Har2LocustService } from './services/har2locustService';
 import { Har2LocustRunner } from './runners/har2locustRunner';
 import { LocustTreeProvider } from './tree/locustTree';
+import { CopilotService } from './services/copilotService';
 
 
 /** Small webview view that shows a persistent Welcome panel with quick actions. */
@@ -82,11 +83,17 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   }
 }
 
+
 export async function activate(ctx: vscode.ExtensionContext) {
   // Core services
   const env = new EnvService();
   const mcp = new McpService(env);
   const setup = new SetupService(env, mcp, ctx);
+
+  // 🔹 NEW: Copilot light-up (non-blocking)
+  const copilot = new CopilotService(ctx);
+  ctx.subscriptions.push(copilot); // dispose listeners on deactivate
+  await copilot.bootstrap();
 
   // Runners / Services
   const locustRunner = new LocustRunner(env, ctx.extensionUri);
@@ -103,18 +110,13 @@ export async function activate(ctx: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider('locust.welcome', new LocustWelcomeViewProvider(ctx))
   );
 
-  // Centralized command registration (everything lives in registerCommands.ts)
-  registerCommands(ctx, {
-    setup,
-    runner: locustRunner,
-    harRunner,
-    tree,
-  });
+  // Centralized command registration
+  registerCommands(ctx, { setup, runner: locustRunner, harRunner, tree });
 
-  // Run setup automatically on activation
+  // Run setup automatically on activation (env, ruff, MCP, tour, etc.)
   setup.autoSetupSilently();
 
-  // If the user opens/closes folders in a multi-root workspace, try setup again.
+  // Re-run setup on folder changes
   ctx.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(() => setup.autoSetupSilently())
   );
@@ -123,3 +125,4 @@ export async function activate(ctx: vscode.ExtensionContext) {
 export function deactivate() {
   // noop
 }
+
