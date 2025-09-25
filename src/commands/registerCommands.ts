@@ -1,13 +1,30 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { SetupService } from '../services/setupService';
+import { EnvService } from '../services/envService';
 import { McpService } from '../services/mcpService';
 import { LocustRunner } from '../runners/locustRunner';
-import { LocustTreeProvider } from '../tree/locustTree';
 import { Har2LocustRunner } from '../runners/har2locustRunner';
 import { TourRunner } from '../runners/tourRunner';
-import * as path from "path";
+import { LocustTreeProvider } from '../tree/locustTree';
+import { LocustCloudService } from '../services/locustCloudService';
 
+// Locust Cloud command registrar
+export function registerLocustCloudCommands(ctx: vscode.ExtensionContext) {
+  const cloud = new LocustCloudService(ctx);
 
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand('locust.openLocustCloud', async () => {
+      try {
+        await cloud.openLocustCloudLanding();
+      } catch (e: any) {
+        vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? 'unexpected error'}`);
+      }
+    })
+  );
+}
+
+// Main command registrar
 export function registerCommands(
   ctx: vscode.ExtensionContext,
   deps: {
@@ -17,6 +34,9 @@ export function registerCommands(
     tree: LocustTreeProvider;
   }
 ) {
+  // Make Locust Cloud command available
+  registerLocustCloudCommands(ctx);
+
   const { setup, runner, harRunner, tree } = deps;
 
   ctx.subscriptions.push(
@@ -44,6 +64,7 @@ export function registerCommands(
         await runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'ui');
       }
     ),
+
     vscode.commands.registerCommand(
       'locust.runFileHeadless',
       (node?: { filePath?: string; resourceUri?: vscode.Uri }) =>
@@ -53,13 +74,16 @@ export function registerCommands(
     vscode.commands.registerCommand('locust.runTaskUI', (node) => runner.runTaskUI(node)),
     vscode.commands.registerCommand('locust.runTaskHeadless', (node) => runner.runTaskHeadless(node)),
 
-    vscode.commands.registerCommand('locust.init', () => setup.checkAndOfferSetup({ forcePrompt: true })),
+    vscode.commands.registerCommand('locust.init', () =>
+      setup.checkAndOfferSetup({ forcePrompt: true })
+    ),
 
     // Show/hide welcome view
     vscode.commands.registerCommand('locust.showWelcome', async () => {
       await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', false);
       await vscode.commands.executeCommand('locust.welcome.focus');
     }),
+
     vscode.commands.registerCommand('locust.hideWelcome', async () => {
       await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', true);
       await vscode.commands.executeCommand('locust.scenarios.focus');
@@ -89,7 +113,7 @@ export function registerCommands(
 
     // Dev utility
     vscode.commands.registerCommand('locust.mcp.rewriteAndReload', async () => {
-      const envService = new (require('../services/envService').EnvService)();
+      const envService = new EnvService();
       const mcp = new McpService(envService);
       await mcp.writeMcpConfig('python');
     }),

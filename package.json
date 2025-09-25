@@ -33,7 +33,8 @@
     "onCommand:locust.openBeginnerTourPage",
     "onCommand:locust.runUI",
     "onCommand:locust.runHeadless",
-    "onCommand:locust.installCopilot"
+    "onCommand:locust.installCopilot",
+    "onCommand:locust.openLocustCloud"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -69,7 +70,10 @@
         { "command": "locust.startBeginnerTour", "when": "view == locust.welcome", "group": "navigation@-1" },
         { "command": "locust.startBeginnerTour", "when": "view == locust.scenarios", "group": "navigation@-1" },
         { "command": "locust.showWelcome", "when": "view == locust.scenarios && locust.hideWelcome == true", "group": "navigation@9" },
-        { "command": "locust.hideWelcome", "when": "view == locust.welcome", "group": "navigation@9" }
+        { "command": "locust.hideWelcome", "when": "view == locust.welcome", "group": "navigation@9" },
+
+        { "command": "locust.openLocustCloud", "when": "view == locust.welcome", "group": "navigation@-2" },
+        { "command": "locust.openLocustCloud", "when": "view == locust.scenarios", "group": "navigation@-2" }
       ],
       "view/item/context": [
         { "command": "locust.runFileUI", "when": "view == locust.scenarios && viewItem == locust.file", "group": "inline" },
@@ -105,7 +109,9 @@
       { "command": "locust.startBeginnerTour", "title": "Locust: Start Beginner CodeTour", "icon": "$(book)" },
       { "command": "locust.openBeginnerTourPage", "title": "Locust: Open Beginner Page" },
       { "command": "locust.openBeginnerWalkthrough", "title": "Locust: Open Beginner Walkthrough" },
-      { "command": "locust.installCopilot", "title": "Locust: Install GitHub Copilot", "icon": "$(cloud-download)" }
+      { "command": "locust.installCopilot", "title": "Locust: Install GitHub Copilot", "icon": "$(cloud-download)" },
+
+      { "command": "locust.openLocustCloud", "title": "Open Locust Cloud", "icon": "$(cloud)" }
     ],
     "configuration": {
       "title": "Locust",
@@ -140,6 +146,17 @@
           "type": "boolean",
           "default": true,
           "description": "On first run, quietly offer Copilot install (non-blocking)."
+        },
+
+        "locust.cloud.rootUrl": {
+          "type": "string",
+          "default": "https://www.locust.cloud/",
+          "description": "Where to send logged-in users (opened in VS Code Simple Browser when available)."
+        },
+        "locust.cloud.loginUrl": {
+          "type": "string",
+          "default": "https://www.locust.cloud/login",
+          "description": "Where to send users who are not logged in (opened in VS Code Simple Browser when available)."
         }
       }
     },

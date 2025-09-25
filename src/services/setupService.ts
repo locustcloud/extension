@@ -294,7 +294,7 @@ export class SetupService {
       await ensureRuffToml(wsPath);
       await ensureWorkspaceSettingsPatched(wsPath);
 
-      // Ensure the tour is available in the workspace for CodeTour
+      // Ensure the tour is available in the workspace.
       await ensureWorkspaceTour(this.ctx, wsPath);
 
       // Mark as done
@@ -313,7 +313,7 @@ export class SetupService {
     return this.autoSetupSilently();
   }
 
-  // Manual re-run command could call this (not used automatically)
+  // Manual re-run command 
   private async finalizeWorkspace(wsPath: string, python: string) {
     await this.mcp.writeMcpConfig(python);
     await ensureRuffToml(wsPath);

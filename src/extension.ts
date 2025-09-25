@@ -9,7 +9,6 @@ import { Har2LocustRunner } from './runners/har2locustRunner';
 import { LocustTreeProvider } from './tree/locustTree';
 import { CopilotService } from './services/copilotService';
 
-
 /** Small webview view that shows a persistent Welcome panel with quick actions. */
 class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   constructor(private ctx: vscode.ExtensionContext) {}
@@ -49,26 +48,28 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   <p>Quick Action Buttons for common Locust operations.</p>
 
   <div class="row">
-    <button id="btnCopilot">Copilot Walkthrough</button>
-    <button id="btnRunUI">Run Test (Web UI)</button>
-    <button id="btnRunHeadless">Run Test (Headless)</button>
     <button id="btnCreate">Create Simulation</button>
     <button id="btnConvert">Convert HAR → Locustfile</button>
+    <button id="btnRunUI">Run Test (Web UI)</button>
+    <button id="btnRunHeadless">Run Test (Headless)</button>
+    <button id="btnLocustCloud" class="primary" title="Open Locust Cloud (login-aware)">Locust Cloud</button>
+    <button id="btnCopilot">Copilot Walkthrough</button>
   </div>
 
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   const run = cmd => vscode.postMessage({ type: 'run', command: cmd });
 
-  document.getElementById('btnCopilot').onclick   = () => run('locust.openCopilotWalkthrough');
-  document.getElementById('btnRunUI').onclick     = () => run('locust.runUI');
-  document.getElementById('btnRunHeadless').onclick = () => run('locust.runHeadless');
-  document.getElementById('btnCreate').onclick    = () => run('locust.createSimulation');
-  document.getElementById('btnConvert').onclick   = () => run('locust.convertHar');
+  document.getElementById('btnCopilot').onclick      = () => run('locust.openCopilotWalkthrough');
+  document.getElementById('btnRunUI').onclick        = () => run('locust.runUI');
+  document.getElementById('btnRunHeadless').onclick  = () => run('locust.runHeadless');
+  document.getElementById('btnCreate').onclick       = () => run('locust.createSimulation');
+  document.getElementById('btnConvert').onclick      = () => run('locust.convertHar');
+  document.getElementById('btnLocustCloud').onclick  = () => run('locust.openLocustCloud');
 </script>
 </body>
 </html>
-    `;
+`;
 
     webview.onDidReceiveMessage(async (msg) => {
       if (msg?.type === 'run' && typeof msg.command === 'string') {
@@ -83,14 +84,13 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   }
 }
 
-
 export async function activate(ctx: vscode.ExtensionContext) {
   // Core services
   const env = new EnvService();
   const mcp = new McpService(env);
   const setup = new SetupService(env, mcp, ctx);
 
-  // 🔹 NEW: Copilot light-up (non-blocking)
+  // Copilot light-up (non-blocking)
   const copilot = new CopilotService(ctx);
   ctx.subscriptions.push(copilot); // dispose listeners on deactivate
   await copilot.bootstrap();
@@ -110,7 +110,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider('locust.welcome', new LocustWelcomeViewProvider(ctx))
   );
 
-  // Centralized command registration
+  // Centralized command registration (includes Locust Cloud command)
   registerCommands(ctx, { setup, runner: locustRunner, harRunner, tree });
 
   // Run setup automatically on activation (env, ruff, MCP, tour, etc.)
@@ -125,4 +125,3 @@ export async function activate(ctx: vscode.ExtensionContext) {
 export function deactivate() {
   // noop
 }
-
