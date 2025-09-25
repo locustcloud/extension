@@ -44,10 +44,12 @@ async function ensureRuffToml(workspacePath: string) {
   const ruffPath = path.join(workspacePath, '.ruff.toml');
   if (await fileExists(ruffPath)) return;
 
+  // FIX: valid TOML (JS accidentally landed here before); add .tours/** to excludes
   const ruffToml = `target-version = "py311"
 
 extend-exclude = [
   ".locust_env/**",
+  ".tours/**",
   "templates/**"
 ]
 
@@ -78,6 +80,20 @@ async function ensureWorkspaceSettingsPatched(workspacePath: string) {
     }
   };
 
+  // NEW: hide internal files/dirs in Explorer, Search, and file watcher
+  const desiredFilesExclude = {
+    "**/.locust_env": true,
+    "**/.tours": true,
+    "**/.ruff.toml": true
+  };
+  const desiredSearchExclude = {
+    "**/.locust_env/**": true,
+    "**/.tours/**": true
+  };
+  const desiredWatcherExclude = {
+    "**/.locust_env/**": true,
+    "**/.tours/**": true
+  };
 
   const merged: any = { ...current, ...desired };
   if (current["[python]"]) {
@@ -93,6 +109,30 @@ async function ensureWorkspaceSettingsPatched(workspacePath: string) {
     };
     if (merged["[python]"].editor === undefined) { delete merged["[python]"].editor; }
   }
+
+  // Deep-merge excludes without overwriting explicit user choices
+  const curFiles = current["files.exclude"] ?? {};
+  const curSearch = current["search.exclude"] ?? {};
+  const curWatch = current["files.watcherExclude"] ?? {};
+
+  merged["files.exclude"] = {
+    ...curFiles,
+    "**/.locust_env": curFiles["**/.locust_env"] ?? desiredFilesExclude["**/.locust_env"],
+    "**/.tours":      curFiles["**/.tours"]      ?? desiredFilesExclude["**/.tours"],
+    "**/.ruff.toml":  curFiles["**/.ruff.toml"]  ?? desiredFilesExclude["**/.ruff.toml"]
+  };
+
+  merged["search.exclude"] = {
+    ...curSearch,
+    "**/.locust_env/**": curSearch["**/.locust_env/**"] ?? desiredSearchExclude["**/.locust_env/**"],
+    "**/.tours/**":      curSearch["**/.tours/**"]      ?? desiredSearchExclude["**/.tours/**"]
+  };
+
+  merged["files.watcherExclude"] = {
+    ...curWatch,
+    "**/.locust_env/**": curWatch["**/.locust_env/**"] ?? desiredWatcherExclude["**/.locust_env/**"],
+    "**/.tours/**":      curWatch["**/.tours/**"]      ?? desiredWatcherExclude["**/.tours/**"]
+  };
 
   await fs.writeFile(settingsPath, JSON.stringify(merged, null, 2), 'utf8');
 }
@@ -254,7 +294,7 @@ export class SetupService {
       await ensureRuffToml(wsPath);
       await ensureWorkspaceSettingsPatched(wsPath);
 
-      // NEW: ensure the tour is available in the workspace for CodeTour
+      // Ensure the tour is available in the workspace.
       await ensureWorkspaceTour(this.ctx, wsPath);
 
       // Mark as done
@@ -268,12 +308,12 @@ export class SetupService {
     }
   }
 
-  // Legacy: keep the API around in case something still calls it. It now just delegates silently.
+  // Legacy: API
   async checkAndOfferSetup(_opts: { forcePrompt?: boolean } = {}) {
     return this.autoSetupSilently();
   }
 
-  // Manual re-run command could call this (not used automatically)
+  // Manual re-run command 
   private async finalizeWorkspace(wsPath: string, python: string) {
     await this.mcp.writeMcpConfig(python);
     await ensureRuffToml(wsPath);
