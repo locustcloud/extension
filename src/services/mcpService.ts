@@ -12,29 +12,41 @@ export class McpService {
   constructor(private env: EnvService) {}
 
   /**
-   * Write .vscode/mcp.json using a concrete, runnable Python interpreter.
-   * If pythonCmd is provided, it will be used; otherwise we auto-resolve.
+   * Write .vscode/mcp.json using a concrete, runnable Python interpreter,
+   * pointing DIRECTLY to the extension's bundled MCP server (Option B).
+   *
+   * No workspace copies; we resolve the extension's absolute path and
+   * generate absolute paths in the config (command args + PYTHONPATH).
    */
   async writeMcpConfig(pythonCmd?: string) {
     const ws = vscode.workspace.workspaceFolders?.[0];
-    if (!ws) {return;}
+    if (!ws) return;
 
+    // Resolve Python command
     let cmd = pythonCmd;
     if (!cmd) {
       try {
         cmd = await this.env.resolvePythonStrict('locust_env');
       } catch {
-        // Last resort: leave "python" and let user fix their PATH/interpreter
         cmd = 'python';
       }
     }
+
+    // Resolve extension root (uses publisher.name from package.json)
+    const ext = vscode.extensions.getExtension('locust.locust-vscode-extension');
+    const extRoot = ext?.extensionUri.fsPath;
+
+    // Build absolute server path if we can; otherwise fall back to workspace-relative
+    const serverAbs = extRoot ? path.join(extRoot, MCP_SERVER_REL) : undefined;
+    const pyPath = extRoot ?? '${workspaceFolder}';
+    const serverArg = serverAbs ?? '${workspaceFolder}/' + MCP_SERVER_REL.replace(/\\/g, '/');
 
     const freshConfig = {
       servers: {
         har2locust: {
           command: cmd!,
-          args: ['-u', '${workspaceFolder}/' + MCP_SERVER_REL.replace(/\\/g, '/')],
-          env: { PYTHONPATH: '${workspaceFolder}' }
+          args: ['-u', serverArg],
+          env: { PYTHONPATH: pyPath }
         }
       }
     };

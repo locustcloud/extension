@@ -12,19 +12,24 @@ const execFileAsync = promisify(execFile);
 async function readWorkspaceSetting<T = string>(section: string, key: string): Promise<T | undefined> {
   return vscode.workspace.getConfiguration(section).get<T>(key);
 }
+
 function wsRoot(): string | undefined {
   return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 }
+
 function expandWs(p?: string): string | undefined {
   const root = wsRoot();
   return p && root ? p.replace('${workspaceFolder}', root) : p;
 }
+
 async function fileExists(p: string): Promise<boolean> {
   try { await fs.stat(p); return true; } catch { return false; }
 }
+
 async function runPythonCmd(python: string, args: string[], cwd?: string, env?: NodeJS.ProcessEnv) {
   return execFileAsync(python, args, { cwd, env, maxBuffer: 20 * 1024 * 1024 });
 }
+
 async function canImport(python: string, moduleName: string, cwd?: string): Promise<boolean> {
   try { await runPythonCmd(python, ['-c', `import ${moduleName}`], cwd); return true; } catch { return false; }
 }
@@ -39,12 +44,12 @@ function envForVenv(absPy: string): NodeJS.ProcessEnv {
   return env;
 }
 
-// Ruff + settings
+// Ruff + settings: keep generator as a fallback only.
 async function ensureRuffToml(workspacePath: string) {
   const ruffPath = path.join(workspacePath, '.ruff.toml');
   if (await fileExists(ruffPath)) return;
 
-  // FIX: valid TOML (JS accidentally landed here before); add .tours/** to excludes
+  // Valid TOML; add .tours/** to excludes
   const ruffToml = `target-version = "py311"
 
 extend-exclude = [
@@ -56,6 +61,33 @@ extend-exclude = [
 lint.select = ["E", "F", "W"]
 `;
   await fs.writeFile(ruffPath, ruffToml, 'utf8');
+}
+
+/**
+ * Prefer a bundled Ruff config so we DON'T create .ruff.toml in the workspace.
+ * If a bundled config isn't present and no configuration is set, fall back to generating .ruff.toml.
+ */
+async function ensureRuffConfigured(ctx: vscode.ExtensionContext, workspacePath: string) {
+  const ruffCfg = vscode.workspace.getConfiguration('ruff');
+  const existing = ruffCfg.get<unknown>('configuration');
+
+  // If user/workspace already set something (string path or inline object), leave it alone.
+  if (existing !== undefined && existing !== null && `${existing}`.length > 0) {
+    return;
+  }
+
+  // Try to use a bundled file from the extension (media/ruff/ruff.toml).
+  const bundledPath = path.join(ctx.extensionUri.fsPath, 'media', 'ruff', 'ruff.toml');
+  try {
+    await fs.stat(bundledPath);
+    await ruffCfg.update('configuration', bundledPath, vscode.ConfigurationTarget.Workspace);
+    return;
+  } catch {
+    // No bundled config available — fall back to generating a hidden workspace file.
+  }
+
+  // Fallback: generate .ruff.toml in the workspace as before.
+  await ensureRuffToml(workspacePath);
 }
 
 async function ensureWorkspaceSettingsPatched(workspacePath: string) {
@@ -80,7 +112,7 @@ async function ensureWorkspaceSettingsPatched(workspacePath: string) {
     }
   };
 
-  // NEW: hide internal files/dirs in Explorer, Search, and file watcher
+  // Hide internal files/dirs in Explorer, Search, and file watcher
   const desiredFilesExclude = {
     "**/.locust_env": true,
     "**/.tours": true,
@@ -229,8 +261,8 @@ export class SetupService {
    * - Installs deps (locust, har2locust, ruff, mcp, pytest or from mcp/requirements.txt)
    * - Sets workspace python interpreter to venv
    * - Writes MCP config
-   * - Patches settings and ruff config
-   * - (NEW) Stages CodeTour into <workspace>/.tours
+   * - Patches settings and Ruff config (via bundled file; falls back to .ruff.toml only if needed)
+   * - Stages CodeTour into <workspace>/.tours
    */
   async autoSetupSilently() {
     try {
@@ -290,8 +322,8 @@ export class SetupService {
       // Write MCP config using validated interpreter
       await this.mcp.writeMcpConfig(absPy);
 
-      // Patch editor settings + ruff config
-      await ensureRuffToml(wsPath);
+      // Patch editor settings + Ruff configuration (prefer bundled; fallback to .ruff.toml)
+      await ensureRuffConfigured(this.ctx, wsPath);
       await ensureWorkspaceSettingsPatched(wsPath);
 
       // Ensure the tour is available in the workspace.
@@ -316,7 +348,7 @@ export class SetupService {
   // Manual re-run command 
   private async finalizeWorkspace(wsPath: string, python: string) {
     await this.mcp.writeMcpConfig(python);
-    await ensureRuffToml(wsPath);
+    await ensureRuffConfigured(this.ctx, wsPath);
     await ensureWorkspaceSettingsPatched(wsPath);
     await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
   }

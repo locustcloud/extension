@@ -14,11 +14,11 @@ export function registerLocustCloudCommands(ctx: vscode.ExtensionContext) {
   const cloud = new LocustCloudService(ctx);
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand('locust.openLocustCloud', async () => {
+    vscode.commands.registerCommand("locust.openLocustCloud", async () => {
       try {
-        await cloud.openLocustCloudLanding();
+        await cloud.openLocustCloudLanding(); // ← opens 0.0.0.0:8080 by default
       } catch (e: any) {
-        vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? 'unexpected error'}`);
+        vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? "unexpected error"}`);
       }
     })
   );

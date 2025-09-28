@@ -51,7 +51,7 @@
       "locust": [
         {
           "id": "locust.welcome",
-          "name": "Locust — Menu",
+          "name": "Locust Menu",
           "type": "webview",
           "when": "locust.hideWelcome != true"
         },
@@ -150,13 +150,8 @@
 
         "locust.cloud.rootUrl": {
           "type": "string",
-          "default": "https://www.locust.cloud/",
+          "default": "https://auth.locust.cloud/load-test",
           "description": "Where to send logged-in users (opened in VS Code Simple Browser when available)."
-        },
-        "locust.cloud.loginUrl": {
-          "type": "string",
-          "default": "https://www.locust.cloud/login",
-          "description": "Where to send users who are not logged in (opened in VS Code Simple Browser when available)."
         }
       }
     },
@@ -166,7 +161,7 @@
     "walkthroughs": [
       {
         "id": "locust.beginnerWalkthrough",
-        "title": "Locust — Beginner Tour",
+        "title": "Locust Beginner Tour",
         "description": "Start here for a guided, step-by-step tour that teaches Locust from scratch.",
         "steps": [
           {

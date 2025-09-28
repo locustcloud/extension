@@ -1,68 +1,211 @@
 import * as vscode from "vscode";
-import { execFile } from "child_process";
-import { promisify } from "util";
-const execFileAsync = promisify(execFile);
+import * as path from "path";
+import { spawn } from "child_process";
+import { LocustTreeProvider } from "../tree/locustTree";
 
-type LoginStatus = { loggedIn: boolean; username?: string; raw?: string };
+/** Extract the Locust web UI URL from a log line and sanitize trailing punctuation. */
+function extractLocustUrl(line: string): string | undefined {
+  // 1) Normal path
+  let m = line.match(/Starting web interface at (\S+)/i);
+  let url = m?.[1];
+
+  // 2) "already running" path
+  if (!url) {
+    m = line.match(/available at (\S+)/i);
+    url = m?.[1];
+  }
+
+  // 3) Fallback: first http(s) URL in the line
+  if (!url) {
+    m = line.match(/https?:\/\/[^\s)>\]]+/);
+    url = m?.[0];
+  }
+
+  // Strip trailing punctuation that often rides along in logs
+  if (url) url = url.replace(/[)\].,;'"!?]+$/, "");
+  return url;
+}
 
 export class LocustCloudService {
   constructor(private readonly ctx: vscode.ExtensionContext) {}
 
-  private get locustPath(): string {
+  /** Fallback URL if the CLI never prints a UI URL. */
+  private get cloudFallbackUrl(): string {
     const cfg = vscode.workspace.getConfiguration("locust");
-    return cfg.get<string>("path", "locust");
+    return cfg.get<string>("cloud.rootUrl", "https://auth.locust.cloud/load-test");
   }
 
-  private get cloudRootUrl(): string {
-    const cfg = vscode.workspace.getConfiguration("locust");
-    return cfg.get<string>("cloud.rootUrl", "https://www.locust.cloud/");
+  /** Resolve the workspace Python interpreter (set by SetupService) or fall back to 'python'. */
+  private resolveWorkspacePython(): string {
+    const configured = vscode.workspace.getConfiguration("python").get<string>("defaultInterpreterPath");
+    return configured && configured.trim().length > 0 ? configured : "python";
   }
 
-  private get cloudLoginUrl(): string {
-    const cfg = vscode.workspace.getConfiguration("locust");
-    return cfg.get<string>("cloud.loginUrl", "https://auth.www.locust.cloud/login");
+  /** Make env behave like the venv is activated, when absPy is a venv python. */
+  private envForInterpreter(absPy: string): NodeJS.ProcessEnv {
+    const env = { ...process.env };
+    try {
+      const venvDir = path.dirname(path.dirname(absPy)); // .../.locust_env/{bin|Scripts}/python -> .../.locust_env
+      const binDir = path.join(venvDir, process.platform === "win32" ? "Scripts" : "bin");
+      env.VIRTUAL_ENV = venvDir;
+      env.PATH = `${binDir}${path.delimiter}${env.PATH ?? ""}`;
+    } catch { /* ignore */ }
+    return env;
   }
 
-  private async openInSimpleBrowser(url: string) {
-    // Prefer VS Code Simple Browser (keeps onboarding inside VS Code)
-    const ok = await vscode.commands.executeCommand(
-      "simpleBrowser.show",
-      url,
-      { viewColumn: vscode.ViewColumn.Active, preserveFocus: false, preview: true }
-    ).then(() => true, () => false);
+  /**
+   * Find the locustfile to run:
+   * - If the active editor is a detected locustfile, use it
+   * - If exactly one is found, use it
+   * - Otherwise prompt the user
+   */
+  private async pickLocustfile(): Promise<string | undefined> {
+    const tree = new LocustTreeProvider();
+    try {
+      const roots = await tree.getChildren(); // file nodes at root
+      const files = roots.filter(n => (n as any).kind === "file") as Array<{ label: string; fileUri: vscode.Uri; filePath?: string }>;
+      if (files.length === 0) return undefined;
+
+      const active = vscode.window.activeTextEditor?.document;
+      if (active?.languageId === "python") {
+        const hit = files.find(f => f.fileUri.fsPath === active.uri.fsPath);
+        if (hit) return hit.fileUri.fsPath;
+      }
+
+      if (files.length === 1) return files[0].fileUri.fsPath;
+
+      const pick = await vscode.window.showQuickPick(
+        files.map(f => ({ label: f.label, description: f.fileUri.fsPath })),
+        { placeHolder: "Select a locustfile to run in the cloud" }
+      );
+      return pick?.description;
+    } finally {
+      tree.dispose();
+    }
+  }
+
+  /**
+   * Open a URL in Simple Browser in a right-hand editor group sized to ~40% of the workbench.
+   */
+  private async openInSimpleBrowserSplit(url: string, browserRatio = 0.4) {
+    const r = Math.min(0.8, Math.max(0.2, browserRatio));
+
+    if (vscode.window.tabGroups.all.length < 2) {
+      await vscode.commands.executeCommand("workbench.action.splitEditorRight").then(undefined, () => {});
+    }
+
+    const ok = await vscode.commands
+      .executeCommand("simpleBrowser.show", url, {
+        viewColumn: vscode.ViewColumn.Two,
+        preserveFocus: true,
+        preview: true,
+      })
+      .then(() => true, () => false);
 
     if (!ok) {
-      // Fallback to external browser if Simple Browser isn’t available
       await vscode.env.openExternal(vscode.Uri.parse(url));
+      return;
     }
+
+    if (vscode.window.tabGroups.all.length === 2) {
+      await vscode.commands.executeCommand("vscode.setEditorLayout", {
+        orientation: 1, // side-by-side
+        groups: [{ size: 1 - r }, { size: r }],
+      }).then(undefined, () => {});
+    }
+
+    await vscode.commands.executeCommand("workbench.action.focusFirstEditorGroup").then(undefined, () => {});
   }
 
-  private async getLoginStatus(): Promise<LoginStatus> {
-    try {
-      // Non-interactive; exits non-zero if not logged in.
-      const { stdout, stderr } = await execFileAsync(this.locustPath, ["--cloud", "whoami"], { timeout: 5000 });
-      const raw = (stdout || "") + (stderr || "");
-      const line = raw.trim().split(/\r?\n/).find(Boolean) || "";
-      const m = line.match(/([\w.+-]+@[\w.-]+\.[A-Za-z]{2,})/);
-      if (m) return { loggedIn: true, username: m[1], raw };
-      if (/logged in/i.test(raw)) return { loggedIn: true, raw };
-      // Some builds may print nothing but still exit 0 – treat as logged in.
-      return { loggedIn: true, raw };
-    } catch {
-      return { loggedIn: false };
-    }
-  }
-
+  /**
+   * Run `python -m locust -f <locustfile> --cloud` (no TTY),
+   * parse the "Starting web interface at <URL>" / "available at <URL>" line,
+   * and open that URL in the Simple Browser split. We never send <Enter>,
+   * so the OS browser isn't triggered.
+   */
   async openLocustCloudLanding(): Promise<void> {
-    const status = await this.getLoginStatus();
-    if (status.loggedIn) {
-      await this.openInSimpleBrowser(this.cloudRootUrl);
-      if (status.username) {
-        vscode.window.setStatusBarMessage(`Locust Cloud: signed in as ${status.username}`, 3000);
-      }
-    } else {
-      await this.openInSimpleBrowser(this.cloudLoginUrl);
-      vscode.window.setStatusBarMessage("Locust Cloud: please sign in.", 3000);
+    const ws = vscode.workspace.workspaceFolders?.[0];
+    if (!ws) {
+      vscode.window.showErrorMessage("Locust Cloud: open a workspace folder first.");
+      return;
     }
+
+    const locustfile = await this.pickLocustfile();
+    if (!locustfile) {
+      vscode.window.showErrorMessage("Locust Cloud: no locustfile found. Create one or open an existing locustfile.py.");
+      return;
+    }
+
+    const python = this.resolveWorkspacePython();
+    const env = this.envForInterpreter(python);
+
+    const out = vscode.window.createOutputChannel("Locust Cloud");
+    out.show(true);
+
+    // Run from the file's directory and pass a relative -f to satisfy cloud path handling
+    const fileDir = path.dirname(locustfile);
+    const relFile = path.basename(locustfile);
+
+    out.appendLine(`[cloud] launching: ${python} -m locust -f "${relFile}" --cloud`);
+
+    const child = spawn(python, ["-u", "-m", "locust", "-f", relFile, "--cloud"], {
+      cwd: fileDir,
+      env,
+      stdio: ["ignore", "pipe", "pipe"], // no stdin → we won't press <Enter>
+    });
+
+    let opened = false;
+    let bufOut = "";
+    let bufErr = "";
+
+    const tryExtractAndOpen = async (text: string) => {
+      const url = extractLocustUrl(text);
+      if (url && !opened) {
+        opened = true;
+        out.appendLine(`[cloud] web UI: ${url}`);
+        await this.openInSimpleBrowserSplit(url, 0.4);
+        vscode.window.setStatusBarMessage("Locust Cloud: web UI opened in split view.", 3000);
+      }
+    };
+
+    const flushLines = async (buf: string) => {
+      const lines = buf.split(/\r?\n/);
+      for (let i = 0; i < lines.length - 1; i++) {
+        await tryExtractAndOpen(lines[i]);
+      }
+    };
+
+    child.stdout.on("data", async (b) => {
+      const s = b.toString();
+      out.append(s);
+      bufOut += s;
+      await flushLines(bufOut);
+      bufOut = bufOut.slice(bufOut.lastIndexOf("\n") + 1);
+    });
+
+    child.stderr.on("data", async (b) => {
+      const s = b.toString();
+      out.append(`[stderr] ${s}`);
+      bufErr += s;
+      await flushLines(bufErr);
+      bufErr = bufErr.slice(bufErr.lastIndexOf("\n") + 1);
+
+      if (/Your Locust instance is currently running/i.test(s)) {
+        vscode.window.setStatusBarMessage("Locust Cloud: existing instance detected – opening its UI.", 3000);
+      }
+    });
+
+    child.on("error", (e) => out.appendLine(`[error] ${e?.message ?? e}`));
+    child.on("close", (code) => out.appendLine(`[cloud] exited with code ${code}`));
+
+    // Safety net: open fallback if we didn't see a URL soon.
+    setTimeout(() => {
+      if (!opened) {
+        opened = true;
+        const fallback = this.cloudFallbackUrl;
+        out.appendLine(`[cloud] no UI URL detected — opening fallback: ${fallback}`);
+        this.openInSimpleBrowserSplit(fallback, 0.4).catch(() => {});
+      }
+    }, 10000);
   }
 }

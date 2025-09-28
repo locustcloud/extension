@@ -11,39 +11,51 @@ export class TourRunner {
       return;
     }
 
-    // Deterministic tutorial file exists in workspace
-    await this.ensureTutorialFile(ws.uri);
+    // Ensure an empty locustfile.py exists
+    await this.ensureLocustfile(ws.uri);
 
-  
+    // Focus it so steps line up
     await this.focusNewestLocustfile();
 
-    // locate bundled tour 
+    // Locate bundled tour
     const srcCandidates = [
       vscode.Uri.file(path.join(this.ctx.extensionUri.fsPath, 'media', '.tours', 'locust_beginner.tour')),
-      vscode.Uri.file(path.join(this.ctx.extensionUri.fsPath, 'media', '.tour',  'locust_beginner.tour')),
+      vscode.Uri.file(path.join(this.ctx.extensionUri.fsPath, 'media', '.tour', 'locust_beginner.tour')),
     ];
 
     let src: vscode.Uri | undefined;
     for (const c of srcCandidates) {
-      try { await vscode.workspace.fs.stat(c); src = c; break; } catch {}
+      try {
+        await vscode.workspace.fs.stat(c);
+        src = c;
+        break;
+      } catch {}
     }
     if (!src) {
       vscode.window.showErrorMessage('Bundled Locust tour not found in the extension package.');
       return;
     }
 
-    // copy tour into workspace
+    // Copy tour into workspace
     const destDir = vscode.Uri.file(path.join(ws.uri.fsPath, '.tours'));
     const dest = vscode.Uri.file(path.join(destDir.fsPath, 'locust_beginner.tour'));
-    try { await vscode.workspace.fs.stat(destDir); } catch { await vscode.workspace.fs.createDirectory(destDir); }
+    try {
+      await vscode.workspace.fs.stat(destDir);
+    } catch {
+      await vscode.workspace.fs.createDirectory(destDir);
+    }
     const bytes = await vscode.workspace.fs.readFile(src);
     await vscode.workspace.fs.writeFile(dest, bytes);
 
-    // ensure CodeTour active
+    // Ensure CodeTour is active
     const ct = vscode.extensions.getExtension('vsls-contrib.codetour');
-    if (ct && !ct.isActive) { try { await ct.activate(); } catch {} }
+    if (ct && !ct.isActive) {
+      try {
+        await ct.activate();
+      } catch {}
+    }
 
-    // start tour
+    // Start tour
     try {
       await vscode.commands.executeCommand('codetour.startTour', { uri: dest });
     } catch {
@@ -51,23 +63,21 @@ export class TourRunner {
     }
   }
 
-  /** Create a fixed tutorial file inside the workspace if it doesn't exist. */
-  private async ensureTutorialFile(wsUri: vscode.Uri) {
-    // Source in your extension
-    const src = vscode.Uri.file(
-      path.join(this.ctx.extensionUri.fsPath, 'media', 'tutorial', 'locustfile_tour.py')
-    );
-    // Destination in the workspace
-    const destDir = vscode.Uri.file(path.join(wsUri.fsPath, '.locust_tour'));
-    const dest = vscode.Uri.file(path.join(destDir.fsPath, 'locustfile_tour.py'));
+  /** Create an empty locustfile.py in the workspace root if none exists. */
+  private async ensureLocustfile(wsUri: vscode.Uri) {
+    const dest = vscode.Uri.file(path.join(wsUri.fsPath, 'locustfile.py'));
 
-    try { await vscode.workspace.fs.stat(dest); return; } catch {}
-    try { await vscode.workspace.fs.stat(destDir); } catch { await vscode.workspace.fs.createDirectory(destDir); }
+    try {
+      await vscode.workspace.fs.stat(dest);
+      return; // already exists
+    } catch {
+      // no file, create it
+    }
 
-    const buf = await vscode.workspace.fs.readFile(src);
+    const buf = Buffer.from('', 'utf8');
     await vscode.workspace.fs.writeFile(dest, buf);
 
-    // Open for users seeimmediately
+    // Open immediately
     const doc = await vscode.workspace.openTextDocument(dest);
     await vscode.window.showTextDocument(doc, { preview: false });
   }
@@ -78,7 +88,7 @@ export class TourRunner {
 
     const config = vscode.workspace.getConfiguration('locust');
     const envFolder = (config.get<string>('envFolder') || '.locust_env').trim();
-    const ignore = ['.venv', '.git', '__pycache__', 'node_modules', envFolder, '.locust_tour'].filter(Boolean);
+    const ignore = ['.venv', '.git', '__pycache__', 'node_modules', envFolder].filter(Boolean);
     const ignoreGlob = ignore.length ? `**/{${ignore.join(',')}}/**` : '';
 
     const files = await vscode.workspace.findFiles('**/locustfile*.py', ignoreGlob, 50);
@@ -86,7 +96,10 @@ export class TourRunner {
 
     const withStats: Array<{ uri: vscode.Uri; mtime: number }> = [];
     for (const f of files) {
-      try { const st = await vscode.workspace.fs.stat(f); withStats.push({ uri: f, mtime: st.mtime }); } catch {}
+      try {
+        const st = await vscode.workspace.fs.stat(f);
+        withStats.push({ uri: f, mtime: st.mtime });
+      } catch {}
     }
     if (!withStats.length) return;
 
