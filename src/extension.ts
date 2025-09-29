@@ -48,12 +48,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   <p>Quick Action Buttons for common Locust operations.</p>
 
   <div class="row">
-    <button id="btnCreate">Create Simulation</button>
-    <button id="btnConvert">Convert HAR → Locustfile</button>
-    <button id="btnRunUI">Run Test (Web UI)</button>
-    <button id="btnRunHeadless">Run Test (Headless)</button>
     <button id="btnLocustCloud" class="primary" title="Open Locust Cloud (login-aware)">Locust Cloud</button>
-    <button id="btnCopilot">Copilot Walkthrough</button>
   </div>
 
 <script nonce="${nonce}">
