@@ -110,7 +110,6 @@
       { "command": "locust.openBeginnerTourPage", "title": "Locust: Open Beginner Page" },
       { "command": "locust.openBeginnerWalkthrough", "title": "Locust: Open Beginner Walkthrough" },
       { "command": "locust.installCopilot", "title": "Locust: Install GitHub Copilot", "icon": "$(cloud-download)" },
-
       { "command": "locust.openLocustCloud", "title": "Open Locust Cloud", "icon": "$(cloud)" }
     ],
     "configuration": {

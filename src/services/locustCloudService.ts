@@ -85,18 +85,20 @@ export class LocustCloudService {
   }
 
   /**
-   * Open a URL in Simple Browser in a right-hand editor group sized to ~40% of the workbench.
+   * Open a URL in Simple Browser in a **bottom** editor group sized to ~45% height.
+   * Uses `newGroupBelow` so we DON'T duplicate the current editor in the new group.
    */
-  private async openInSimpleBrowserSplit(url: string, browserRatio = 0.4) {
+  private async openInSimpleBrowserSplit(url: string, browserRatio = 0.45) {
     const r = Math.min(0.8, Math.max(0.2, browserRatio));
 
     if (vscode.window.tabGroups.all.length < 2) {
-      await vscode.commands.executeCommand("workbench.action.splitEditorRight").then(undefined, () => {});
+      // Create an EMPTY group below (no file duplication).
+      await vscode.commands.executeCommand("workbench.action.newGroupBelow").then(undefined, () => {});
     }
 
     const ok = await vscode.commands
       .executeCommand("simpleBrowser.show", url, {
-        viewColumn: vscode.ViewColumn.Two,
+        viewColumn: vscode.ViewColumn.Two, // open in the second (bottom) group
         preserveFocus: true,
         preview: true,
       })
@@ -109,8 +111,8 @@ export class LocustCloudService {
 
     if (vscode.window.tabGroups.all.length === 2) {
       await vscode.commands.executeCommand("vscode.setEditorLayout", {
-        orientation: 1, // side-by-side
-        groups: [{ size: 1 - r }, { size: r }],
+        orientation: 0, // horizontal rows (top/bottom)
+        groups: [{ size: 1 - r }, { size: r }], // top then bottom
       }).then(undefined, () => {});
     }
 
@@ -163,7 +165,7 @@ export class LocustCloudService {
       if (url && !opened) {
         opened = true;
         out.appendLine(`[cloud] web UI: ${url}`);
-        await this.openInSimpleBrowserSplit(url, 0.4);
+        await this.openInSimpleBrowserSplit(url, 0.45);
         vscode.window.setStatusBarMessage("Locust Cloud: web UI opened in split view.", 3000);
       }
     };
@@ -204,7 +206,7 @@ export class LocustCloudService {
         opened = true;
         const fallback = this.cloudFallbackUrl;
         out.appendLine(`[cloud] no UI URL detected — opening fallback: ${fallback}`);
-        this.openInSimpleBrowserSplit(fallback, 0.4).catch(() => {});
+        this.openInSimpleBrowserSplit(fallback, 0.45).catch(() => {});
       }
     }, 10000);
   }

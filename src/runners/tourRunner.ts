@@ -65,7 +65,7 @@ export class TourRunner {
 
   /** Create an empty locustfile.py in the workspace root if none exists. */
   private async ensureLocustfile(wsUri: vscode.Uri) {
-    const dest = vscode.Uri.file(path.join(wsUri.fsPath, 'locustfile.py'));
+    const dest = vscode.Uri.file(path.join(wsUri.fsPath, 'locustfile_tour.py'));
 
     try {
       await vscode.workspace.fs.stat(dest);
