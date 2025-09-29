@@ -30,17 +30,15 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 <meta http-equiv="Content-Security-Policy"
   content="default-src 'none'; img-src ${webview.cspSource} https:; script-src 'nonce-${nonce}'; style-src ${webview.cspSource} 'unsafe-inline';">
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Locust - Action Menu</title>
+<title>Locust — Menu</title>
 <style>
   body { font-family: var(--vscode-font-family); padding: 12px; }
   h1 { margin: 0 0 8px; font-size: 16px; }
   p { margin: 6px 0 12px; color: var(--vscode-descriptionForeground); }
   .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; }
   button { padding: 6px 10px; border: 1px solid var(--vscode-button-border, transparent);
-    border-radius: 6px; background: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground); cursor: pointer; }
-  button.primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
-  .muted { opacity: .8; }
+    border-radius: 6px; background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground); cursor: pointer; }
 </style>
 </head>
 <body>
@@ -48,23 +46,20 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   <p>Quick Action Buttons for common Locust operations.</p>
 
   <div class="row">
-    <button id="btnLocustCloud" class="primary" title="Open Locust Cloud (login-aware)">Locust Cloud</button>
+    <button id="btnLocustCloud" title="Open Locust Cloud">Locust Cloud</button>
   </div>
 
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
-  const run = cmd => vscode.postMessage({ type: 'run', command: cmd });
+  const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
 
-  document.getElementById('btnCopilot').onclick      = () => run('locust.openCopilotWalkthrough');
-  document.getElementById('btnRunUI').onclick        = () => run('locust.runUI');
-  document.getElementById('btnRunHeadless').onclick  = () => run('locust.runHeadless');
-  document.getElementById('btnCreate').onclick       = () => run('locust.createSimulation');
-  document.getElementById('btnConvert').onclick      = () => run('locust.convertHar');
-  document.getElementById('btnLocustCloud').onclick  = () => run('locust.openLocustCloud');
+  // Wire button → command
+  const cloudBtn = document.getElementById('btnLocustCloud');
+  if (cloudBtn) cloudBtn.addEventListener('click', () => run('locust.openLocustCloud'));
 </script>
 </body>
 </html>
-`;
+    `;
 
     webview.onDidReceiveMessage(async (msg) => {
       if (msg?.type === 'run' && typeof msg.command === 'string') {
@@ -80,6 +75,9 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 }
 
 export async function activate(ctx: vscode.ExtensionContext) {
+
+  await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', false);
+  
   // Core services
   const env = new EnvService();
   const mcp = new McpService(env);

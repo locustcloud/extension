@@ -107,7 +107,7 @@ async function ensureWorkspaceSettingsPatched(workspacePath: string) {
     "ruff.lint.run": "onType",
     "markdown.preview.enableCommandUris": true,
     "[python]": {
-      "editor.codeActionsOnSave": { "source.fixAll.ruff": false },
+      "editor.codeActionsOnSave": { "source.fixAll.ruff": "never" },
       "editor.formatOnSave": false
     }
   };
