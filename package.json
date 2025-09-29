@@ -52,8 +52,7 @@
         {
           "id": "locust.welcome",
           "name": "Locust Menu",
-          "type": "webview",
-          "when": "locust.hideWelcome != true"
+          "type": "webview"
         },
         {
           "id": "locust.scenarios",

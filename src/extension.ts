@@ -75,6 +75,9 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 }
 
 export async function activate(ctx: vscode.ExtensionContext) {
+
+  await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', false);
+  
   // Core services
   const env = new EnvService();
   const mcp = new McpService(env);
