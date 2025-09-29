@@ -21,7 +21,9 @@
   "categories": ["Testing"],
   "keywords": ["locust", "load testing", "performance", "python"],
   "activationEvents": [
+    "onStartupFinished",
     "workspaceContains:locustfile.py",
+    "locust.createSimulation",
     "onView:locust.welcome",
     "onView:locust.scenarios",
     "onCommand:locust.openCopilotWalkthrough",
@@ -29,8 +31,6 @@
     "onCommand:locust.hideWelcome",
     "onCommand:locust.createSimulation",
     "onCommand:locust.convertHar",
-    "onCommand:locust.startBeginnerTour",
-    "onCommand:locust.openBeginnerTourPage",
     "onCommand:locust.runUI",
     "onCommand:locust.runHeadless",
     "onCommand:locust.installCopilot",
@@ -71,9 +71,7 @@
         { "command": "locust.startBeginnerTour", "when": "view == locust.scenarios", "group": "navigation@-1" },
         { "command": "locust.showWelcome", "when": "view == locust.scenarios && locust.hideWelcome == true", "group": "navigation@9" },
         { "command": "locust.hideWelcome", "when": "view == locust.welcome", "group": "navigation@9" },
-
-        { "command": "locust.openLocustCloud", "when": "view == locust.welcome", "group": "navigation@-2" },
-        { "command": "locust.openLocustCloud", "when": "view == locust.scenarios", "group": "navigation@-2" }
+        { "command": "locust.openLocustCloud", "when": "view == locust.welcome", "group": "navigation@-2" }
       ],
       "view/item/context": [
         { "command": "locust.runFileUI", "when": "view == locust.scenarios && viewItem == locust.file", "group": "inline" },
@@ -81,6 +79,7 @@
         { "command": "locust.runTaskUI", "when": "view == locust.scenarios && viewItem == locust.task", "group": "inline" },
         { "command": "locust.runTaskHeadless", "when": "view == locust.scenarios && viewItem == locust.task", "group": "inline" },
         { "command": "locust.runUI", "title": "Locust: Run Test (Web UI)" },
+        { "command": "locust.openLocustCloud", "title": "Open Locust Cloud", "group": "inline" },
         { "command": "locust.runHeadless", "title": "Locust: Run Test (Headless)" }
       ],
       "commandPalette": [
@@ -106,8 +105,6 @@
       { "command": "locust.runTaskUI", "title": "Locust: Run Task (Web UI)", "icon": "$(globe)" },
       { "command": "locust.showWelcome", "title": "Locust: Show Welcome", "icon": "$(home)" },
       { "command": "locust.hideWelcome", "title": "Locust: Hide Welcome", "icon": "$(close)" },
-      { "command": "locust.startBeginnerTour", "title": "Locust: Start Beginner CodeTour", "icon": "$(book)" },
-      { "command": "locust.openBeginnerTourPage", "title": "Locust: Open Beginner Page" },
       { "command": "locust.openBeginnerWalkthrough", "title": "Locust: Open Beginner Walkthrough" },
       { "command": "locust.installCopilot", "title": "Locust: Install GitHub Copilot", "icon": "$(cloud-download)" },
       { "command": "locust.openLocustCloud", "title": "Open Locust Cloud", "icon": "$(cloud)" }

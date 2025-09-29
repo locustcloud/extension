@@ -1,38 +1,31 @@
 import random
-from locust import task, constant, events
-from locust.contrib.fasthttp import FastHttpUser  
 
-# Minimal, simple starter for HTTP load testing with Locust.
-# Web UI:  locust -f locustfile.py 
-# Headless: locust -f locustfile.py --headless -u 10 -r 2 -t 1m -H http://0.0.0.0:5000
+from locust import FastHttpUser, constant, run_single_user, task
 
-class MockTarget(FastHttpUser):
 
-    # Class-level default (still overridable via --host / -H)
-    host = "https://mock-test-target.eu-north-1.locust.cloud"
+class SimpleUrl(FastHttpUser):
     wait_time = constant(1)
-    product_ids = [1, 2, 42, 4711]
-    # Improves completion in editor
-    client: "HttpSession"
-
-    def on_start(self):
-        # Authenticate once per simulated user
-        resp = self.client.post("/authenticate", json={"password": "bar"})
-        if resp.status_code != 200:
-            resp.failure("Login failed")
 
     @task
-    def browse_home(self):
+    def index(self):
         self.client.get("/")
 
+
+class MockTarget(FastHttpUser):
+    wait_time = constant(1)
+    host = "https://mock-test-target.eu-north-1.locust.cloud"
+    product_ids = [1, 2, 42, 4711]
+
     @task
-    def add_items_and_checkout(self):
-        for pid in random.sample(self.product_ids, k=min(2, len(self.product_ids))):
-            self.client.post("/cart/add", json={"productId": pid})
-        with self.client.post("/checkout/confirm", json={}, catch_response=True) as resp:
-            try:
-                ok = bool(resp.json().get("orderId"))
-            except Exception:
-                ok = False
-            if not ok:
-                resp.failure("orderId missing in checkout response")
+    def t(self):
+        self.client.get("/")
+        self.client.post("/authenticate", json={"user": "foo", "password": "bar"})
+        for product_id in random.sample(self.product_ids, 2):
+            self.client.post("/cart/add", json={"productId": product_id})
+        with self.client.post("/checkout/confirm", catch_response=True) as resp:
+            if not resp.json().get("orderId"):
+                resp.failure("orderId missing")
+
+
+if __name__ == "__main__":
+    run_single_user(MockTarget)

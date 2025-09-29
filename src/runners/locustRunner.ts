@@ -121,20 +121,37 @@ export class LocustRunner {
     const dest = await this.nextLocustfileUri(dir);
 
     // Minimal, snippet-inspired boilerplate
-    const content = `from locust import FastHttpUser, task, tag, constant
+    const content = `import random
+from locust import FastHttpUser, constant, run_single_user, task
 
-class MyUser(FastHttpUser):
-    """Example user making a simple GET request."""
+
+class SimpleUrl(FastHttpUser):
     wait_time = constant(1)
 
     @task
-    def example(self):
+    def index(self):
         self.client.get("/")
 
-    @tag("checkout")
+
+class MockTarget(FastHttpUser):
+    wait_time = constant(1)
+    host = "https://mock-test-target.eu-north-1.locust.cloud"
+    product_ids = [1, 2, 42, 4711]
+
     @task
-    def checkout(self):
-        self.client.post("/api/checkout", json={})
+    def t(self):
+        self.client.get("/")
+        self.client.post("/authenticate", json={"user": "foo", "password": "bar"})
+        for product_id in random.sample(self.product_ids, 2):
+            self.client.post("/cart/add", json={"productId": product_id})
+        with self.client.post("/checkout/confirm", catch_response=True) as resp:
+            if not resp.json().get("orderId"):
+                resp.failure("orderId missing")
+
+
+if __name__ == "__main__":
+    run_single_user(MockTarget)
+
 `;
 
     await vscode.workspace.fs.writeFile(dest, Buffer.from(content, 'utf8'));
