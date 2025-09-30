@@ -22,6 +22,23 @@ export function registerLocustCloudCommands(ctx: vscode.ExtensionContext) {
       }
     })
   );
+
+  // Delete/stop current Locust Cloud deployment
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand("locust.deleteLocustCloud", async () => {
+      try {
+        const confirm = await vscode.window.showWarningMessage(
+          "Delete the current Locust Cloud deployment?",
+          { modal: true },
+          "Delete"
+        );
+        if (confirm !== "Delete") return;
+        await cloud.deleteLocustCloud();
+      } catch (e: any) {
+        vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? "unexpected error"}`);
+      }
+    })
+  );
 }
 
 // Main command registrar

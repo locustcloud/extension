@@ -104,11 +104,10 @@ async function ensureWorkspaceSettingsPatched(workspacePath: string) {
   // Set python.defaultInterpreterPath separately (after venv creation).
   const desired = {
     "python.terminal.activateEnvironment": true,
-    "ruff.lint.run": "onType",
     "markdown.preview.enableCommandUris": true,
     "[python]": {
       "editor.codeActionsOnSave": { "source.fixAll.ruff": "never" },
-      "editor.formatOnSave": false
+      "editor.formatOnSave": true
     }
   };
 

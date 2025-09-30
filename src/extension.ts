@@ -39,6 +39,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   button { padding: 6px 10px; border: 1px solid var(--vscode-button-border, transparent);
     border-radius: 6px; background: var(--vscode-button-background);
     color: var(--vscode-button-foreground); cursor: pointer; }
+  .danger { background: var(--vscode-inputValidation-errorBackground); color: var(--vscode-editor-foreground); }
 </style>
 </head>
 <body>
@@ -47,15 +48,18 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 
   <div class="row">
     <button id="btnLocustCloud" title="Open Locust Cloud">Locust Cloud</button>
+    <button id="btnDeleteCloud" class="danger" title="Delete current Locust Cloud deployment">Delete Cloud</button>
   </div>
 
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
 
-  // Wire button → command
   const cloudBtn = document.getElementById('btnLocustCloud');
   if (cloudBtn) cloudBtn.addEventListener('click', () => run('locust.openLocustCloud'));
+
+  const delBtn = document.getElementById('btnDeleteCloud');
+  if (delBtn) delBtn.addEventListener('click', () => run('locust.deleteLocustCloud'));
 </script>
 </body>
 </html>
@@ -75,9 +79,6 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 }
 
 export async function activate(ctx: vscode.ExtensionContext) {
-
-  await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', false);
-  
   // Core services
   const env = new EnvService();
   const mcp = new McpService(env);
@@ -103,7 +104,10 @@ export async function activate(ctx: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider('locust.welcome', new LocustWelcomeViewProvider(ctx))
   );
 
-  // Centralized command registration (includes Locust Cloud command)
+  // Focus the Welcome view on startup (Scenarios remains visible in the background)
+  await vscode.commands.executeCommand('locust.welcome.focus');
+
+  // Centralized command registration (includes Locust Cloud commands)
   registerCommands(ctx, { setup, runner: locustRunner, harRunner, tree });
 
   // Run setup automatically on activation (env, ruff, MCP, tour, etc.)
