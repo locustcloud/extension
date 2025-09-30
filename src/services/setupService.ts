@@ -240,9 +240,9 @@ export class SetupService {
         }
       }
 
-      // Point workspace interpreter to the venv
-      await vscode.workspace.getConfiguration('python')
-        .update('defaultInterpreterPath', absPy, vscode.ConfigurationTarget.Workspace);
+    //   // Point workspace interpreter to the venv
+    //   await vscode.workspace.getConfiguration('python')
+    //     .update('defaultInterpreterPath', absPy, vscode.ConfigurationTarget.Workspace);
 
       // Write MCP config using validated interpreter
       await this.mcp.writeMcpConfig(absPy);
