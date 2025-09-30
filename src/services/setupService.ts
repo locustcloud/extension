@@ -192,67 +192,67 @@ export class SetupService {
    */
   async autoSetupSilently() {
     try {
-      if (!vscode.workspace.isTrusted) return;
-      const wsPath = wsRoot();
-      if (!wsPath) return;
+    //   if (!vscode.workspace.isTrusted) return;
+    //   const wsPath = wsRoot();
+    //   if (!wsPath) return;
 
-      const already = this.ctx.workspaceState.get<boolean>(WS_SETUP_KEY, false);
+    //   const already = this.ctx.workspaceState.get<boolean>(WS_SETUP_KEY, false);
 
-      const envFolder = '.locust_env';
-      const isWin = process.platform === 'win32';
-      const absPy = path.join(wsPath, envFolder, isWin ? 'Scripts' : 'bin', 'python');
-      const venvExists = await fileExists(absPy);
+    //   const envFolder = '.locust_env';
+    //   const isWin = process.platform === 'win32';
+    //   const absPy = path.join(wsPath, envFolder, isWin ? 'Scripts' : 'bin', 'python');
+    //   const venvExists = await fileExists(absPy);
 
-      // Create venv if needed
-      if (!venvExists) {
-        await vscode.window.withProgress(
-          { location: vscode.ProgressLocation.Notification, title: 'Locust: preparing local Python environment…', cancellable: false },
-          async () => {
-            try {
-              await execFileAsync('python', ['-m', 'venv', envFolder], { cwd: wsPath });
-            } catch {
-              await execFileAsync('python3', ['-m', 'venv', envFolder], { cwd: wsPath });
-            }
-          }
-        );
-      }
+    //   // Create venv if needed
+    //   if (!venvExists) {
+    //     await vscode.window.withProgress(
+    //       { location: vscode.ProgressLocation.Notification, title: 'Locust: preparing local Python environment…', cancellable: false },
+    //       async () => {
+    //         try {
+    //           await execFileAsync('python', ['-m', 'venv', envFolder], { cwd: wsPath });
+    //         } catch {
+    //           await execFileAsync('python3', ['-m', 'venv', envFolder], { cwd: wsPath });
+    //         }
+    //       }
+    //     );
+    //   }
 
-      const venvEnv = envForVenv(absPy);
+    //   const venvEnv = envForVenv(absPy);
 
-      // Ensure pip is up-to-date
-      await execFileAsync(absPy, ['-m', 'pip', 'install', '--upgrade', 'pip'], { cwd: wsPath, env: venvEnv });
+    //   // Ensure pip is up-to-date
+    //   await execFileAsync(absPy, ['-m', 'pip', 'install', '--upgrade', 'pip'], { cwd: wsPath, env: venvEnv });
 
-      // Install deps if any missing OR first time
-      const needsLocust = !(await canImport(absPy, 'locust', wsPath));
-      const needsH2L   = !(await canImport(absPy, 'har2locust', wsPath));
-      const needsMCP   = !(await canImport(absPy, 'mcp', wsPath));
+    //   // Install deps if any missing OR first time
+    //   const needsLocust = !(await canImport(absPy, 'locust', wsPath));
+    //   const needsH2L   = !(await canImport(absPy, 'har2locust', wsPath));
+    //   const needsMCP   = !(await canImport(absPy, 'mcp', wsPath));
 
-      if (!already || needsLocust || needsH2L || needsMCP) {
-        const reqPath = path.join(wsPath, 'mcp', 'requirements.txt');
-        if (await fileExists(reqPath)) {
-          await execFileAsync(absPy, ['-m', 'pip', 'install', '-r', reqPath], { cwd: wsPath, env: venvEnv });
-        } else {
-          await execFileAsync(
-            absPy,
-            ['-m', 'pip', 'install', 'locust', 'har2locust', 'ruff', 'mcp', 'pytest'],
-            { cwd: wsPath, env: venvEnv }
-          );
-        }
-      }
+    //   if (!already || needsLocust || needsH2L || needsMCP) {
+    //     const reqPath = path.join(wsPath, 'mcp', 'requirements.txt');
+    //     if (await fileExists(reqPath)) {
+    //       await execFileAsync(absPy, ['-m', 'pip', 'install', '-r', reqPath], { cwd: wsPath, env: venvEnv });
+    //     } else {
+    //       await execFileAsync(
+    //         absPy,
+    //         ['-m', 'pip', 'install', 'locust'], // 'har2locust', 'ruff', 'mcp', 'pytest'],
+    //         { cwd: wsPath, env: venvEnv }
+    //       );
+    //     }
+    //   }
 
-      // Point workspace interpreter to the venv
-      await vscode.workspace.getConfiguration('python')
-        .update('defaultInterpreterPath', absPy, vscode.ConfigurationTarget.Workspace);
+    //   // Point workspace interpreter to the venv
+    //   await vscode.workspace.getConfiguration('python')
+    //     .update('defaultInterpreterPath', absPy, vscode.ConfigurationTarget.Workspace);
 
-      // Write MCP config using validated interpreter
-      await this.mcp.writeMcpConfig(absPy);
+    //   // Write MCP config using validated interpreter
+    //   await this.mcp.writeMcpConfig(absPy);
 
-      // Only create settings.json if missing; avoid writing ./.ruff.toml
-      const createdSettings = await ensureWorkspaceSettingsIfMissing(wsPath);
-      await configureRuffIfNew(this.ctx, createdSettings);
+    //   // Only create settings.json if missing; avoid writing ./.ruff.toml
+    //   const createdSettings = await ensureWorkspaceSettingsIfMissing(wsPath);
+    //   await configureRuffIfNew(this.ctx, createdSettings);
 
-      // Ensure the tour is available in the workspace.
-      await ensureWorkspaceTour(this.ctx, wsPath);
+    //   // Ensure the tour is available in the workspace.
+    //   await ensureWorkspaceTour(this.ctx, wsPath);
 
       // Mark as done
       await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
