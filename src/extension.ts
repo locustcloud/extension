@@ -82,10 +82,12 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const mcp = new McpService(env);
   const setup = new SetupService(env, mcp, ctx);
 
+  /*
   // Copilot light-up (non-blocking)
   const copilot = new CopilotService(ctx);
   ctx.subscriptions.push(copilot); // dispose listeners on deactivate
   await copilot.bootstrap();
+  */
 
   // Runners / Services
   const locustRunner = new LocustRunner(env, ctx.extensionUri);

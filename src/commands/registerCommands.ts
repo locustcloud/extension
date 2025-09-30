@@ -28,7 +28,7 @@ export function registerLocustCloudCommands(ctx: vscode.ExtensionContext) {
     vscode.commands.registerCommand("locust.deleteLocustCloud", async () => {
       try {
         const confirm = await vscode.window.showWarningMessage(
-          "Delete the current Locust Cloud deployment?",
+          "Shut down Locust Cloud?",
           { modal: true },
           "Delete"
         );
