@@ -21,8 +21,8 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     };
 
     const nonce = String(Math.random()).slice(2);
-
-    webview.html = `
+   
+webview.html = `
 <!doctype html>
 <html>
 <head>
@@ -30,7 +30,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 <meta http-equiv="Content-Security-Policy"
   content="default-src 'none'; img-src ${webview.cspSource} https:; script-src 'nonce-${nonce}'; style-src ${webview.cspSource} 'unsafe-inline';">
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Locust — Menu</title>
+<title>Locust Menu</title>
 <style>
   body { font-family: var(--vscode-font-family); padding: 12px; }
   h1 { margin: 0 0 8px; font-size: 16px; }
@@ -43,27 +43,25 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 </style>
 </head>
 <body>
-  <h1>Action Menu</h1>
-  <p>Quick Action Buttons for common Locust operations.</p>
+  <h1>Locust Cloud</h1>
+  <p>Load generator management.</p>
 
   <div class="row">
-    <button id="btnLocustCloud" title="Open Locust Cloud">Locust Cloud</button>
-    <button id="btnDeleteCloud" class="danger" title="Delete current Locust Cloud deployment">Delete Cloud</button>
+    <!-- Updated titles show the exact CLI on hover -->
+    <button id="btnLocustCloud" title="Run: locust --cloud">Launch</button>
+    <button id="btnDeleteCloud" class="danger" title="Run: locust --cloud --delete">Shut Down</button>
   </div>
 
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
 
-  const cloudBtn = document.getElementById('btnLocustCloud');
-  if (cloudBtn) cloudBtn.addEventListener('click', () => run('locust.openLocustCloud'));
-
-  const delBtn = document.getElementById('btnDeleteCloud');
-  if (delBtn) delBtn.addEventListener('click', () => run('locust.deleteLocustCloud'));
+  document.getElementById('btnLocustCloud')?.addEventListener('click', () => run('locust.openLocustCloud'));
+  document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
 </script>
 </body>
 </html>
-    `;
+`;
 
     webview.onDidReceiveMessage(async (msg) => {
       if (msg?.type === 'run' && typeof msg.command === 'string') {
