@@ -44,128 +44,61 @@ function envForVenv(absPy: string): NodeJS.ProcessEnv {
   return env;
 }
 
-// Ruff + settings: keep generator as a fallback only.
-async function ensureRuffToml(workspacePath: string) {
-  const ruffPath = path.join(workspacePath, '.ruff.toml');
-  if (await fileExists(ruffPath)) return;
+// --- Only create settings.json if missing (no merge/touch otherwise)
+async function ensureWorkspaceSettingsIfMissing(workspacePath: string): Promise<boolean> {
+  const vscodeDir = path.join(workspacePath, '.vscode');
+  const settingsPath = path.join(vscodeDir, 'settings.json');
 
-  // Valid TOML; add .tours/** to excludes
-  const ruffToml = `target-version = "py311"
+  if (await fileExists(settingsPath)) {
+    return false; // respect existing settings.json; do not rewrite or merge
+  }
 
-extend-exclude = [
-  ".locust_env/**",
-  ".tours/**",
-  "templates/**"
-]
+  await fs.mkdir(vscodeDir, { recursive: true });
 
-lint.select = ["E", "F", "W"]
-`;
-  await fs.writeFile(ruffPath, ruffToml, 'utf8');
+  const fresh = {
+    "python.terminal.activateEnvironment": true,
+    "markdown.preview.enableCommandUris": true,
+    // Keep Python formatting sane; Ruff fixes can be enabled by users later.
+    "[python]": {
+      "editor.codeActionsOnSave": { "source.fixAll.ruff": "never" },
+      "editor.formatOnSave": true
+    },
+    // Hide internal folders by default in a new workspace
+    "files.exclude": {
+      "**/.locust_env": true,
+      "**/.tours": true,
+      "**/.ruff.toml": true
+    },
+    "search.exclude": {
+      "**/.locust_env/**": true,
+      "**/.tours/**": true
+    },
+    "files.watcherExclude": {
+      "**/.locust_env/**": true,
+      "**/.tours/**": true
+    }
+  };
+
+  await fs.writeFile(settingsPath, JSON.stringify(fresh, null, 2), 'utf8');
+  return true;
 }
 
 /**
  * Prefer a bundled Ruff config so we DON'T create .ruff.toml in the workspace.
- * If a bundled config isn't present and no configuration is set, fall back to generating .ruff.toml.
+ * Only set this when we just created settings.json (to avoid mutating an existing file).
+ * No fallback that writes .ruff.toml.
  */
-async function ensureRuffConfigured(ctx: vscode.ExtensionContext, workspacePath: string) {
-  const ruffCfg = vscode.workspace.getConfiguration('ruff');
-  const existing = ruffCfg.get<unknown>('configuration');
+async function configureRuffIfNew(ctx: vscode.ExtensionContext, createdSettings: boolean) {
+  if (!createdSettings) return;
 
-  // If user/workspace already set something (string path or inline object), leave it alone.
-  if (existing !== undefined && existing !== null && `${existing}`.length > 0) {
-    return;
-  }
-
-  // Try to use a bundled file from the extension (media/ruff/ruff.toml).
-  const bundledPath = path.join(ctx.extensionUri.fsPath, 'media', 'ruff', 'ruff.toml');
+  const bundled = path.join(ctx.extensionUri.fsPath, 'media', 'ruff', 'ruff.toml');
   try {
-    await fs.stat(bundledPath);
-    await ruffCfg.update('configuration', bundledPath, vscode.ConfigurationTarget.Workspace);
-    return;
+    await fs.stat(bundled);
+    await vscode.workspace.getConfiguration('ruff')
+      .update('configuration', bundled, vscode.ConfigurationTarget.Workspace);
   } catch {
-    // No bundled config available — fall back to generating a hidden workspace file.
+    // No bundled Ruff config packaged; silently skip.
   }
-
-  // Fallback: generate .ruff.toml in the workspace as before.
-  await ensureRuffToml(workspacePath);
-}
-
-async function ensureWorkspaceSettingsPatched(workspacePath: string) {
-  const vscodeDir = path.join(workspacePath, '.vscode');
-  const settingsPath = path.join(vscodeDir, 'settings.json');
-  await fs.mkdir(vscodeDir, { recursive: true });
-
-  let current: any = {};
-  try {
-    const buf = await fs.readFile(settingsPath, 'utf8');
-    current = JSON.parse(buf);
-  } catch { current = {}; }
-
-  // Set python.defaultInterpreterPath separately (after venv creation).
-  const desired = {
-    "python.terminal.activateEnvironment": true,
-    "markdown.preview.enableCommandUris": true,
-    "[python]": {
-      "editor.codeActionsOnSave": { "source.fixAll.ruff": "never" },
-      "editor.formatOnSave": true
-    }
-  };
-
-  // Hide internal files/dirs in Explorer, Search, and file watcher
-  const desiredFilesExclude = {
-    "**/.locust_env": true,
-    "**/.tours": true,
-    "**/.ruff.toml": true
-  };
-  const desiredSearchExclude = {
-    "**/.locust_env/**": true,
-    "**/.tours/**": true
-  };
-  const desiredWatcherExclude = {
-    "**/.locust_env/**": true,
-    "**/.tours/**": true
-  };
-
-  const merged: any = { ...current, ...desired };
-  if (current["[python]"]) {
-    merged["[python]"] = {
-      ...current["[python]"],
-      ...desired["[python]"],
-      editor: undefined,
-      "editor.codeActionsOnSave": {
-        ...(current["[python]"]?.["editor.codeActionsOnSave"] ?? {}),
-        ...(desired["[python]"]?.["editor.codeActionsOnSave"] ?? {})
-      },
-      "editor.formatOnSave": desired["[python]"]?.["editor.formatOnSave"] ?? current["[python]"]?.["editor.formatOnSave"]
-    };
-    if (merged["[python]"].editor === undefined) { delete merged["[python]"].editor; }
-  }
-
-  // Deep-merge excludes without overwriting explicit user choices
-  const curFiles = current["files.exclude"] ?? {};
-  const curSearch = current["search.exclude"] ?? {};
-  const curWatch = current["files.watcherExclude"] ?? {};
-
-  merged["files.exclude"] = {
-    ...curFiles,
-    "**/.locust_env": curFiles["**/.locust_env"] ?? desiredFilesExclude["**/.locust_env"],
-    "**/.tours":      curFiles["**/.tours"]      ?? desiredFilesExclude["**/.tours"],
-    "**/.ruff.toml":  curFiles["**/.ruff.toml"]  ?? desiredFilesExclude["**/.ruff.toml"]
-  };
-
-  merged["search.exclude"] = {
-    ...curSearch,
-    "**/.locust_env/**": curSearch["**/.locust_env/**"] ?? desiredSearchExclude["**/.locust_env/**"],
-    "**/.tours/**":      curSearch["**/.tours/**"]      ?? desiredSearchExclude["**/.tours/**"]
-  };
-
-  merged["files.watcherExclude"] = {
-    ...curWatch,
-    "**/.locust_env/**": curWatch["**/.locust_env/**"] ?? desiredWatcherExclude["**/.locust_env/**"],
-    "**/.tours/**":      curWatch["**/.tours/**"]      ?? desiredWatcherExclude["**/.tours/**"]
-  };
-
-  await fs.writeFile(settingsPath, JSON.stringify(merged, null, 2), 'utf8');
 }
 
 // --- Setup service
@@ -193,17 +126,13 @@ async function findBundledTour(ctx: vscode.ExtensionContext): Promise<vscode.Uri
     try {
       await vscode.workspace.fs.stat(cand);
       return cand;
-    } catch {
-      // try next
-    }
+    } catch { /* try next */ }
   }
   return undefined;
 }
 
 /**
- * Ensure <workspace>/.tours/locust_beginner.tour exists.
- * If it exists, only overwrite when bundled locustTourVersion !== workspace version.
- * (CodeTour ignores unknown keys, so 'locustTourVersion' is safe to include.)
+ * Ensure <workspace>/.tours/locust_beginner.tour exists (versioned copy).
  */
 async function ensureWorkspaceTour(ctx: vscode.ExtensionContext, wsPath: string) {
   const srcUri = await findBundledTour(ctx);
@@ -215,14 +144,11 @@ async function ensureWorkspaceTour(ctx: vscode.ExtensionContext, wsPath: string)
 
   let shouldCopy = false;
 
-  // Read version from bundled tour
   const srcJson = await readJson(srcUri);
   const srcVersion = srcJson?.locustTourVersion ?? '0';
 
-  // Ensure destination directory exists
   try { await fs.mkdir(destDir, { recursive: true }); } catch {}
 
-  // Compare with existing workspace tour (if any)
   const exists = await fileExists(destPath);
   if (!exists) {
     shouldCopy = true;
@@ -260,7 +186,8 @@ export class SetupService {
    * - Installs deps (locust, har2locust, ruff, mcp, pytest or from mcp/requirements.txt)
    * - Sets workspace python interpreter to venv
    * - Writes MCP config
-   * - Patches settings and Ruff config (via bundled file; falls back to .ruff.toml only if needed)
+   * - Creates .vscode/settings.json **only if missing**
+   * - DOES NOT write ./.ruff.toml (uses bundled Ruff config only when creating settings.json)
    * - Stages CodeTour into <workspace>/.tours
    */
   async autoSetupSilently() {
@@ -269,7 +196,6 @@ export class SetupService {
       const wsPath = wsRoot();
       if (!wsPath) return;
 
-      // If we already completed once, still verify presence; re-run if anything is missing.
       const already = this.ctx.workspaceState.get<boolean>(WS_SETUP_KEY, false);
 
       const envFolder = '.locust_env';
@@ -321,9 +247,9 @@ export class SetupService {
       // Write MCP config using validated interpreter
       await this.mcp.writeMcpConfig(absPy);
 
-      // Patch editor settings + Ruff configuration (prefer bundled; fallback to .ruff.toml)
-      await ensureRuffConfigured(this.ctx, wsPath);
-      await ensureWorkspaceSettingsPatched(wsPath);
+      // Only create settings.json if missing; avoid writing ./.ruff.toml
+      const createdSettings = await ensureWorkspaceSettingsIfMissing(wsPath);
+      await configureRuffIfNew(this.ctx, createdSettings);
 
       // Ensure the tour is available in the workspace.
       await ensureWorkspaceTour(this.ctx, wsPath);
@@ -331,7 +257,6 @@ export class SetupService {
       // Mark as done
       await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
     } catch (err: any) {
-      // Be quiet, but log to OUTPUT to help debugging
       const ch = vscode.window.createOutputChannel('Locust Setup');
       ch.appendLine(`[auto-setup] ${err?.stack || err?.message || String(err)}`);
       ch.show(true);
@@ -344,11 +269,11 @@ export class SetupService {
     return this.autoSetupSilently();
   }
 
-  // Manual re-run command 
+  // Manual re-run command
   private async finalizeWorkspace(wsPath: string, python: string) {
     await this.mcp.writeMcpConfig(python);
-    await ensureRuffConfigured(this.ctx, wsPath);
-    await ensureWorkspaceSettingsPatched(wsPath);
+    const createdSettings = await ensureWorkspaceSettingsIfMissing(wsPath);
+    await configureRuffIfNew(this.ctx, createdSettings);
     await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
   }
 }
