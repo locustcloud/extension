@@ -212,7 +212,7 @@ export class LocustCloudService {
       bufErr = bufErr.slice(bufErr.lastIndexOf("\n") + 1);
 
       if (/Your Locust instance is currently running/i.test(s)) {
-        vscode.window.setStatusBarMessage("Locust Cloud: existing instance detected – opening its UI.", 3000);
+        vscode.window.setStatusBarMessage("Locust Cloud: existing instance detected, opening UI.", 3000);
       }
     });
 
