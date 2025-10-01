@@ -155,7 +155,7 @@
         },
         "locust.cloud.rootUrl": {
           "type": "string",
-          "default": "https://auth.locust.cloud/load-test",
+          "default": "https://auth.locust.cloud/load-test?dashboard=false",
           "description": "Where to send logged-in users (opened in VS Code Simple Browser when available)."
         }
       }
