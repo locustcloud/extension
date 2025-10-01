@@ -63,7 +63,7 @@
           "id": "locust.scenarios",
           "name": "Locust Tests",
           "icon": "media/icon.png",
-          "visibility": "hidden"
+          "when": "locust.showScenarios == true"
         }
       ]
     },

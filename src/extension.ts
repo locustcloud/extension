@@ -8,6 +8,8 @@ import { Har2LocustService } from './services/har2locustService';
 import { Har2LocustRunner } from './runners/har2locustRunner';
 import { LocustTreeProvider } from './tree/locustTree';
 import { CopilotService } from './services/copilotService';
+import * as fs from 'fs/promises';
+import * as path from 'path'; // ✅ fix
 
 /** Small webview view that shows a persistent Welcome panel with quick actions. */
 class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
@@ -21,8 +23,8 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     };
 
     const nonce = String(Math.random()).slice(2);
-   
-webview.html = `
+
+    webview.html = `
 <!doctype html>
 <html>
 <head>
@@ -47,7 +49,6 @@ webview.html = `
   <p>Load generator management.</p>
 
   <div class="row">
-    <!-- Updated titles show the exact CLI on hover -->
     <button id="btnLocustCloud" title="Run: locust --cloud">Launch</button>
     <button id="btnDeleteCloud" class="danger" title="Run: locust --cloud --delete">Shut Down</button>
   </div>
@@ -55,7 +56,6 @@ webview.html = `
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
-
   document.getElementById('btnLocustCloud')?.addEventListener('click', () => run('locust.openLocustCloud'));
   document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
 </script>
@@ -82,36 +82,42 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const mcp = new McpService(env);
   const setup = new SetupService(env, mcp, ctx);
 
-  /*
-  // Copilot light-up (non-blocking)
-  const copilot = new CopilotService(ctx);
-  ctx.subscriptions.push(copilot); // dispose listeners on deactivate
-  await copilot.bootstrap();
-  */
-
   // Runners / Services
   const locustRunner = new LocustRunner(env, ctx.extensionUri);
   const harService = new Har2LocustService(env);
   const harRunner = new Har2LocustRunner(env, harService);
 
-  // Tree
+  // Tree — register provider lazily; keep the disposable
   const tree = new LocustTreeProvider();
-  const treeView = vscode.window.createTreeView('locust.scenarios', { treeDataProvider: tree });
-  ctx.subscriptions.push(treeView, tree);
+  const treeReg = vscode.window.registerTreeDataProvider('locust.scenarios', tree); // ✅ keep disposable
+  ctx.subscriptions.push(treeReg, tree);
+
+  // Optional gating via context key (matches your package.json "when" if used)
+  await vscode.commands.executeCommand('setContext', 'locust.showScenarios', false);
 
   // Welcome view provider
-  ctx.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('locust.welcome', new LocustWelcomeViewProvider(ctx))
-  );
+  const welcomeReg = vscode.window.registerWebviewViewProvider('locust.welcome', new LocustWelcomeViewProvider(ctx));
+  ctx.subscriptions.push(welcomeReg);
 
-  // Focus the Welcome view on startup (Scenarios remains visible in the background)
+  // Focus the Welcome view on startup
   await vscode.commands.executeCommand('locust.welcome.focus');
+
+  // Commands
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand('locust.showScenariosView', async () => { // ✅ push disposable
+      await vscode.commands.executeCommand('setContext', 'locust.showScenarios', true);
+      await vscode.commands.executeCommand('locust.scenarios.focus');
+    })
+  );
 
   // Centralized command registration (includes Locust Cloud commands)
   registerCommands(ctx, { setup, runner: locustRunner, harRunner, tree });
 
   // Run setup automatically on activation (env, ruff, MCP, tour, etc.)
   setup.autoSetupSilently();
+
+  // Scaffold if needed
+  await ensureLocustfileOrScaffold();
 
   // Re-run setup on folder changes
   ctx.subscriptions.push(
@@ -121,4 +127,24 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
 export function deactivate() {
   // noop
+}
+
+async function ensureLocustfileOrScaffold() {
+  const folders = vscode.workspace.workspaceFolders;
+  if (!folders?.length) return; // no folder open
+
+  const root = folders[0].uri.fsPath;
+
+  // First, check a plain 'locustfile.py' at root quickly.
+  try {
+    await fs.access(path.join(root, 'locustfile.py'));
+    return; // exists → done
+  } catch {}
+
+  // Then, use VS Code glob for variants like 'locustfile_*.py'
+  const matches = await vscode.workspace.findFiles('**/locustfile_*.py', '**/node_modules/**', 1);
+  if (matches.length > 0) return;
+
+  // None found → scaffold
+  void vscode.commands.executeCommand('locust.createSimulation');
 }
