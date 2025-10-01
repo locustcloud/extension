@@ -4,7 +4,7 @@ import { spawn } from "child_process";
 import { LocustTreeProvider } from "../tree/locustTree";
 import { EnvService } from "./envService";
 
-/** Extract the Locust web UI URL from a log line and sanitize trailing punctuation. */
+/** Extract the Locust web UI URL from a log line and ensure ?dashboard=false is set. */
 function extractLocustUrl(line: string): string | undefined {
   // 1) Normal path
   let m = line.match(/Starting web interface at (\S+)/i);
@@ -22,9 +22,26 @@ function extractLocustUrl(line: string): string | undefined {
     url = m?.[0];
   }
 
+  if (!url) return undefined;
+
   // Strip trailing punctuation that often rides along in logs
-  if (url) url = url.replace(/[)\].,;'"!?]+$/, "");
-  return url;
+  url = url.replace(/[)\].,;'"!?]+$/, "");
+
+  // Keep fragment aside (if any) so we can add/modify query cleanly
+  const hashIdx = url.indexOf("#");
+  const base = hashIdx >= 0 ? url.slice(0, hashIdx) : url;
+  const fragment = hashIdx >= 0 ? url.slice(hashIdx) : "";
+
+  // Force dashboard=false (append if missing, overwrite if present)
+  let newBase: string;
+  if (/[?&]dashboard=/.test(base)) {
+    newBase = base.replace(/([?&]dashboard=)[^&#]*/i, "$1false");
+  } else {
+    const joiner = base.includes("?") ? "&" : "?";
+    newBase = `${base}${joiner}dashboard=false`;
+  }
+
+  return newBase + fragment;
 }
 
 export class LocustCloudService {
@@ -35,7 +52,7 @@ export class LocustCloudService {
   /** Fallback URL if the CLI never prints a UI URL. */
   private get cloudFallbackUrl(): string {
     const cfg = vscode.workspace.getConfiguration("locust");
-    return cfg.get<string>("cloud.rootUrl", "https://auth.locust.cloud/load-test");
+    return cfg.get<string>("cloud.rootUrl", "https://auth.locust.cloud/load-test?dashboard=false");
   }
 
   /** Workspace env folder name (default: ".locust_env"). */
