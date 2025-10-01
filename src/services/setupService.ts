@@ -58,6 +58,10 @@ async function ensureWorkspaceSettingsIfMissing(workspacePath: string): Promise<
   const fresh = {
     "python.terminal.activateEnvironment": true,
     "markdown.preview.enableCommandUris": true,
+    // Disable all Copilot
+    "chat.sendElementsToChat.enabled": false,
+    "chat.sendElementsToChat.attachCSS": false,
+    "chat.sendElementsToChat.attachImages": false,
     // Keep Python formatting sane; Ruff fixes can be enabled by users later.
     "[python]": {
       "editor.codeActionsOnSave": { "source.fixAll.ruff": "never" },
@@ -240,9 +244,9 @@ export class SetupService {
         }
       }
 
-      // Point workspace interpreter to the venv
-      await vscode.workspace.getConfiguration('python')
-        .update('defaultInterpreterPath', absPy, vscode.ConfigurationTarget.Workspace);
+    //  Point workspace interpreter to the venv
+    //  await vscode.workspace.getConfiguration('python')
+    //  .update('defaultInterpreterPath', absPy, vscode.ConfigurationTarget.Workspace);
 
       // Write MCP config using validated interpreter
       await this.mcp.writeMcpConfig(absPy);
