@@ -27,13 +27,13 @@ export function registerLocustCloudCommands(ctx: vscode.ExtensionContext) {
   ctx.subscriptions.push(
     vscode.commands.registerCommand("locust.deleteLocustCloud", async () => {
       try {
-        const confirm = await vscode.window.showWarningMessage(
-          "Shut down Locust Cloud?",
-          { modal: true },
-          "Shut down"
+        await vscode.window.withProgress(
+          { location: vscode.ProgressLocation.Notification, title: "Locust Cloud: shutting down…", cancellable: false },
+          async () => {
+            await cloud.deleteLocustCloud();
+          }
         );
-        if (confirm !== "Shut down") return;
-        await cloud.deleteLocustCloud();
+        vscode.window.setStatusBarMessage("Locust Cloud: shutdown command sent.", 3000);
       } catch (e: any) {
         vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? "unexpected error"}`);
       }
