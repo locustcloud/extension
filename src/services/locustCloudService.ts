@@ -202,7 +202,7 @@ export class LocustCloudService {
         opened = true;
         out.appendLine(`[cloud] web UI: ${url}`);
         await this.openInSimpleBrowserSplit(url, 0.45);
-        vscode.window.setStatusBarMessage("Locust Cloud: web UI opened in split view.", 3000);
+        vscode.window.setStatusBarMessage("Locust Cloud: web UI opened in split view.", 60000);
       }
     };
 
@@ -229,7 +229,7 @@ export class LocustCloudService {
       bufErr = bufErr.slice(bufErr.lastIndexOf("\n") + 1);
 
       if (/Your Locust instance is currently running/i.test(s)) {
-        vscode.window.setStatusBarMessage("Locust Cloud: existing instance detected, opening UI.", 3000);
+        vscode.window.setStatusBarMessage("Locust Cloud: existing instance detected, opening UI.", 60000);
       }
     });
 
@@ -244,7 +244,7 @@ export class LocustCloudService {
         out.appendLine(`[cloud] no UI URL detected — opening fallback: ${fallback}`);
         this.openInSimpleBrowserSplit(fallback, 0.45).catch(() => {});
       }
-    }, 10000);
+    }, 60000);
   }
 
   /** Run `python -m locust --cloud --delete` using the same interpreter resolution. */
