@@ -105,7 +105,7 @@ async function configureRuffIfNew(ctx: vscode.ExtensionContext, createdSettings:
   }
 }
 
-// --- Setup service
+// Setup service
 async function readJson(uriOrPath: vscode.Uri | string): Promise<any | undefined> {
   try {
     const text =

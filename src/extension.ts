@@ -60,6 +60,10 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
 </script>
 </body>
+<footer>
+  <a href="https://www.locust.cloud/get-started/">
+  Get help
+  </a>
 </html>
 `;
 
