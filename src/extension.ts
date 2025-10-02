@@ -51,8 +51,12 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   <div class="row">
     <button id="btnLocustCloud" title="Run: locust --cloud">Launch</button>
     <button id="btnDeleteCloud" class="danger" title="Run: locust --cloud --delete">Shut Down</button>
-  </div>
+  </div><br>
 
+  <a href="https://www.locust.cloud/get-started/" target="_blank">Get Started</a><br>
+  <a href="https://docs.locust.io/en/stable/" target="_blank">Locust Docs<a><br> 
+  <a href="support@locust.cloud">Support</a>
+       
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
@@ -60,10 +64,6 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
 </script>
 </body>
-<footer>
-  <a href="https://www.locust.cloud/get-started/">
-  Get help
-  </a>
 </html>
 `;
 

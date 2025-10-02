@@ -44,13 +44,13 @@ function envForVenv(absPy: string): NodeJS.ProcessEnv {
   return env;
 }
 
-// --- Only create settings.json if missing (no merge/touch otherwise)
+// Only create settings.json if missing
 async function ensureWorkspaceSettingsIfMissing(workspacePath: string): Promise<boolean> {
   const vscodeDir = path.join(workspacePath, '.vscode');
   const settingsPath = path.join(vscodeDir, 'settings.json');
 
   if (await fileExists(settingsPath)) {
-    return false; // respect existing settings.json; do not rewrite or merge
+    return false; // respect existing settings.json.
   }
 
   await fs.mkdir(vscodeDir, { recursive: true });
@@ -62,12 +62,12 @@ async function ensureWorkspaceSettingsIfMissing(workspacePath: string): Promise<
     "chat.sendElementsToChat.enabled": false,
     "chat.sendElementsToChat.attachCSS": false,
     "chat.sendElementsToChat.attachImages": false,
-    // Keep Python formatting sane; Ruff fixes can be enabled by users later.
+    // Ruff fixes can be enabled by users later.
     "[python]": {
       "editor.codeActionsOnSave": { "source.fixAll.ruff": "never" },
       "editor.formatOnSave": true
     },
-    // Hide internal folders by default in a new workspace
+    // Hide internal folders
     "files.exclude": {
       "**/.locust_env": true,
       "**/.tours": true,
@@ -88,9 +88,9 @@ async function ensureWorkspaceSettingsIfMissing(workspacePath: string): Promise<
 }
 
 /**
- * Prefer a bundled Ruff config so we DON'T create .ruff.toml in the workspace.
- * Only set this when we just created settings.json (to avoid mutating an existing file).
- * No fallback that writes .ruff.toml.
+ * Prefer bundled Ruff config.
+ * Only when creating settings.json..
+ * No fallback write .ruff.toml.
  */
 async function configureRuffIfNew(ctx: vscode.ExtensionContext, createdSettings: boolean) {
   if (!createdSettings) return;
@@ -103,6 +103,52 @@ async function configureRuffIfNew(ctx: vscode.ExtensionContext, createdSettings:
   } catch {
     // No bundled Ruff config packaged; silently skip.
   }
+}
+
+// Ensure launch.json active-file Locust config
+async function ensurePythonActiveFileLaunch(wsPath: string, absPy: string) {
+  const vscodeDir = path.join(wsPath, '.vscode');
+  const launchPath = path.join(vscodeDir, 'launch.json');
+  await fs.mkdir(vscodeDir, { recursive: true });
+
+  let launchJson: any = { version: '0.2.0', configurations: [] as any[] };
+  try {
+    const txt = await fs.readFile(launchPath, 'utf8');
+    const parsed = JSON.parse(txt);
+    if (parsed && typeof parsed === 'object') {
+      launchJson.version = parsed.version ?? '0.2.0';
+      launchJson.configurations = Array.isArray(parsed.configurations) ? parsed.configurations : [];
+    }
+  } catch { /* no existing launch.json */ }
+
+  const name = 'Locust: run_single_user (active file)';
+  const cfg = {
+    name,
+    type: 'python',
+    request: 'launch',
+    python: absPy,
+    program: '${file}',
+    cwd: '${fileDirname}',
+    console: 'integratedTerminal',
+    justMyCode: false,
+    args: [],
+    env: {
+      VIRTUAL_ENV: path.dirname(path.dirname(absPy)),
+      PATH:
+        process.platform === 'win32'
+          ? '${workspaceFolder}\\.locust_env\\Scripts;${env:PATH}'
+          : '${workspaceFolder}/.locust_env/bin:${env:PATH}',
+
+      // gevent support in debugger
+      GEVENT_SUPPORT: 'True',
+    },
+  };
+
+  const idx = launchJson.configurations.findIndex((c: any) => c?.name === name);
+  if (idx >= 0) launchJson.configurations[idx] = cfg;
+  else launchJson.configurations.push(cfg);
+
+  await fs.writeFile(launchPath, JSON.stringify(launchJson, null, 2), 'utf8');
 }
 
 // Setup service
@@ -135,9 +181,7 @@ async function findBundledTour(ctx: vscode.ExtensionContext): Promise<vscode.Uri
   return undefined;
 }
 
-/**
- * Ensure <workspace>/.tours/locust_beginner.tour exists (versioned copy).
- */
+ // Ensure <workspace>/.tours/locust_beginner.tour exists.
 async function ensureWorkspaceTour(ctx: vscode.ExtensionContext, wsPath: string) {
   const srcUri = await findBundledTour(ctx);
   if (!srcUri) return;
@@ -184,16 +228,8 @@ export class SetupService {
     return preferred && preferred.trim().length > 0 ? preferred : 'python';
   }
 
-  /**
-   * AUTO setup (no prompts). Safe to call on every activation.
-   * - Creates hidden venv `.locust_env` if missing
-   * - Installs deps (locust, har2locust, ruff, mcp, pytest or from mcp/requirements.txt)
-   * - Sets workspace python interpreter to venv
-   * - Writes MCP config
-   * - Creates .vscode/settings.json **only if missing**
-   * - DOES NOT write ./.ruff.toml (uses bundled Ruff config only when creating settings.json)
-   * - Stages CodeTour into <workspace>/.tours
-   */
+  
+  // AUTO setup.
   async autoSetupSilently() {
     try {
       if (!vscode.workspace.isTrusted) return;
@@ -226,7 +262,7 @@ export class SetupService {
       // Ensure pip is up-to-date
       await execFileAsync(absPy, ['-m', 'pip', 'install', '--upgrade', 'pip'], { cwd: wsPath, env: venvEnv });
 
-      // Install deps if any missing OR first time
+      // Install deps if missing OR first time
       const needsLocust = !(await canImport(absPy, 'locust', wsPath));
       const needsH2L   = !(await canImport(absPy, 'har2locust', wsPath));
       const needsMCP   = !(await canImport(absPy, 'mcp', wsPath));
@@ -244,19 +280,18 @@ export class SetupService {
         }
       }
 
-    //  Point workspace interpreter to the venv
-    //  await vscode.workspace.getConfiguration('python')
-    //  .update('defaultInterpreterPath', absPy, vscode.ConfigurationTarget.Workspace);
-
-      // Write MCP config using validated interpreter
+      // Write MCP config
       await this.mcp.writeMcpConfig(absPy);
 
-      // Only create settings.json if missing; avoid writing ./.ruff.toml
+      // Create settings.json if missing
       const createdSettings = await ensureWorkspaceSettingsIfMissing(wsPath);
       await configureRuffIfNew(this.ctx, createdSettings);
 
-      // Ensure the tour is available in the workspace.
+      // Ensure tour available in workspace.
       await ensureWorkspaceTour(this.ctx, wsPath);
+
+      // Ensure active file debug config
+      await ensurePythonActiveFileLaunch(wsPath, absPy);
 
       // Mark as done
       await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
@@ -268,16 +303,15 @@ export class SetupService {
     }
   }
 
-  // Legacy: API
   async checkAndOfferSetup(_opts: { forcePrompt?: boolean } = {}) {
     return this.autoSetupSilently();
   }
 
-  // Manual re-run command
   private async finalizeWorkspace(wsPath: string, python: string) {
     await this.mcp.writeMcpConfig(python);
     const createdSettings = await ensureWorkspaceSettingsIfMissing(wsPath);
     await configureRuffIfNew(this.ctx, createdSettings);
+    await ensurePythonActiveFileLaunch(wsPath, python);
     await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
   }
 }
