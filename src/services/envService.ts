@@ -24,7 +24,7 @@ async function cmdExists(cmd: string): Promise<boolean> {
 }
 
 export class EnvService {
-  /** Absolute path to the workspace venv's python (even if it doesn't exist yet). */
+  /** Absolute path to the workspace venv's python. */
   getEnvInterpreterPath(envFolder: string): string {
     const root = wsRoot() ?? '';
     const isWin = process.platform === 'win32';
@@ -59,7 +59,7 @@ export class EnvService {
     catch { return 'python'; }
   }
 
-  // Optional terminal helpers (for interactive Locust runs)
+  // Optional terminal helpers
   createFreshLocustTerminal(name = 'Locust'): vscode.Terminal {
     return vscode.window.createTerminal({ name });
   }

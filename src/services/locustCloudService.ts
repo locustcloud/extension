@@ -4,45 +4,6 @@ import { spawn } from "child_process";
 import { LocustTreeProvider } from "../tree/locustTree";
 import { EnvService } from "./envService";
 
-/** Extract the Locust web UI URL from a log line and ensure ?dashboard=false is set. */
-function extractLocustUrl(line: string): string | undefined {
-  // 1) Normal path
-  let m = line.match(/Starting web interface at (\S+)/i);
-  let url = m?.[1];
-
-  // 2) "already running" path
-  if (!url) {
-    m = line.match(/available at (\S+)/i);
-    url = m?.[1];
-  }
-
-  // 3) Fallback: first http(s) URL in the line
-  if (!url) {
-    m = line.match(/https?:\/\/[^\s)>\]]+/);
-    url = m?.[0];
-  }
-
-  if (!url) return undefined;
-
-  // Strip trailing punctuation that often rides along in logs
-  url = url.replace(/[)\].,;'"!?]+$/, "");
-
-  // Keep fragment aside (if any) so we can add/modify query cleanly
-  const hashIdx = url.indexOf("#");
-  const base = hashIdx >= 0 ? url.slice(0, hashIdx) : url;
-  const fragment = hashIdx >= 0 ? url.slice(hashIdx) : "";
-
-  // Force dashboard=false (append if missing, overwrite if present)
-  let newBase: string;
-  if (/[?&]dashboard=/.test(base)) {
-    newBase = base.replace(/([?&]dashboard=)[^&#]*/i, "$1false");
-  } else {
-    const joiner = base.includes("?") ? "&" : "?";
-    newBase = `${base}${joiner}dashboard=false`;
-  }
-
-  return newBase + fragment;
-}
 
 export class LocustCloudService {
   private readonly envSvc = new EnvService();
@@ -169,7 +130,7 @@ export class LocustCloudService {
     const env = this.buildEnv();
     const cmd = this.locustCmd;
 
-    // Run from the file's directory and pass a relative -f (helps with cloud path handling)
+    // Run from the file's directory and pass a relative -f
     const fileDir = path.dirname(locustfile);
     const relFile = path.basename(locustfile);
 
@@ -184,51 +145,6 @@ export class LocustCloudService {
     let opened = false;
     let bufOut = "";
     let bufErr = "";
-
-    const tryExtractAndOpen = async (text: string) => {
-      const url = extractLocustUrl(text);
-      if (url && !opened) {
-        opened = true;
-        out.appendLine(`[cloud] web UI: ${url}`);
-        await this.openInSimpleBrowserSplit(url, 0.45);
-        vscode.window.setStatusBarMessage("Locust Cloud: web UI opened in split view.", 60000);
-      }
-    };
-
-    const flushLines = async (buf: string) => {
-      const lines = buf.split(/\r?\n/);
-      for (let i = 0; i < lines.length - 1; i++) {
-        await tryExtractAndOpen(lines[i]);
-      }
-    };
-
-    child.stdout.on("data", async (b) => {
-      const s = b.toString();
-      out.append(s);
-      bufOut += s;
-      await flushLines(bufOut);
-      bufOut = bufOut.slice(bufOut.lastIndexOf("\n") + 1);
-    });
-
-    child.stderr.on("data", async (b) => {
-      const s = b.toString();
-      out.append(`[stderr] ${s}`);
-      bufErr += s;
-      await flushLines(bufErr);
-      bufErr = bufErr.slice(bufErr.lastIndexOf("\n") + 1);
-
-      if (/Your Locust instance is currently running/i.test(s)) {
-        vscode.window.setStatusBarMessage("Locust Cloud: existing instance detected, opening UI.", 60000);
-      }
-    });
-
-    child.on("error", (e: any) => {
-      out.appendLine(`[error] ${e?.message ?? e}`);
-      vscode.window.showErrorMessage(
-        `Failed to run "${cmd}". Ensure Locust is installed (in your venv or PATH) or set "locust.path" in settings.`
-      );
-    });
-    child.on("close", (code) => out.appendLine(`[cloud] exited with code ${code}`));
 
     // Safety net: open fallback if we didn't see a URL soon.
     setTimeout(() => {

@@ -34,7 +34,7 @@ async function canImport(python: string, moduleName: string, cwd?: string): Prom
   try { await runPythonCmd(python, ['-c', `import ${moduleName}`], cwd); return true; } catch { return false; }
 }
 
-/** Build an environment similar to `source .venv/bin/activate` for child processes. */
+// Build environment similar to `source .venv/bin/activate` for child processes. 
 function envForVenv(absPy: string): NodeJS.ProcessEnv {
   const env = { ...process.env };
   const venvDir = path.dirname(path.dirname(absPy)); // .../.locust_env/{bin|Scripts}/python -> .../.locust_env
