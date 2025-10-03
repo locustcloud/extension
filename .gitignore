@@ -6,4 +6,4 @@ node_modules
 .vscode/mcp.json
 .locust_env
 .vscode/settings.json
-.tours/locust_beginner.tour
+
