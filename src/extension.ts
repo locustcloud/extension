@@ -8,8 +8,10 @@ import { Har2LocustService } from './services/har2locustService';
 import { Har2LocustRunner } from './runners/har2locustRunner';
 import { LocustTreeProvider } from './tree/locustTree';
 import { CopilotService } from './services/copilotService';
+import * as fs from 'fs/promises';
+import * as path from 'path'; 
 
-/** Small webview view that shows a persistent Welcome panel with quick actions. */
+// Small webview view persistent Welcome panel with quick actions.
 class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   constructor(private ctx: vscode.ExtensionContext) {}
 
@@ -21,8 +23,8 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     };
 
     const nonce = String(Math.random()).slice(2);
-   
-webview.html = `
+
+    webview.html = `
 <!doctype html>
 <html>
 <head>
@@ -47,15 +49,19 @@ webview.html = `
   <p>Load generator management.</p>
 
   <div class="row">
-    <!-- Updated titles show the exact CLI on hover -->
-    <button id="btnLocustCloud" title="Run: locust --cloud">Launch</button>
+    <button id="btnLocustCloud" title="Run: locust --cloud">Launch</button><br>
     <button id="btnDeleteCloud" class="danger" title="Run: locust --cloud --delete">Shut Down</button>
-  </div>
+    <button id="btnGuide">Beginner Guide</button><br>
+  </div><br>
 
+  <a href="https://www.locust.cloud/get-started/" target="_blank">Get Started</a><br>
+  <a href="https://docs.locust.io/en/stable/" target="_blank">Locust Docs<a><br> 
+  <p><a href="mailto:support@locust.cloud">Support</a></p>
+       
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
-
+  document.getElementById('btnGuide').onclick      = () => run('locust.openBeginnerTourPage');
   document.getElementById('btnLocustCloud')?.addEventListener('click', () => run('locust.openLocustCloud'));
   document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
 </script>
@@ -82,43 +88,85 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const mcp = new McpService(env);
   const setup = new SetupService(env, mcp, ctx);
 
-  /*
-  // Copilot light-up (non-blocking)
-  const copilot = new CopilotService(ctx);
-  ctx.subscriptions.push(copilot); // dispose listeners on deactivate
-  await copilot.bootstrap();
-  */
-
   // Runners / Services
   const locustRunner = new LocustRunner(env, ctx.extensionUri);
   const harService = new Har2LocustService(env);
   const harRunner = new Har2LocustRunner(env, harService);
 
-  // Tree
+  // Tree register provider keep disposable
   const tree = new LocustTreeProvider();
-  const treeView = vscode.window.createTreeView('locust.scenarios', { treeDataProvider: tree });
-  ctx.subscriptions.push(treeView, tree);
+  const treeReg = vscode.window.registerTreeDataProvider('locust.scenarios', tree); 
+  ctx.subscriptions.push(treeReg, tree);
+
+  // Optional gating via context key 
+  await vscode.commands.executeCommand('setContext', 'locust.showScenarios', false);
 
   // Welcome view provider
-  ctx.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('locust.welcome', new LocustWelcomeViewProvider(ctx))
-  );
+  const welcomeReg = vscode.window.registerWebviewViewProvider('locust.welcome', new LocustWelcomeViewProvider(ctx));
+  ctx.subscriptions.push(welcomeReg);
 
-  // Focus the Welcome view on startup (Scenarios remains visible in the background)
+  // Focus the Welcome view on startup
   await vscode.commands.executeCommand('locust.welcome.focus');
 
-  // Centralized command registration (includes Locust Cloud commands)
+  // Commands
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand('locust.showScenariosView', async () => { 
+      await vscode.commands.executeCommand('setContext', 'locust.showScenarios', true);
+      await vscode.commands.executeCommand('locust.scenarios.focus');
+    })
+  );
+
+  // Centralized command registration
   registerCommands(ctx, { setup, runner: locustRunner, harRunner, tree });
 
-  // Run setup automatically on activation (env, ruff, MCP, tour, etc.)
+  // Run setup automatically on activation.
   setup.autoSetupSilently();
 
-  // Re-run setup on folder changes
+  // Scaffold if needed
+  await ensureLocustfileOrScaffold();
+
+  // Re-run setup on dir changes
   ctx.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(() => setup.autoSetupSilently())
   );
+
+  const SEEN_KEY = 'locust.walkthrough.seen';
+
+  if (!ctx.globalState.get(SEEN_KEY)) {
+    try {
+      await vscode.commands.executeCommand(
+        'workbench.action.openWalkthrough',
+        'publisher.extension#locust.walkthrough',
+        false,                                     
+        'firstLocustfile'                           
+      );
+      await ctx.globalState.update(SEEN_KEY, true);
+    } catch (e) {
+      console.warn('Open walkthrough failed:', e);
+    }
+  }
 }
 
 export function deactivate() {
   // noop
+}
+
+async function ensureLocustfileOrScaffold() {
+  const folders = vscode.workspace.workspaceFolders;
+  if (!folders?.length) return; // no dir open
+
+  const root = folders[0].uri.fsPath;
+
+  // Check 'locustfile.py' at root.
+  try {
+    await fs.access(path.join(root, 'locustfile.py'));
+    return; // if exists done
+  } catch {}
+
+  // Use VS Code glob variants like 'locustfile_*.py'
+  const matches = await vscode.workspace.findFiles('**/locustfile_*.py', '**/node_modules/**', 1);
+  if (matches.length > 0) return;
+
+  // No locustfile scaffold
+  void vscode.commands.executeCommand('locust.createSimulation');
 }

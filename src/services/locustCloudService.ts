@@ -61,27 +61,23 @@ export class LocustCloudService {
     return cfg.get<string>("envFolder", ".locust_env");
   }
 
-  /** Make env behave like the venv is activated, when absPy is a venv python. */
-  private envForInterpreter(absPy?: string): NodeJS.ProcessEnv {
+  /** Locust CLI command (default: "locust"). */
+  private get locustCmd(): string {
+    const cfg = vscode.workspace.getConfiguration("locust");
+    return cfg.get<string>("path", "locust");
+  }
+
+  /** Build env with venv bin/Scripts prepended so "locust" is found if installed in the venv. */
+  private buildEnv(): NodeJS.ProcessEnv {
     const env = { ...process.env };
-    if (!absPy) return env;
     try {
-      const venvDir = path.dirname(path.dirname(absPy)); // .../.locust_env/{bin|Scripts}/python -> .../.locust_env
+      const venvPy = this.envSvc.getEnvInterpreterPath(this.envFolder);
+      const venvDir = path.dirname(path.dirname(venvPy)); // .../.locust_env/{bin|Scripts}/python -> .../.locust_env
       const binDir = path.join(venvDir, process.platform === "win32" ? "Scripts" : "bin");
       env.VIRTUAL_ENV = venvDir;
       env.PATH = `${binDir}${path.delimiter}${env.PATH ?? ""}`;
     } catch { /* ignore */ }
     return env;
-  }
-
-  /** Resolve a runnable interpreter using EnvService (venv → config → python → python3). */
-  private async resolveRunner(): Promise<{ exe: string; baseArgs: string[]; env: NodeJS.ProcessEnv; note: string }> {
-    const exe = await this.envSvc.resolvePythonStrict(this.envFolder);
-    const env = this.envForInterpreter(exe);
-    const note =
-      exe.includes(`${path.sep}${this.envFolder}${path.sep}`) ? this.envFolder :
-      path.isAbsolute(exe) ? "configured" : exe; // "python"/"python3"
-    return { exe, baseArgs: ["-u", "-m", "locust"], env, note };
   }
 
   /**
@@ -150,10 +146,9 @@ export class LocustCloudService {
   }
 
   /**
-   * Run `python -m locust -f <locustfile> --cloud` (no TTY),
+   * Run `locust -f <locustfile> --cloud` (no TTY),
    * parse the "Starting web interface at <URL>" / "available at <URL>" line,
-   * and open that URL in the Simple Browser split. We never send <Enter>,
-   * so the OS browser isn't triggered.
+   * and open that URL in the Simple Browser split.
    */
   async openLocustCloudLanding(): Promise<void> {
     const ws = vscode.workspace.workspaceFolders?.[0];
@@ -168,28 +163,22 @@ export class LocustCloudService {
       return;
     }
 
-    // Resolve interpreter using EnvService
-    let runner;
-    try {
-      runner = await this.resolveRunner();
-    } catch (e: any) {
-      vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? "No Python interpreter found."}`);
-      return;
-    }
-
     const out = vscode.window.createOutputChannel("Locust Cloud");
     out.show(true);
 
-    // Run from the file's directory and pass a relative -f to satisfy cloud path handling
+    const env = this.buildEnv();
+    const cmd = this.locustCmd;
+
+    // Run from the file's directory and pass a relative -f (helps with cloud path handling)
     const fileDir = path.dirname(locustfile);
     const relFile = path.basename(locustfile);
 
-    out.appendLine(`[cloud] launching: ${runner.exe} ${runner.baseArgs.join(" ")} -f "${relFile}" --cloud (via ${runner.note})`);
+    out.appendLine(`[cloud] launching: ${cmd} -f "${relFile}" --cloud`);
 
-    const child = spawn(runner.exe, [...runner.baseArgs, "-f", relFile, "--cloud"], {
+    const child = spawn(cmd, ["-f", relFile, "--cloud"], {
       cwd: fileDir,
-      env: runner.env,
-      stdio: ["ignore", "pipe", "pipe"], // no stdin → we won't press <Enter>
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
     });
 
     let opened = false;
@@ -233,7 +222,12 @@ export class LocustCloudService {
       }
     });
 
-    child.on("error", (e) => out.appendLine(`[error] ${e?.message ?? e}`));
+    child.on("error", (e: any) => {
+      out.appendLine(`[error] ${e?.message ?? e}`);
+      vscode.window.showErrorMessage(
+        `Failed to run "${cmd}". Ensure Locust is installed (in your venv or PATH) or set "locust.path" in settings.`
+      );
+    });
     child.on("close", (code) => out.appendLine(`[cloud] exited with code ${code}`));
 
     // Safety net: open fallback if we didn't see a URL soon.
@@ -247,7 +241,7 @@ export class LocustCloudService {
     }, 60000);
   }
 
-  /** Run `python -m locust --cloud --delete` using the same interpreter resolution. */
+  /** Run `locust --cloud --delete` using the same environment. */
   async deleteLocustCloud(): Promise<void> {
     const ws = vscode.workspace.workspaceFolders?.[0];
     if (!ws) {
@@ -255,28 +249,28 @@ export class LocustCloudService {
       return;
     }
 
-    let runner;
-    try {
-      runner = await this.resolveRunner();
-    } catch (e: any) {
-      vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? "No Python interpreter found."}`);
-      return;
-    }
-
     const cwd = ws.uri.fsPath;
+    const env = this.buildEnv();
+    const cmd = this.locustCmd;
+
     const out = vscode.window.createOutputChannel("Locust Cloud");
     out.show(true);
-    out.appendLine(`[cloud] deleting: ${runner.exe} ${runner.baseArgs.join(" ")} --cloud --delete (cwd=${cwd}, via ${runner.note})`);
+    out.appendLine(`[cloud] deleting: ${cmd} --cloud --delete (cwd=${cwd})`);
 
-    const child = spawn(runner.exe, [...runner.baseArgs, "--cloud", "--delete"], {
+    const child = spawn(cmd, ["--cloud", "--delete"], {
       cwd,
-      env: runner.env,
+      env,
       stdio: ["ignore", "pipe", "pipe"],
     });
 
     child.stdout.on("data", (b) => out.append(b.toString()));
     child.stderr.on("data", (b) => out.append(`[stderr] ${b.toString()}`));
-    child.on("error", (e) => out.appendLine(`[error] ${e?.message ?? e}`));
+    child.on("error", (e: any) => {
+      out.appendLine(`[error] ${e?.message ?? e}`);
+      vscode.window.showErrorMessage(
+        `Failed to run "${cmd}". Ensure Locust is installed (in your venv or PATH) or set "locust.path" in settings.`
+      );
+    });
     child.on("close", (code) => out.appendLine(`[cloud] delete exited with code ${code}`));
   }
 }
