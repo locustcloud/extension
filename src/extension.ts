@@ -49,8 +49,9 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   <p>Load generator management.</p>
 
   <div class="row">
-    <button id="btnLocustCloud" title="Run: locust --cloud">Launch</button>
+    <button id="btnLocustCloud" title="Run: locust --cloud">Launch</button><br>
     <button id="btnDeleteCloud" class="danger" title="Run: locust --cloud --delete">Shut Down</button>
+    <button id="btnGuide">Beginner Guide</button><br>
   </div><br>
 
   <a href="https://www.locust.cloud/get-started/" target="_blank">Get Started</a><br>
@@ -60,6 +61,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
+  document.getElementById('btnGuide').onclick      = () => run('locust.openBeginnerTourPage');
   document.getElementById('btnLocustCloud')?.addEventListener('click', () => run('locust.openLocustCloud'));
   document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
 </script>
@@ -127,6 +129,22 @@ export async function activate(ctx: vscode.ExtensionContext) {
   ctx.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(() => setup.autoSetupSilently())
   );
+
+  const SEEN_KEY = 'locust.walkthrough.seen';
+
+  if (!ctx.globalState.get(SEEN_KEY)) {
+    try {
+      await vscode.commands.executeCommand(
+        'workbench.action.openWalkthrough',
+        'publisher.extension#locust.walkthrough',
+        false,                                     
+        'firstLocustfile'                           
+      );
+      await ctx.globalState.update(SEEN_KEY, true);
+    } catch (e) {
+      console.warn('Open walkthrough failed:', e);
+    }
+  }
 }
 
 export function deactivate() {
