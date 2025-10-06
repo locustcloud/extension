@@ -55,11 +55,10 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   </div><br>
 
   
-  <p>Get Help <br>
-    <a href="https://docs.locust.io/en/stable/" target="_blank">Locust Docs<a><br> 
-    <a href="mailto:support@locust.cloud">support@locust.cloud</a>
-  </p>
-       
+  Get Help<br>
+  <a href="https://docs.locust.io/en/stable/" target="_blank">Locust Docs<a><br> 
+  <a href="mailto:support@locust.cloud">support@locust.cloud</a>
+         
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });

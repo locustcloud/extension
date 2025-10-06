@@ -41,7 +41,15 @@
      "onCommand:locust.openBeginnerTourPage"
   ],
   "main": "./out/extension.js",
-  "contributes": {
+    "contributes": {
+      "grammars": [
+        {
+          "scopeName": "locust.injection",
+          "path": "./syntaxes/locust-python-injection.tmLanguage.json",
+          "injectTo": ["source.python"]
+        }
+      ],
+
     "viewsContainers": {
       "activitybar": [
         {
