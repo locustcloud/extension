@@ -7,7 +7,7 @@ import { LocustRunner } from './runners/locustRunner';
 import { Har2LocustService } from './services/har2locustService';
 import { Har2LocustRunner } from './runners/har2locustRunner';
 import { LocustTreeProvider } from './tree/locustTree';
-import { CopilotService } from './services/copilotService';
+// import { CopilotService } from './services/copilotService'; Commented out for future implementation
 import * as fs from 'fs/promises';
 import * as path from 'path'; 
 
@@ -54,9 +54,11 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     <button id="btnGuide">Beginner Guide</button><br>
   </div><br>
 
-
-  <a href="https://docs.locust.io/en/stable/" target="_blank">Locust Docs<a><br> 
-  <p><a href="mailto:support@locust.cloud">Support</a></p>
+  
+  <p>Get Help <br>
+    <a href="https://docs.locust.io/en/stable/" target="_blank">Locust Docs<a><br> 
+    <a href="mailto:support@locust.cloud">support@locust.cloud</a>
+  </p>
        
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();

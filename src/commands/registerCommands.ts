@@ -88,9 +88,14 @@ export function registerCommands(
         runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'headless')
     ),
 
+    /*
+    Future implememntation in package.json commands:
+    { "command": "locust.runTaskUI", "when": "view == locust.scenarios && viewItem == locust.task", "group": "inline" },
+    { "command": "locust.runTaskHeadless", "when": "view == locust.scenarios && viewItem == locust.task", "group": "inline" },
+    */
     vscode.commands.registerCommand('locust.runTaskUI', (node) => runner.runTaskUI(node)),
     vscode.commands.registerCommand('locust.runTaskHeadless', (node) => runner.runTaskHeadless(node)),
-
+    
     vscode.commands.registerCommand('locust.init', () =>
       setup.checkAndOfferSetup({ forcePrompt: true })
     ),
@@ -106,7 +111,10 @@ export function registerCommands(
       await vscode.commands.executeCommand('locust.scenarios.focus');
     }),
 
-    // Copilot walkthrough launcher
+    /* Copilot walkthrough launcher
+    Future implementation add in package.json commands: 
+    { "command": "locust.openCopilotWalkthrough", "title": "Locust: Open Copilot Walkthrough", "icon": "$(sparkle)" },
+    */
     vscode.commands.registerCommand('locust.openCopilotWalkthrough', () =>
       vscode.commands.executeCommand(
         'workbench.action.openWalkthrough',
@@ -122,7 +130,10 @@ export function registerCommands(
       )
     ),
 
-    // Uses TourRunner to copy into workspace & open directly
+    /* Uses TourRunner to copy into workspace & open directly
+    Future implementation add in package.json commands:
+    { "command": "locust.startBeginnerTour", "title": "Locust: Start Beginner Tour", "icon": "$(book)" },
+    */
     vscode.commands.registerCommand('locust.startBeginnerTour', async () => {
       const tr = new TourRunner(ctx);
       await tr.runBeginnerTour();

@@ -15,7 +15,7 @@
       "title": "#2 Create a user class",
       "description": "Define a user class that simulates your virtual user.\n\n```python\nclass MyUser(FastHttpUser):\n    \"\"\"Example user making a simple GET request.\"\"\"\n    wait_time = constant(1)\n```\n\nClick **Insert Code** or copy/paste inside your file (just below the imports).",
       "file": "locustfile_tour.py",
-      "line": 3,
+      "line": 7,
       "code": "class MyUser(FastHttpUser):\n    \"\"\"Example user making a simple GET request.\"\"\"\n    wait_time = constant(1)\n\n"
     },
     {
