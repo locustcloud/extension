@@ -54,7 +54,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     <button id="btnGuide">Beginner Guide</button><br>
   </div><br>
 
-  <a href="https://www.locust.cloud/get-started/" target="_blank">Get Started</a><br>
+
   <a href="https://docs.locust.io/en/stable/" target="_blank">Locust Docs<a><br> 
   <p><a href="mailto:support@locust.cloud">Support</a></p>
        
