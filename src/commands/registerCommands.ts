@@ -130,10 +130,7 @@ export function registerCommands(
       )
     ),
 
-    /* Uses TourRunner to copy into workspace & open directly
-    Future implementation add in package.json commands:
-    { "command": "locust.startBeginnerTour", "title": "Locust: Start Beginner Tour", "icon": "$(book)" },
-    */
+    // Start beginner tour
     vscode.commands.registerCommand('locust.startBeginnerTour', async () => {
       const tr = new TourRunner(ctx);
       await tr.runBeginnerTour();

@@ -58,10 +58,21 @@ async function ensureWorkspaceSettingsIfMissing(workspacePath: string): Promise<
   const fresh = {
     "python.terminal.activateEnvironment": true,
     "markdown.preview.enableCommandUris": true,
+
+    // Enable pytest by default
+    "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
+    "python.testing.pytestArgs": [
+      "tests",
+      "."
+    ],
+
     // Disable all Copilot
     "chat.sendElementsToChat.enabled": false,
     "chat.sendElementsToChat.attachCSS": false,
     "chat.sendElementsToChat.attachImages": false,
+
     // Ruff fixes can be enabled by users later.
     "[python]": {
       "editor.codeActionsOnSave": { "source.fixAll.ruff": "never" },
@@ -105,7 +116,7 @@ async function configureRuffIfNew(ctx: vscode.ExtensionContext, createdSettings:
   }
 }
 
-// Ensure launch.json active-file Locust config
+// Ensure launch.json active-file Locust config + pytest configs
 async function ensurePythonActiveFileLaunch(wsPath: string, absPy: string) {
   const vscodeDir = path.join(wsPath, '.vscode');
   const launchPath = path.join(vscodeDir, 'launch.json');
@@ -121,9 +132,10 @@ async function ensurePythonActiveFileLaunch(wsPath: string, absPy: string) {
     }
   } catch { /* no existing launch.json */ }
 
-  const name = 'Locust: run_single_user (active file)';
-  const cfg = {
-    name,
+  const venvDir = path.dirname(path.dirname(absPy));
+  const locustName = 'Locust: run_single_user (active file)';
+  const locustCfg = {
+    name: locustName,
     type: 'python',
     request: 'launch',
     python: absPy,
@@ -133,20 +145,74 @@ async function ensurePythonActiveFileLaunch(wsPath: string, absPy: string) {
     justMyCode: false,
     args: [],
     env: {
-      VIRTUAL_ENV: path.dirname(path.dirname(absPy)),
+      VIRTUAL_ENV: venvDir,
       PATH:
         process.platform === 'win32'
           ? '${workspaceFolder}\\.locust_env\\Scripts;${env:PATH}'
           : '${workspaceFolder}/.locust_env/bin:${env:PATH}',
-
       // gevent support in debugger
       GEVENT_SUPPORT: 'True',
     },
   };
 
-  const idx = launchJson.configurations.findIndex((c: any) => c?.name === name);
-  if (idx >= 0) launchJson.configurations[idx] = cfg;
-  else launchJson.configurations.push(cfg);
+  // Pytest: run the whole suite
+  const pytestAllName = 'Pytest: all tests';
+  const pytestAllCfg = {
+    name: pytestAllName,
+    type: 'python',
+    request: 'launch',
+    python: absPy,
+    module: 'pytest',
+    cwd: '${workspaceFolder}',
+    console: 'integratedTerminal',
+    justMyCode: false,
+    args: [
+      '-q'
+    ],
+    env: {
+      VIRTUAL_ENV: venvDir,
+      PATH:
+        process.platform === 'win32'
+          ? '${workspaceFolder}\\.locust_env\\Scripts;${env:PATH}'
+          : '${workspaceFolder}/.locust_env/bin:${env:PATH}',
+      GEVENT_SUPPORT: 'True',
+    },
+  };
+
+  // Pytest: run current file
+  const pytestFileName = 'Pytest: current file';
+  const pytestFileCfg = {
+    name: pytestFileName,
+    type: 'python',
+    request: 'launch',
+    python: absPy,
+    module: 'pytest',
+    cwd: '${fileDirname}',
+    console: 'integratedTerminal',
+    justMyCode: false,
+    args: [
+      '-q',
+      '${file}'
+    ],
+    env: {
+      VIRTUAL_ENV: venvDir,
+      PATH:
+        process.platform === 'win32'
+          ? '${workspaceFolder}\\.locust_env\\Scripts;${env:PATH}'
+          : '${workspaceFolder}/.locust_env/bin:${env:PATH}',
+      GEVENT_SUPPORT: 'True',
+    },
+  };
+
+  const upsert = (cfg: any) => {
+    const i = launchJson.configurations.findIndex((c: any) => c?.name === cfg.name);
+    if (i >= 0) launchJson.configurations[i] = cfg;
+    else launchJson.configurations.push(cfg);
+  };
+
+  upsert(locustCfg);
+  upsert(pytestAllCfg);
+  upsert(pytestFileCfg);
 
   await fs.writeFile(launchPath, JSON.stringify(launchJson, null, 2), 'utf8');
 }
@@ -181,7 +247,7 @@ async function findBundledTour(ctx: vscode.ExtensionContext): Promise<vscode.Uri
   return undefined;
 }
 
- // Ensure <workspace>/.tours/locust_beginner.tour exists.
+// Ensure <workspace>/.tours/locust_beginner.tour exists.
 async function ensureWorkspaceTour(ctx: vscode.ExtensionContext, wsPath: string) {
   const srcUri = await findBundledTour(ctx);
   if (!srcUri) return;
@@ -228,7 +294,6 @@ export class SetupService {
     return preferred && preferred.trim().length > 0 ? preferred : 'python';
   }
 
-  
   // AUTO setup.
   async autoSetupSilently() {
     try {

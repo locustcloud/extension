@@ -51,23 +51,32 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   <div class="row">
     <button id="btnLocustCloud" title="Run: locust --cloud">Launch</button><br>
     <button id="btnDeleteCloud" class="danger" title="Run: locust --cloud --delete">Shut Down</button>
-    <button id="btnGuide">Beginner Guide</button><br>
-  </div><br>
+  </div>
+  <br>
 
-  
-  Get Help<br>
-  <a href="https://docs.locust.io/en/stable/" target="_blank">Locust Docs<a><br> 
-  <a href="mailto:support@locust.cloud">support@locust.cloud</a>
-         
+  <h2>Get Help</h2>
+  <p>
+    <a href="#" id="linkGuide">Beginner Guide</a><br>
+    <a href="https://docs.locust.io/en/stable/" target="_blank">Locust Docs</a><br>
+    <a href="support@locust.cloud">support@locust.cloud</a>
+  </p>
+
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
-  document.getElementById('btnGuide').onclick      = () => run('locust.openBeginnerTourPage');
+
   document.getElementById('btnLocustCloud')?.addEventListener('click', () => run('locust.openLocustCloud'));
   document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
+  
+  // Intercept link command call
+  document.getElementById('linkGuide')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    run('locust.startBeginnerTour');
+  });
 </script>
 </body>
 </html>
+
 `;
 
     webview.onDidReceiveMessage(async (msg) => {

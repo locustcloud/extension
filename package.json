@@ -96,6 +96,7 @@
         { "command": "locust.runFileHeadless", "when": "false" },
         { "command": "locust.openLocustCloud", "when": "true" },
         { "command": "locust.deleteLocustCloud", "when": "true" },
+        { "command": "locust.startBeginnerTour", "when": "true" },
         { "command": "locust.showScenarios", "when": "locust.scenariosVisible != true" },
         { "command": "locust.hideScenarios", "when": "locust.scenariosVisible == true" }
       ]
@@ -111,6 +112,7 @@
       { "command": "locust.showWelcome", "title": "Locust: Show Welcome", "icon": "$(home)" },
       { "command": "locust.hideWelcome", "title": "Locust: Hide Welcome", "icon": "$(close)" },
       { "command": "locust.openBeginnerTourPage", "title": "Locust: Open Beginner Walkthrough" },
+      { "command": "locust.startBeginnerTour", "title": "Locust: Start Beginner Tour", "icon": "$(book)" },
       { "command": "locust.openLocustCloud", "title": "Open Locust Cloud", "icon": "$(cloud)" },
       { "command": "locust.deleteLocustCloud", "title": "Locust Cloud Shut Down", "icon": "$(trash)" },
       { "command": "locust.showScenarios", "title": "Locust: Show Tests", "icon": "$(list-selection)" },
