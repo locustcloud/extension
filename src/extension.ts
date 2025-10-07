@@ -58,7 +58,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   <p>
     <a href="#" id="linkGuide">Beginner Guide</a><br>
     <a href="https://docs.locust.io/en/stable/" target="_blank">Locust Docs</a><br>
-    <a href="mailto:support@locust.cloud">support@locust.cloud</a>
+    <a href="support@locust.cloud">support@locust.cloud</a>
   </p>
 
 <script nonce="${nonce}">
@@ -68,10 +68,10 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   document.getElementById('btnLocustCloud')?.addEventListener('click', () => run('locust.openLocustCloud'));
   document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
   
-  // Intercept link command call
+  // Open the CodeTour-based Beginner Guide, not the walkthrough
   document.getElementById('linkGuide')?.addEventListener('click', (e) => {
     e.preventDefault();
-    run('locust.startBeginnerTour');
+    run('locust.startBeginnerTour');   // <-- changed from locust.openBeginnerTourPage
   });
 </script>
 </body>
@@ -144,15 +144,11 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
   if (!ctx.globalState.get(SEEN_KEY)) {
     try {
-      await vscode.commands.executeCommand(
-        'workbench.action.openWalkthrough',
-        'publisher.extension#locust.walkthrough',
-        false,                                     
-        'firstLocustfile'                           
-      );
+      // Start your CodeTour-based beginner tour on first run
+      await vscode.commands.executeCommand('locust.startBeginnerTour');
       await ctx.globalState.update(SEEN_KEY, true);
     } catch (e) {
-      console.warn('Open walkthrough failed:', e);
+      console.warn('Open beginner tour failed:', e);
     }
   }
 }

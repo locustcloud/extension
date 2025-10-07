@@ -352,8 +352,7 @@ export class SetupService {
       const createdSettings = await ensureWorkspaceSettingsIfMissing(wsPath);
       await configureRuffIfNew(this.ctx, createdSettings);
 
-      // Ensure tour available in workspace.
-      await ensureWorkspaceTour(this.ctx, wsPath);
+      // ❌ removed: await ensureWorkspaceTour(this.ctx, wsPath);
 
       // Ensure active file debug config
       await ensurePythonActiveFileLaunch(wsPath, absPy);
