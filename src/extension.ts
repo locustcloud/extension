@@ -58,7 +58,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   <p>
     <a href="#" id="linkGuide">Beginner Guide</a><br>
     <a href="https://docs.locust.io/en/stable/" target="_blank">Locust Docs</a><br>
-    <a href="support@locust.cloud">support@locust.cloud</a>
+    <a href="mailto:support@locust.cloud">support@locust.cloud</a>
   </p>
 
 <script nonce="${nonce}">
