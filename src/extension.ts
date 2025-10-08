@@ -11,9 +11,9 @@ import { LocustTreeProvider } from './tree/locustTree';
 import * as fs from 'fs/promises';
 import * as path from 'path'; 
 
-// Small webview view persistent Welcome panel with quick actions.
+// Persistent Welcome panel with quick actions.
 class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
-  constructor(private ctx: vscode.ExtensionContext) {}
+  constructor(private ctx: vscode.ExtensionContext, private readonly isCloud: boolean) {}
 
   resolveWebviewView(webviewView: vscode.WebviewView) {
     const { webview } = webviewView;
@@ -23,6 +23,20 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     };
 
     const nonce = String(Math.random()).slice(2);
+
+    const desktopControls = `
+      <div class="row">
+        <button id="btnLocustCloud" title="Run: locust --cloud">Launch</button>
+        <button id="btnDeleteCloud" class="danger" title="Run: locust --cloud --delete">Shut Down</button>
+      </div>`;
+
+    const cloudControls = `
+      <div class="row">
+        <button id="btnRunCLI" title="Run: locust -f locustfile.py">Run CLI</button>
+        <button id="btnRunUI"  title="Open: http://127.0.0.1:8089">Run UI</button>
+      </div>`;
+
+    const supportBlock = this.isCloud ? '' : `<a href="mailto:support@locust.cloud">support@locust.cloud</a>`;
 
     webview.html = `
 <!doctype html>
@@ -44,31 +58,34 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   .danger { background: var(--vscode-inputValidation-errorBackground); color: var(--vscode-editor-foreground); }
 </style>
 </head>
-<body>
-  <h1>Locust Cloud</h1>
-  <p>Load generator management.</p>
+<body data-cloud="${this.isCloud ? '1' : '0'}">
+  <h1>Locust ${this.isCloud ? 'Server' : 'Cloud'}</h1>
+  <p>${this.isCloud ? 'Run Locust in this server workspace.' : 'Load generator management.'}</p>
 
-  <div class="row">
-    <button id="btnLocustCloud" title="Run: locust --cloud">Launch</button><br>
-    <button id="btnDeleteCloud" class="danger" title="Run: locust --cloud --delete">Shut Down</button>
-  </div>
+  ${this.isCloud ? cloudControls : desktopControls}
   <br>
 
   <h2>Get Help</h2>
   <p>
     <a href="#" id="linkGuide">Beginner Guide</a><br>
     <a href="https://docs.locust.io/en/stable/" target="_blank">Locust Docs</a><br>
-    <a href="mailto:support@locust.cloud">support@locust.cloud</a>
+    ${supportBlock}
   </p>
 
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
+  const isCloud = document.body.getAttribute('data-cloud') === '1';
 
-  document.getElementById('btnLocustCloud')?.addEventListener('click', () => run('locust.openLocustCloud'));
-  document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
-  
-  // Open the CodeTour-based Beginner Guide, not the walkthrough
+  if (isCloud) {
+    document.getElementById('btnRunCLI')?.addEventListener('click', () => run('locust.runCLI'));
+    document.getElementById('btnRunUI')?.addEventListener('click', () => run('locust.runUI'));
+  } else {
+    document.getElementById('btnLocustCloud')?.addEventListener('click', () => run('locust.openLocustCloud'));
+    document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
+  }
+
+  // Open the CodeTour-based Beginner Guide
   document.getElementById('linkGuide')?.addEventListener('click', (e) => {
     e.preventDefault();
     run('locust.startBeginnerTour'); 
@@ -76,7 +93,6 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 </script>
 </body>
 </html>
-
 `;
 
     webview.onDidReceiveMessage(async (msg) => {
@@ -93,7 +109,11 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 }
 
 export async function activate(ctx: vscode.ExtensionContext) {
-  
+  // Detect environment and set context keys
+  const isCloud = detectCloudEnv();
+  await vscode.commands.executeCommand('setContext', 'locust.isCloud', isCloud);
+  await vscode.commands.executeCommand('setContext', 'locust.isDesktop', !isCloud);
+
   // Core services
   const env = new EnvService();
   const mcp = new McpService(env);
@@ -112,8 +132,8 @@ export async function activate(ctx: vscode.ExtensionContext) {
   // Optional gating via context key 
   await vscode.commands.executeCommand('setContext', 'locust.showScenarios', false);
 
-  // Welcome view provider
-  const welcomeReg = vscode.window.registerWebviewViewProvider('locust.welcome', new LocustWelcomeViewProvider(ctx));
+  // Welcome view provider (pass environment)
+  const welcomeReg = vscode.window.registerWebviewViewProvider('locust.welcome', new LocustWelcomeViewProvider(ctx, isCloud));
   ctx.subscriptions.push(welcomeReg);
 
   // Focus the Welcome view on startup
@@ -146,22 +166,26 @@ export function deactivate() {
   // noop
 }
 
+function detectCloudEnv(): boolean {
+  const byEnv = (process.env.CODE_SERVER ?? '').toLowerCase();
+  const envFlag = byEnv === 'true' || byEnv === '1' || byEnv === 'yes';
+  const uiIsWeb = vscode.env.uiKind === vscode.UIKind.Web;
+  return envFlag || uiIsWeb;
+}
+
 async function ensureLocustfileOrScaffold() {
   const folders = vscode.workspace.workspaceFolders;
-  if (!folders?.length) return; // no dir open
+  if (!folders?.length) return;
 
   const root = folders[0].uri.fsPath;
 
-  // Check 'locustfile.py' at root.
   try {
     await fs.access(path.join(root, 'locustfile.py'));
-    return; // if exists done
+    return;
   } catch {}
 
-  // Use VS Code glob variants like 'locustfile_*.py'
   const matches = await vscode.workspace.findFiles('**/locustfile_*.py', '**/node_modules/**', 1);
   if (matches.length > 0) return;
 
-  // No locustfile scaffold
   void vscode.commands.executeCommand('locust.createSimulation');
 }
