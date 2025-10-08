@@ -5,6 +5,7 @@ import { promisify } from 'util';
 import * as fs from 'fs/promises';
 import { EnvService } from './envService';
 import { McpService } from './mcpService';
+import { TourRunner } from '../runners/tourRunner';
 import { WS_SETUP_KEY } from '../core/config';
 
 const execFileAsync = promisify(execFile);
@@ -230,56 +231,6 @@ async function readJson(uriOrPath: vscode.Uri | string): Promise<any | undefined
   }
 }
 
-function bundledTourCandidates(ctx: vscode.ExtensionContext): vscode.Uri[] {
-  return [
-    vscode.Uri.file(path.join(ctx.extensionUri.fsPath, 'media', '.tours', 'locust_beginner.tour')),
-    vscode.Uri.file(path.join(ctx.extensionUri.fsPath, 'media', '.tour',  'locust_beginner.tour')),
-  ];
-}
-
-async function findBundledTour(ctx: vscode.ExtensionContext): Promise<vscode.Uri | undefined> {
-  for (const cand of bundledTourCandidates(ctx)) {
-    try {
-      await vscode.workspace.fs.stat(cand);
-      return cand;
-    } catch { /* try next */ }
-  }
-  return undefined;
-}
-
-// Ensure <workspace>/.tours/locust_beginner.tour exists.
-async function ensureWorkspaceTour(ctx: vscode.ExtensionContext, wsPath: string) {
-  const srcUri = await findBundledTour(ctx);
-  if (!srcUri) return;
-
-  const destDir = path.join(wsPath, '.tours');
-  const destPath = path.join(destDir, 'locust_beginner.tour');
-  const destUri = vscode.Uri.file(destPath);
-
-  let shouldCopy = false;
-
-  const srcJson = await readJson(srcUri);
-  const srcVersion = srcJson?.locustTourVersion ?? '0';
-
-  try { await fs.mkdir(destDir, { recursive: true }); } catch {}
-
-  const exists = await fileExists(destPath);
-  if (!exists) {
-    shouldCopy = true;
-  } else {
-    const dstJson = await readJson(destPath);
-    const dstVersion = dstJson?.locustTourVersion ?? '0';
-    if (dstVersion !== srcVersion) {
-      shouldCopy = true;
-    }
-  }
-
-  if (shouldCopy) {
-    const bytes = await vscode.workspace.fs.readFile(srcUri);
-    await vscode.workspace.fs.writeFile(destUri, bytes);
-  }
-}
-
 export class SetupService {
   constructor(
     private env: EnvService,
@@ -356,6 +307,11 @@ export class SetupService {
 
       // Ensure active file debug config
       await ensurePythonActiveFileLaunch(wsPath, absPy);
+
+      try {
+        const tr = new TourRunner(this.ctx);
+        await tr.ensureBeginnerTourFiles(vscode.Uri.file(wsPath), { overwrite: false });
+      } catch { /* ignore */ }
 
       // Mark as done
       await this.ctx.workspaceState.update(WS_SETUP_KEY, true);

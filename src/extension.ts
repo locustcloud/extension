@@ -26,6 +26,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 
     const desktopControls = `
       <div class="row">
+        <button id="btnRunCLI" title="Run: locust -f locustfile.py">Run CLI</button>
         <button id="btnLocustCloud" title="Run: locust --cloud">Launch</button>
         <button id="btnDeleteCloud" class="danger" title="Run: locust --cloud --delete">Shut Down</button>
       </div>`;
@@ -33,7 +34,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     const cloudControls = `
       <div class="row">
         <button id="btnRunUI"  title="Run: locust --cloud">Run UI</button>
-        <button id="btnRunCLI" title="Run: locust -f locustfile.py">Run CLI</button>
+        
         <button id="btnDeleteCloud" class="danger" title="Run: locust --cloud --delete">Shut Down</button>
       </div>`;
 
@@ -79,10 +80,11 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   const isCloud = document.body.getAttribute('data-cloud') === '1';
 
   if (isCloud) {
-    document.getElementById('btnRunCLI')?.addEventListener('click', () => run('locust.runCLI'));
+    
     document.getElementById('btnRunUI')?.addEventListener('click', () => run('locust.openLocustCloud'));
     document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
   } else {
+    document.getElementById('btnRunCLI')?.addEventListener('click', () => run('locust.runCLI'));
     document.getElementById('btnLocustCloud')?.addEventListener('click', () => run('locust.openLocustCloud'));
     document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
   }
