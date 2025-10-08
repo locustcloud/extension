@@ -6,7 +6,7 @@ export class TourRunner {
 
   constructor(private readonly ctx: vscode.ExtensionContext) {}
 
-  // Ensure the CodeTour extension exists and is active.
+  // Ensure CodeTour extension exists and is active.
   private async ensureCodeTour(): Promise<boolean> {
     const id = 'vsls-contrib.codetour';
     let ext = vscode.extensions.getExtension(id);
@@ -20,7 +20,7 @@ export class TourRunner {
 
       await vscode.commands.executeCommand('workbench.extensions.installExtension', id);
 
-      // Try to grab it again post-install; may require reload in some setups.
+      // Try post-install,requires reload
       ext = vscode.extensions.getExtension(id);
       if (!ext) {
         const reload = await vscode.window.showInformationMessage(
@@ -46,7 +46,7 @@ export class TourRunner {
   }
 
   async runBeginnerTour(): Promise<void> {
-    // Make sure CodeTour is ready
+    // EnsureCodeTour is ready
     if (!(await this.ensureCodeTour())) return;
 
     const ws = vscode.workspace.workspaceFolders?.[0];
@@ -71,7 +71,7 @@ class QuickstartUser(HttpUser):
     @task(3)
     def view_items(self):
         for item_id in range(10):
-            self.client.get(f"/item?id={item_id}", name="/item")
+            self.client.get(f("/item?id={item_id}"), name="/item")
             time.sleep(1)
 
     def on_start(self):
@@ -134,7 +134,6 @@ class QuickstartUser(HttpUser):
         }
       ];
 
-
       // Always (re)write tour file.
       const tourUri = vscode.Uri.file(path.join(toursDirUri.fsPath, 'locust_beginner.tour'));
       const tourJson = {
@@ -146,14 +145,31 @@ class QuickstartUser(HttpUser):
       };
       await vscode.workspace.fs.writeFile(tourUri, Buffer.from(JSON.stringify(tourJson, null, 2), 'utf8'));
 
-      // Refresh CodeTour, open the tutorial file, then start tour.
+      // Refresh CodeTour, open the tutorial file
       try { await vscode.commands.executeCommand('codetour.refreshTours'); } catch {}
 
       const doc = await vscode.workspace.openTextDocument(tutorialFile);
       await vscode.window.showTextDocument(doc, { preview: false });
 
-      // Start specific tour by URI
-      await vscode.commands.executeCommand('codetour.startTour', { uri: tourUri });
+      // Small delay for CodeTour indexes.
+      await new Promise(res => setTimeout(res, 200));
+
+      // Start tour passing JSON object directly
+      try {
+        await vscode.commands.executeCommand('codetour.startTour', {
+          title: tourJson.title,
+          description: tourJson.description,
+          isPrimary: true,
+          steps: tourJson.steps
+        });
+      } catch {
+        // Fallback: by Uri, then no-arg
+        try {
+          await vscode.commands.executeCommand('codetour.startTour', tourUri);
+        } catch {
+          await vscode.commands.executeCommand('codetour.startTour');
+        }
+      }
     } catch (err: any) {
       this.log.appendLine(`Tour error: ${err?.stack || err?.message || String(err)}`);
       this.log.show(true);

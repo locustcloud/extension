@@ -92,8 +92,8 @@
         { "command": "locust.runHeadless", "title": "Locust: Run Test (Headless)" }
       ],
       "commandPalette": [
-        { "command": "locust.runFileUI", "when": "locust.isCloud" },
-        { "command": "locust.runFileHeadless", "when": "locust.isCloud" },
+        { "command": "locust.runUI", "when": "locust.isCloud" },
+        { "command": "locust.runHeadless", "when": "locust.isCloud" },
         { "command": "locust.openLocustCloud", "when": "locust.isDesktop" },
         { "command": "locust.deleteLocustCloud", "when": "locust.isDesktop" },
         { "command": "locust.startBeginnerTour", "when": "true" },
