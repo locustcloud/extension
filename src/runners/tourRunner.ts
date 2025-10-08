@@ -6,7 +6,49 @@ export class TourRunner {
 
   constructor(private readonly ctx: vscode.ExtensionContext) {}
 
+
+  private async ensureCodeTour(): Promise<boolean> {
+    const id = 'vsls-contrib.codetour';
+    let ext = vscode.extensions.getExtension(id);
+
+    if (!ext) {
+      const choice = await vscode.window.showWarningMessage(
+        'The CodeTour extension is required to run this tour.',
+        'Install CodeTour', 'Cancel'
+      );
+      if (choice !== 'Install CodeTour') return false;
+
+      // Trigger install
+      await vscode.commands.executeCommand('workbench.extensions.installExtension', id);
+
+      // After install, ext may need a reload to activate reliably
+      ext = vscode.extensions.getExtension(id);
+      if (!ext) {
+        const reload = await vscode.window.showInformationMessage(
+          'CodeTour was installed. Reload to continue?',
+          'Reload'
+        );
+        if (reload === 'Reload') {
+          await vscode.commands.executeCommand('workbench.action.reloadWindow');
+        }
+        return false;
+      }
+    }
+
+    if (!ext.isActive) {
+      try { await ext.activate(); } catch (e: any) {
+        this.log.appendLine(`Failed to activate CodeTour: ${e?.message || e}`);
+        vscode.window.showErrorMessage('Could not activate CodeTour.');
+        return false;
+      }
+    }
+    return true;
+  }
+
   async runBeginnerTour(): Promise<void> {
+
+    if (!(await this.ensureCodeTour())) return;
+
     const ws = vscode.workspace.workspaceFolders?.[0];
     if (!ws) {
       vscode.window.showErrorMessage('Open a workspace folder to start the Locust tour.');
@@ -111,8 +153,8 @@ class QuickstartUser(HttpUser):
         }
       ];
 
-      // Always (re)write the .tour file with your preferred name
-      const tourUri = vscode.Uri.file(path.join(toursDirUri.fsPath, 'locust_tour.tour'));
+      // Always write the .tour file
+      const tourUri = vscode.Uri.file(path.join(toursDirUri.fsPath, 'locust_beginner.tour'));
       const tourJson = {
         $schema: 'https://aka.ms/codetour-schema',
         title: 'Locustfile',
@@ -125,7 +167,7 @@ class QuickstartUser(HttpUser):
       // Refresh CodeTour’s view
       try { await vscode.commands.executeCommand('codetour.refreshTours'); } catch {}
 
-      // Open the code file (nice UX)
+      // Open the code file UX
       const doc = await vscode.workspace.openTextDocument(tutorialFile);
       await vscode.window.showTextDocument(doc, { preview: false });
 
@@ -133,7 +175,7 @@ class QuickstartUser(HttpUser):
       const ct = vscode.extensions.getExtension('vsls-contrib.codetour');
       if (ct && !ct.isActive) { try { await ct.activate(); } catch {} }
 
-      // Start the tour (pass an object with the uri)
+      // Start the tour
       try {
         await vscode.commands.executeCommand('codetour.startTour', { uri: tourUri });
       } catch {
