@@ -6,7 +6,7 @@ export class TourRunner {
 
   constructor(private readonly ctx: vscode.ExtensionContext) {}
 
-
+  // Ensure the CodeTour extension exists and is active.
   private async ensureCodeTour(): Promise<boolean> {
     const id = 'vsls-contrib.codetour';
     let ext = vscode.extensions.getExtension(id);
@@ -18,10 +18,9 @@ export class TourRunner {
       );
       if (choice !== 'Install CodeTour') return false;
 
-      // Trigger install
       await vscode.commands.executeCommand('workbench.extensions.installExtension', id);
 
-      // After install, ext may need a reload to activate reliably
+      // Try to grab it again post-install; may require reload in some setups.
       ext = vscode.extensions.getExtension(id);
       if (!ext) {
         const reload = await vscode.window.showInformationMessage(
@@ -36,7 +35,8 @@ export class TourRunner {
     }
 
     if (!ext.isActive) {
-      try { await ext.activate(); } catch (e: any) {
+      try { await ext.activate(); }
+      catch (e: any) {
         this.log.appendLine(`Failed to activate CodeTour: ${e?.message || e}`);
         vscode.window.showErrorMessage('Could not activate CodeTour.');
         return false;
@@ -46,7 +46,7 @@ export class TourRunner {
   }
 
   async runBeginnerTour(): Promise<void> {
-
+    // Make sure CodeTour is ready
     if (!(await this.ensureCodeTour())) return;
 
     const ws = vscode.workspace.workspaceFolders?.[0];
@@ -99,61 +99,43 @@ class QuickstartUser(HttpUser):
       const steps = [
         {
           title: 'Imports',
-          description: 'Import stdlib **time** and the Locust classes/decorators we need.',
+          description:
+            'Bring in stdlib **time** and the Locust APIs: **HttpUser** (base class), **@task** (mark tasks), and **between** (random wait helper).',
           file: relTourPy,
           line: lineOf(/^from locust import HttpUser, task, between$/)
         },
         {
-          title: 'User class',
-          description: 'Define the simulated user. Locust will create an instance per virtual user.',
-          file: relTourPy,
-          line: lineOf(/^class QuickstartUser\(HttpUser\):$/)
-        },
-        {
-          title: 'Wait time',
-          description: 'Between tasks, each user waits a random time between 1–5 seconds.',
+          title: 'User class + wait time',
+          description:
+            'Define the simulated user. Locust creates one instance per virtual user. **wait_time = between(1, 5)** pauses 1–5s between tasks (randomized).',
           file: relTourPy,
           line: lineOf(/^\s{4}wait_time = between\(1, 5\)$/)
         },
         {
-          title: 'First task (decorator)',
-          description: 'Mark **hello_world** as a task. Code in a task runs sequentially.',
+          title: 'Task: hello_world',
+          description:
+            'Mark **hello_world** with **@task** so Locust schedules it. Inside, two sequential GETs (**/hello**, **/world**) via session-aware **self.client**.',
           file: relTourPy,
-          line: lineOf(/^\s{4}@task$/)
+          line: lineOf(/^\s{8}self\.client\.get\("\/world"\)$/)
         },
         {
-          title: 'First task (body)',
-          description: 'Make a couple of simple GET requests.',
+          title: 'Weighted task: view_items',
+          description:
+            '`@task(3)` gives this task 3× the weight of default tasks. Loop 10 items, request **/item?id={item_id}** but set **name="/item"** for aggregated stats. **time.sleep(1)** simulates think time.',
           file: relTourPy,
-          line: lineOf(/^\s{8}self\.client\.get\("\/hello"\)$/)
+          line: lineOf(/time\.sleep\(1\)\s*$/)
         },
         {
-          title: 'Weighted task',
-          description: '`@task(3)` makes this task 3× more likely to be scheduled than weight 1 tasks.',
-          file: relTourPy,
-          line: lineOf(/^\s{4}@task\(3\)$/)
-        },
-        {
-          title: 'Looping work',
-          description: 'Iterate items and request a normalized name **/item** for aggregation.',
-          file: relTourPy,
-          line: lineOf(/^\s{4}def view_items\(self\):$/)
-        },
-        {
-          title: 'Login on start',
-          description: 'Authenticate once per simulated user using **on_start**.',
-          file: relTourPy,
-          line: lineOf(/^\s{4}def on_start\(self\):$/)
-        },
-        {
-          title: 'Login request',
-          description: 'POST to **/login** with a JSON body.',
+          title: 'on_start (login once)',
+          description:
+            '**on_start** runs once per simulated user before tasks. POST to **/login** with JSON; auth is kept on **self.client** for later requests.',
           file: relTourPy,
           line: lineOf(/^\s{8}self\.client\.post\("\/login", json=\{"username":"foo", "password":"bar"\}\)$/)
         }
       ];
 
-      // Always write the .tour file
+
+      // Always (re)write tour file.
       const tourUri = vscode.Uri.file(path.join(toursDirUri.fsPath, 'locust_beginner.tour'));
       const tourJson = {
         $schema: 'https://aka.ms/codetour-schema',
@@ -164,23 +146,14 @@ class QuickstartUser(HttpUser):
       };
       await vscode.workspace.fs.writeFile(tourUri, Buffer.from(JSON.stringify(tourJson, null, 2), 'utf8'));
 
-      // Refresh CodeTour’s view
+      // Refresh CodeTour, open the tutorial file, then start tour.
       try { await vscode.commands.executeCommand('codetour.refreshTours'); } catch {}
 
-      // Open the code file UX
       const doc = await vscode.workspace.openTextDocument(tutorialFile);
       await vscode.window.showTextDocument(doc, { preview: false });
 
-      // Ensure CodeTour is active
-      const ct = vscode.extensions.getExtension('vsls-contrib.codetour');
-      if (ct && !ct.isActive) { try { await ct.activate(); } catch {} }
-
-      // Start the tour
-      try {
-        await vscode.commands.executeCommand('codetour.startTour', { uri: tourUri });
-      } catch {
-        await vscode.commands.executeCommand('codetour.startTour');
-      }
+      // Start specific tour by URI
+      await vscode.commands.executeCommand('codetour.startTour', { uri: tourUri });
     } catch (err: any) {
       this.log.appendLine(`Tour error: ${err?.stack || err?.message || String(err)}`);
       this.log.show(true);

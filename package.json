@@ -111,7 +111,6 @@
       { "command": "locust.convertHar", "title": "Locust: Convert HAR → Locustfile…" },
       { "command": "locust.showWelcome", "title": "Locust: Show Welcome", "icon": "$(home)" },
       { "command": "locust.hideWelcome", "title": "Locust: Hide Welcome", "icon": "$(close)" },
-      { "command": "locust.openBeginnerTourPage", "title": "Locust: Open Beginner Walkthrough" },
       { "command": "locust.startBeginnerTour", "title": "Locust: Start Beginner Tour", "icon": "$(book)" },
       { "command": "locust.openLocustCloud", "title": "Open Locust Cloud", "icon": "$(cloud)" },
       { "command": "locust.deleteLocustCloud", "title": "Locust Cloud Shut Down", "icon": "$(trash)" },
@@ -163,19 +162,6 @@
       { "language": "python", "path": "./snippets/locust.json" }
     ],
     "walkthroughs": [
-      {
-        "id": "locust.beginnerWalkthrough",
-        "title": "Locust Beginner Tour",
-        "description": "Start here for a guided, step-by-step tour that teaches Locust from scratch.",
-        "steps": [
-          {
-            "id": "tour-intro",
-            "title": "Start the guided CodeTour",
-            "description": "Opens a full-page intro with a button that launches the CodeTour.",
-            "media": { "markdown": "media/walkthrough/00-beginner-tour.md" }
-          }
-        ]
-      },
       {
         "id": "locust.copilotWalkthrough",
         "title": "Copilot Tutorial (MCP)",

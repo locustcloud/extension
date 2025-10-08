@@ -63,6 +63,7 @@ export function registerCommands(
       await runner.createLocustfile({ open: true });
     }),
 
+    /*
     vscode.commands.registerCommand('locust.openBeginnerTourPage', async () => {
       try {
         const md = vscode.Uri.file(
@@ -74,6 +75,7 @@ export function registerCommands(
         vscode.window.showErrorMessage('Could not open the Locust Beginner page.');
       }
     }),
+    */
 
     vscode.commands.registerCommand(
       'locust.runFileUI',
@@ -123,12 +125,14 @@ export function registerCommands(
     ),
 
     // Beginner walkthrough
+    /*
     vscode.commands.registerCommand('locust.openBeginnerWalkthrough', () =>
       vscode.commands.executeCommand(
         'workbench.action.openWalkthrough',
         'locust.locust-vscode-extension#locust.beginnerWalkthrough'
       )
     ),
+    */
 
     // Start beginner tour
     vscode.commands.registerCommand('locust.startBeginnerTour', async () => {
