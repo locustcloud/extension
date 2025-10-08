@@ -71,7 +71,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   // Open the CodeTour-based Beginner Guide, not the walkthrough
   document.getElementById('linkGuide')?.addEventListener('click', (e) => {
     e.preventDefault();
-    run('locust.startBeginnerTour');   // <-- changed from locust.openBeginnerTourPage
+    run('locust.startBeginnerTour'); 
   });
 </script>
 </body>
