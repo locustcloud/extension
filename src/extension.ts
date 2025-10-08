@@ -93,6 +93,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 }
 
 export async function activate(ctx: vscode.ExtensionContext) {
+  
   // Core services
   const env = new EnvService();
   const mcp = new McpService(env);
@@ -139,18 +140,6 @@ export async function activate(ctx: vscode.ExtensionContext) {
   ctx.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(() => setup.autoSetupSilently())
   );
-
-  const SEEN_KEY = 'locust.walkthrough.seen';
-
-  if (!ctx.globalState.get(SEEN_KEY)) {
-    try {
-      // Start your CodeTour-based beginner tour on first run
-      await vscode.commands.executeCommand('locust.startBeginnerTour');
-      await ctx.globalState.update(SEEN_KEY, true);
-    } catch (e) {
-      console.warn('Open beginner tour failed:', e);
-    }
-  }
 }
 
 export function deactivate() {
