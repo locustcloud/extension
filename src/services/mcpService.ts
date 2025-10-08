@@ -32,7 +32,7 @@ export class McpService {
       }
     }
 
-    // Resolve extension root (uses publisher.name from package.json)
+    // Resolve extension root
     const ext = vscode.extensions.getExtension('locust.locust-vscode-extension');
     const extRoot = ext?.extensionUri.fsPath;
 

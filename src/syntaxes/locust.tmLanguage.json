@@ -1,0 +1,20 @@
+{
+  "name": "Locust Python Injection",
+  "scopeName": "locust.injection",
+  "injectionSelector": "L:source.python",
+  "patterns": [
+    {
+      "match": "\\b(HttpUser|FastHttpUser|TaskSet|SequentialTaskSet|between|run_single_user)\\b",
+      "name": "support.class.locust"
+    },
+    {
+      "match": "(?<!\\w)@task\\b",
+      "name": "entity.name.function.decorator.locust"
+    },
+    {
+      "match": "\\b(self\\.client|client|get|post|put|delete|wait_time)\\b",
+      "name": "variable.language.locust"
+    }
+  ],
+  "uuid": "d5d5f7a6-0e4a-4d6c-9b6b-6b8f8a0f9b10"
+}

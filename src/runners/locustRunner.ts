@@ -11,7 +11,7 @@ import path from 'path';
 
 type RunMode = 'ui' | 'headless';
 
-// Fallback for older VS Code API: emulate Uri.joinPath
+// Fallback older VS Code API: emulate Uri.joinPath
 function uriJoinPath(base: vscode.Uri, ...paths: string[]): vscode.Uri {
   return vscode.Uri.file(path.join(base.fsPath, ...paths));
 }
@@ -36,18 +36,44 @@ export class LocustRunner {
   }
 
   /**
-   * Opens the Locust UI in VS Code's Simple Browser with a short delay.
-   * Falls back to external browser if the Simple Browser command is unavailable.
+   * Opens Locust UI in VS Code's Simple Browser, sized to ~45% width (right column). 
+   * Fallback: External browser if Simple Browser fails.
    */
   private openLocustUIBrowser(url: vscode.Uri = vscode.Uri.parse('http://127.0.0.1:8089')) {
-    const open = () => {
-      vscode.commands.executeCommand('simpleBrowser.show', url).then(
-        undefined,
-        () => vscode.env.openExternal(url)
-      );
+    const attempt = async () => {
+      const r = 0.45; // browser column width ratio
+
+      if (vscode.window.tabGroups.all.length < 2) {
+        await vscode.commands.executeCommand('workbench.action.newGroupRight').then(undefined, () => {});
+      }
+
+      const ok = await vscode.commands
+        .executeCommand('simpleBrowser.show', url.toString(), {
+          viewColumn: vscode.ViewColumn.Two,
+          preserveFocus: true,
+          preview: true,
+        })
+        .then(() => true, () => false);
+
+      if (!ok) {
+        await vscode.env.openExternal(url);
+        return;
+      }
+
+      if (vscode.window.tabGroups.all.length === 2) {
+        await vscode.commands
+          .executeCommand('vscode.setEditorLayout', {
+            orientation: 1, // vertical columns (left/right)
+            groups: [{ size: 1 - r }, { size: r }], // left then right
+          })
+          .then(undefined, () => {});
+      }
+
+      await vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup').then(undefined, () => {});
     };
-    setTimeout(open, 600);
-    setTimeout(open, 1800);
+
+    setTimeout(attempt, 600);
+    setTimeout(attempt, 1800);
   }
 
   private runLocustFile(filePath: string, mode: RunMode, extraArgs: string[] = []) {
@@ -88,7 +114,7 @@ export class LocustRunner {
     return uriJoinPath(dir, nextName);
   }
 
-  // Create a starter, uniquely-numbered locustfile and return its URI.
+  // Create a starter, uniquely-numbered locustfile return URI.
   async createLocustfile(opts: { open?: boolean } = {}) {
     const { open = true } = opts;
     const ws = vscode.workspace.workspaceFolders?.[0];
@@ -97,7 +123,7 @@ export class LocustRunner {
       return;
     }
 
-    // Let user pick any folder within the workspace
+    // Pick workspace folder
     const picked = await vscode.window.showOpenDialog({
       canSelectFiles: false,
       canSelectFolders: true,
@@ -111,7 +137,7 @@ export class LocustRunner {
     }
     const dir = picked[0];
 
-    // Ensure chosen directory exists (should, but just in case)
+    // Ensure chosen directory exists
     try {
       await vscode.workspace.fs.stat(dir);
     } catch {
@@ -242,7 +268,7 @@ if __name__ == "__main__":
     const ignoreList = Array.from(ignoreDirs).filter(Boolean);
     const ignoreGlob = ignoreList.length ? `**/{${ignoreList.join(',')}}/**` : '';
 
-    // 1) Fast path: prefer conventional names first
+    // Fast path: prefer conventional names first
     const named = await vscode.workspace.findFiles('**/locustfile*.py', ignoreGlob, 200);
     if (named.length === 1) return named[0];
     if (named.length > 1) {
@@ -253,7 +279,7 @@ if __name__ == "__main__":
       return chosen?.uri;
     }
 
-    // 2) Fallback: scan python files for a Locust import
+    // Fallback: scan python files for a Locust import
     const candidates = await vscode.workspace.findFiles('**/*.py', ignoreGlob, 2000);
     const locustRegex = /\bfrom\s+locust\s+import\b|\bimport\s+locust\b/;
 
@@ -283,7 +309,7 @@ if __name__ == "__main__":
         return chosen?.uri;
       }
 
-      // 3) Nothing found -> offer to create one (will prompt for destination folder)
+      // locustfile not found offer to create one.
       if (!vscode.workspace.isTrusted) {
         vscode.window.showWarningMessage('Trust this workspace to create files.');
         return;

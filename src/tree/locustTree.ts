@@ -64,12 +64,12 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
 
     if (!element) {
       // Root: list Locust files (canonical names + any *.py that import locust)
-      const exclude = '**/{.venv,.locust_env,.git,__pycache__,node_modules,site-packages,dist,build}/**';
+      const exclude = '**/{.venv,.locust_env, .tour, .git,__pycache__,node_modules,site-packages,dist,build}/**';
 
-      // 1) Canonical names
+      // Canonical names
       const explicit = await vscode.workspace.findFiles('**/locustfile*.py', exclude);
 
-      // 2) Inferred from imports
+      // Inferred from imports
       const candidates = await vscode.workspace.findFiles('**/*.py', exclude);
       const seen = new Set(explicit.map(u => u.fsPath));
       const inferred: vscode.Uri[] = [];

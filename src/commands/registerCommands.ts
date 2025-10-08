@@ -16,7 +16,7 @@ export function registerLocustCloudCommands(ctx: vscode.ExtensionContext) {
   ctx.subscriptions.push(
     vscode.commands.registerCommand("locust.openLocustCloud", async () => {
       try {
-        await cloud.openLocustCloudLanding(); // ← opens https://auth.locust.cloud/load-test by default
+        await cloud.openLocustCloudLanding(); // Default https://auth.locust.cloud/load-test 
       } catch (e: any) {
         vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? "unexpected error"}`);
       }
@@ -63,6 +63,7 @@ export function registerCommands(
       await runner.createLocustfile({ open: true });
     }),
 
+    /*
     vscode.commands.registerCommand('locust.openBeginnerTourPage', async () => {
       try {
         const md = vscode.Uri.file(
@@ -74,6 +75,7 @@ export function registerCommands(
         vscode.window.showErrorMessage('Could not open the Locust Beginner page.');
       }
     }),
+    */
 
     vscode.commands.registerCommand(
       'locust.runFileUI',
@@ -88,9 +90,14 @@ export function registerCommands(
         runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'headless')
     ),
 
+    /*
+    Future implememntation in package.json commands:
+    { "command": "locust.runTaskUI", "when": "view == locust.scenarios && viewItem == locust.task", "group": "inline" },
+    { "command": "locust.runTaskHeadless", "when": "view == locust.scenarios && viewItem == locust.task", "group": "inline" },
+    */
     vscode.commands.registerCommand('locust.runTaskUI', (node) => runner.runTaskUI(node)),
     vscode.commands.registerCommand('locust.runTaskHeadless', (node) => runner.runTaskHeadless(node)),
-
+    
     vscode.commands.registerCommand('locust.init', () =>
       setup.checkAndOfferSetup({ forcePrompt: true })
     ),
@@ -106,7 +113,10 @@ export function registerCommands(
       await vscode.commands.executeCommand('locust.scenarios.focus');
     }),
 
-    // Copilot walkthrough launcher
+    /* Copilot walkthrough launcher
+    Future implementation add in package.json commands: 
+    { "command": "locust.openCopilotWalkthrough", "title": "Locust: Open Copilot Walkthrough", "icon": "$(sparkle)" },
+    */
     vscode.commands.registerCommand('locust.openCopilotWalkthrough', () =>
       vscode.commands.executeCommand(
         'workbench.action.openWalkthrough',
@@ -115,14 +125,16 @@ export function registerCommands(
     ),
 
     // Beginner walkthrough
+    /*
     vscode.commands.registerCommand('locust.openBeginnerWalkthrough', () =>
       vscode.commands.executeCommand(
         'workbench.action.openWalkthrough',
         'locust.locust-vscode-extension#locust.beginnerWalkthrough'
       )
     ),
+    */
 
-    // Uses TourRunner to copy into workspace & open directly
+    // Start beginner tour
     vscode.commands.registerCommand('locust.startBeginnerTour', async () => {
       const tr = new TourRunner(ctx);
       await tr.runBeginnerTour();
