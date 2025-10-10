@@ -19,12 +19,20 @@ function uriJoinPath(base: vscode.Uri, ...paths: string[]): vscode.Uri {
 export class LocustRunner {
   constructor(private env: EnvService, private extensionUri: vscode.Uri) {}
 
+  // Track latest run (PID)
+  private _lastTerminal?: vscode.Terminal;
+  private _lastPid?: number;
+  private _lastCmd?: string;
+  private _lastCwd?: string;
+
   private findLocustTerminal(): vscode.Terminal | undefined {
     return vscode.window.terminals.find(t => t.name === 'Locust');
   }
 
   private getOrCreateLocustTerminal(): vscode.Terminal {
-    return this.findLocustTerminal() ?? vscode.window.createTerminal({ name: 'Locust' });
+    const t = this.findLocustTerminal() ?? vscode.window.createTerminal({ name: 'Locust' });
+    this._lastTerminal = t; // keep reference for stop
+    return t;
   }
 
   private buildLocustCommand(filePath: string, mode: RunMode, extraArgs: string[] = []): string {
@@ -41,7 +49,7 @@ export class LocustRunner {
    */
   private openLocustUIBrowser(url: vscode.Uri = vscode.Uri.parse('http://127.0.0.1:8089')) {
     const attempt = async () => {
-      const r = 0.45; // browser column width ratio
+      const r = Math.min(0.8, Math.max(0.2, 0.45));
 
       if (vscode.window.tabGroups.all.length < 2) {
         await vscode.commands.executeCommand('workbench.action.newGroupRight').then(undefined, () => {});
@@ -76,7 +84,7 @@ export class LocustRunner {
     setTimeout(attempt, 1800);
   }
 
-  private runLocustFile(filePath: string, mode: RunMode, extraArgs: string[] = []) {
+  private async runLocustFile(filePath: string, mode: RunMode, extraArgs: string[] = []) {
     if (!vscode.workspace.isTrusted) {
       vscode.window.showWarningMessage('Trust this workspace to run commands.');
       return;
@@ -85,7 +93,22 @@ export class LocustRunner {
     term.show();
     const { envFolder } = getConfig();
     this.env.ensureTerminalEnv(term, envFolder);
-    term.sendText(this.buildLocustCommand(filePath, mode, extraArgs));
+
+    // Record cwd and command for this run
+    const cwd = path.dirname(filePath);
+    const cmd = this.buildLocustCommand(filePath, mode, extraArgs);
+    this._lastCmd = cmd;
+    this._lastCwd = cwd;
+
+    term.sendText(`cd "${cwd}"`);
+    term.sendText(cmd);
+
+    // Capture the terminal pid for one-click stop later
+    try {
+      this._lastPid = await term.processId ?? undefined;
+    } catch {
+      this._lastPid = undefined;
+    }
 
     if (mode === 'ui') {
       this.openLocustUIBrowser();
@@ -195,7 +218,7 @@ if __name__ == "__main__":
   async runFile(filePath: string | undefined, mode: RunMode) {
     let targetPath = filePath;
 
-    // Fallback 1: active editor if it's a locustfile
+    // Active editor if it's a locustfile
     if (!targetPath) {
       const active = vscode.window.activeTextEditor?.document;
       if (active && /(?:^|\/)locustfile.*\.py$/i.test(active.fileName)) {
@@ -203,7 +226,7 @@ if __name__ == "__main__":
       }
     }
 
-    // Fallback 2: quick pick a locustfile
+    // Fallback: Pick a locustfile
     if (!targetPath) {
       const picked = await this.pickLocustfile();
       if (picked) targetPath = picked.fsPath;
@@ -214,7 +237,7 @@ if __name__ == "__main__":
       return;
     }
 
-    this.runLocustFile(targetPath, mode);
+    await this.runLocustFile(targetPath, mode);
   }
 
   // Task helper
@@ -225,7 +248,7 @@ if __name__ == "__main__":
       return;
     }
     // Filter by tag = taskName (recommend @tag("<taskName>") on the task)
-    this.runLocustFile(filePath, mode, [`--tags "${taskName}"`]);
+    await this.runLocustFile(filePath, mode, [`--tags "${taskName}"`]);
   }
 
   async runTaskHeadless(node: any) {
@@ -240,7 +263,7 @@ if __name__ == "__main__":
   async runSelected(mode: RunMode) {
     const file = await this.pickLocustfile();
     if (!file) return;
-    this.runLocustFile(file.fsPath, mode);
+    await this.runLocustFile(file.fsPath, mode);
   }
 
   async runByTag() {
@@ -253,7 +276,7 @@ if __name__ == "__main__":
     });
     if (!tag) return;
 
-    this.runLocustFile(file.fsPath, 'headless', [`--tags "${tag}"`]);
+    await this.runLocustFile(file.fsPath, 'headless', [`--tags "${tag}"`]);
   }
 
   private async pickLocustfile(): Promise<vscode.Uri | undefined> {
@@ -264,7 +287,7 @@ if __name__ == "__main__":
     }
 
     const { envFolder } = getConfig();
-    const ignoreDirs = new Set([envFolder, '.venv', '.git', '__pycache__', 'node_modules']);
+    const ignoreDirs = new Set([envFolder, '.venv', '.git', '__pycache__', '.tour', 'node_modules']);
     const ignoreList = Array.from(ignoreDirs).filter(Boolean);
     const ignoreGlob = ignoreList.length ? `**/{${ignoreList.join(',')}}/**` : '';
 
@@ -300,22 +323,40 @@ if __name__ == "__main__":
       .map(r => (r.status === 'fulfilled' ? r.value : undefined))
       .filter((u): u is vscode.Uri => !!u);
 
-      if (locustFiles.length === 1) return locustFiles[0];
-      if (locustFiles.length > 1) {
-        const picks = locustFiles
-          .sort((a, b) => a.fsPath.localeCompare(b.fsPath))
-          .map(u => ({ label: vscode.workspace.asRelativePath(u), uri: u }));
-        const chosen = await vscode.window.showQuickPick(picks, { placeHolder: 'Choose a locustfile to run' });
-        return chosen?.uri;
-      }
-
-      // locustfile not found offer to create one.
-      if (!vscode.workspace.isTrusted) {
-        vscode.window.showWarningMessage('Trust this workspace to create files.');
-        return;
-      }
-      const created = await this.createLocustfile({ open: true });
-      return created;
+    if (locustFiles.length === 1) return locustFiles[0];
+    if (locustFiles.length > 1) {
+      const picks = locustFiles
+        .sort((a, b) => a.fsPath.localeCompare(b.fsPath))
+        .map(u => ({ label: vscode.workspace.asRelativePath(u), uri: u }));
+      const chosen = await vscode.window.showQuickPick(picks, { placeHolder: 'Choose a locustfile to run' });
+      return chosen?.uri;
     }
 
+    // locustfile not found offer to create one.
+    if (!vscode.workspace.isTrusted) {
+      vscode.window.showWarningMessage('Trust this workspace to create files.');
+      return;
+    }
+    const created = await this.createLocustfile({ open: true });
+    return created;
+  }
+
+  // Stop last run
+  public async stopLastRun(): Promise<void> {
+    const term = this._lastTerminal ?? this.findLocustTerminal();
+    if (!term) {
+      vscode.window.showInformationMessage('No running Locust terminal to stop.');
+      return;
+    }
+
+    // Ctrl+C last command
+    try {
+      await vscode.commands.executeCommand('workbench.action.terminal.sendSequence', { text: '\x03' });
+      vscode.window.setStatusBarMessage('Locust: sent Ctrl+C to stop the last run.', 3000);
+    } catch {
+      // Fallback, dispose terminal
+      term.dispose();
+      vscode.window.setStatusBarMessage('Locust: terminal disposed to stop the run.', 3000);
+    }
+  }
 }

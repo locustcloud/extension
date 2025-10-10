@@ -90,6 +90,15 @@ export function registerCommands(
         runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'headless')
     ),
 
+    // Stop Locust run
+    vscode.commands.registerCommand('locust.stopLastRun', async () => {
+      try {
+        await runner.stopLastRun();
+      } catch (e: any) {
+        vscode.window.showErrorMessage(`Locust: ${e?.message ?? 'Failed to stop the last run.'}`);
+      }
+    }),
+
     /*
     Future implememntation in package.json commands:
     { "command": "locust.runTaskUI", "when": "view == locust.scenarios && viewItem == locust.task", "group": "inline" },
