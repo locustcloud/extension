@@ -59,7 +59,6 @@ async function ensureWorkspaceSettingsIfMissing(workspacePath: string): Promise<
   const fresh = {
     "python.terminal.activateEnvironment": true,
     "markdown.preview.enableCommandUris": true,
-
     // Enable pytest by default
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,

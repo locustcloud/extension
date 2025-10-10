@@ -84,7 +84,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     document.getElementById('btnRunUI')?.addEventListener('click', () => run('locust.openLocustCloud'));
     document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
   } else {
-    document.getElementById('btnRunCLI')?.addEventListener('click', () => run('locust.runCLI'));
+    document.getElementById('btnRunCLI')?.addEventListener('click', () => run('locust.runHeadless'));
     document.getElementById('btnLocustCloud')?.addEventListener('click', () => run('locust.openLocustCloud'));
     document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
   }
