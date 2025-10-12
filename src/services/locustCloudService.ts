@@ -32,7 +32,7 @@ function extractLocustUrl(line: string): string | undefined {
   const base = hashIdx >= 0 ? url.slice(0, hashIdx) : url;
   const fragment = hashIdx >= 0 ? url.slice(hashIdx) : "";
 
-  // Force dashboard=false (append if missing, overwrite if present)
+  // Force dashboard=false append if missing, overwrite if present
   let newBase: string;
   if (/[?&]dashboard=/.test(base)) {
     newBase = base.replace(/([?&]dashboard=)[^&#]*/i, "$1false");
@@ -111,44 +111,20 @@ export class LocustCloudService {
     }
   }
 
-  /**
-   * Open a URL in Simple Browser in a **bottom** editor group sized to ~45% height.
-   * Uses `newGroupBelow` so we DON'T duplicate the current editor in the new group.
-   */
-  private async openInSimpleBrowserSplit(url: string, browserRatio = 0.45) {
-    const r = Math.min(0.8, Math.max(0.2, browserRatio));
-
-    if (vscode.window.tabGroups.all.length < 2) {
-      await vscode.commands.executeCommand("workbench.action.newGroupBelow").then(undefined, () => {});
-    }
-
-    const ok = await vscode.commands
-      .executeCommand("simpleBrowser.show", url, {
-        viewColumn: vscode.ViewColumn.Two, // open in the second (bottom) group
-        preserveFocus: true,
-        preview: true,
-      })
-      .then(() => true, () => false);
-
-    if (!ok) {
+  /** Wrapper: "open in bottom split" command. */
+  private async openUrlSplit(url: string, ratio = 0.45) {
+    try {
+      await vscode.commands.executeCommand("locust.openUrlSplit", url, ratio);
+    } catch {
+      // Fallback to external browser
       await vscode.env.openExternal(vscode.Uri.parse(url));
-      return;
     }
-
-    if (vscode.window.tabGroups.all.length === 2) {
-      await vscode.commands.executeCommand("vscode.setEditorLayout", {
-        orientation: 0, // horizontal rows (top/bottom)
-        groups: [{ size: 1 - r }, { size: r }], // top then bottom
-      }).then(undefined, () => {});
-    }
-
-    await vscode.commands.executeCommand("workbench.action.focusFirstEditorGroup").then(undefined, () => {});
   }
 
   /**
-   * Run `locust -f <locustfile> --cloud` (no TTY),
+   * Run `locust -f <locustfile> --cloud`,
    * parse the "Starting web interface at <URL>" / "available at <URL>" line,
-   * and open that URL in the Simple Browser split.
+   * Open Simple Browser split.
    */
   async openLocustCloudLanding(): Promise<void> {
     const ws = vscode.workspace.workspaceFolders?.[0];
@@ -169,7 +145,7 @@ export class LocustCloudService {
     const env = this.buildEnv();
     const cmd = this.locustCmd;
 
-    // Run from the file's directory and pass a relative -f (helps with cloud path handling)
+    // Run and pass relative -f 
     const fileDir = path.dirname(locustfile);
     const relFile = path.basename(locustfile);
 
@@ -190,7 +166,7 @@ export class LocustCloudService {
       if (url && !opened) {
         opened = true;
         out.appendLine(`[cloud] web UI: ${url}`);
-        await this.openInSimpleBrowserSplit(url, 0.45);
+        await this.openUrlSplit(url, 0.45);
         vscode.window.setStatusBarMessage("Locust Cloud: web UI opened in split view.", 60000);
       }
     };
@@ -230,13 +206,13 @@ export class LocustCloudService {
     });
     child.on("close", (code) => out.appendLine(`[cloud] exited with code ${code}`));
 
-    // Safety net: open fallback if we didn't see a URL soon.
+    // Fallback: 60 sec timeout
     setTimeout(() => {
       if (!opened) {
         opened = true;
         const fallback = this.cloudFallbackUrl;
         out.appendLine(`[cloud] no UI URL detected — opening fallback: ${fallback}`);
-        this.openInSimpleBrowserSplit(fallback, 0.45).catch(() => {});
+        this.openUrlSplit(fallback, 0.45).catch(() => {});
       }
     }, 60000);
   }

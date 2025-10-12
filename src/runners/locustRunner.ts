@@ -48,40 +48,10 @@ export class LocustRunner {
    * Fallback: External browser if Simple Browser fails.
    */
   private openLocustUIBrowser(url: vscode.Uri = vscode.Uri.parse('http://127.0.0.1:8089')) {
-    const attempt = async () => {
-      const r = Math.min(0.8, Math.max(0.2, 0.45));
-
-      if (vscode.window.tabGroups.all.length < 2) {
-        await vscode.commands.executeCommand('workbench.action.newGroupRight').then(undefined, () => {});
-      }
-
-      const ok = await vscode.commands
-        .executeCommand('simpleBrowser.show', url.toString(), {
-          viewColumn: vscode.ViewColumn.Two,
-          preserveFocus: true,
-          preview: true,
-        })
-        .then(() => true, () => false);
-
-      if (!ok) {
-        await vscode.env.openExternal(url);
-        return;
-      }
-
-      if (vscode.window.tabGroups.all.length === 2) {
-        await vscode.commands
-          .executeCommand('vscode.setEditorLayout', {
-            orientation: 1, // vertical columns (left/right)
-            groups: [{ size: 1 - r }, { size: r }], // left then right
-          })
-          .then(undefined, () => {});
-      }
-
-      await vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup').then(undefined, () => {});
-    };
-
-    setTimeout(attempt, 600);
-    setTimeout(attempt, 1800);
+    const open = () => vscode.commands.executeCommand('locust.openUrlInSplit', url.toString(), 0.45);
+    // Try twice, small delays between to allow Locust UI to start
+    setTimeout(open, 600);
+    setTimeout(open, 1800);
   }
 
   private async runLocustFile(filePath: string, mode: RunMode, extraArgs: string[] = []) {

@@ -24,21 +24,38 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 
     const nonce = String(Math.random()).slice(2);
 
+    // Desktop controls: Headless checkbox, Run decides UI/headless, Shut Down = stopLastRun
     const desktopControls = `
-      <div class="row">
-        <button id="btnRunCLI" title="Run: locust -f locustfile.py">Run CLI</button>
-        <button id="btnLocustCloud" title="Run: locust --cloud">Launch</button>
-        <button id="btnDeleteCloud" class="danger" title="Run: locust --cloud --delete">Shut Down</button>
+      <div class="row stack">
+        <label style="display:flex; align-items:center; gap:6px;" title="Toggle headless mode for local runs">
+          <input type="checkbox" id="chkHeadless" />
+          Headless
+        </label>
+
+        <div class="row actions">
+          <button id="btnRunLocal" title="Run locally: locust -f locustfile.py [--headless]">Run Test</button>
+          <button id="btnLocustCloud" title="Open Locust Cloud login">Launch Cloud</button>
+        </div>
+
+        <div class="row">
+          <button id="btnShutdownLocal" class="danger" title="Stop last local run">Shut Down</button>
+        </div>
       </div>`;
 
+    // Cloud controls: no headless, Run UI = locust --cloud, Shut Down = deleteLocustCloud
     const cloudControls = `
       <div class="row">
-        <button id="btnRunUI"  title="Run: locust --cloud">Run UI</button>
-        
-        <button id="btnDeleteCloud" class="danger" title="Run: locust --cloud --delete">Shut Down</button>
+        <button id="btnRunUI"  title="Run in Locust Cloud: locust --cloud">Run UI</button>
+        <button id="btnDeleteCloud" class="danger" title="Shut down current Locust Cloud deployment">Shut Down</button>
       </div>`;
 
-    const supportBlock = this.isCloud ? '' : `<a href="mailto:support@locust.cloud">support@locust.cloud</a>`;
+
+    // Desktop Support block: email + Go Cloud link  
+    const supportBlock = this.isCloud
+      ? ''
+      : `
+        <a href="mailto:support@locust.cloud">support@locust.cloud</a><br>
+      `;
 
     webview.html = `
 <!doctype html>
@@ -53,12 +70,28 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   body { font-family: var(--vscode-font-family); padding: 12px; }
   h1 { margin: 0 0 8px; font-size: 16px; }
   p { margin: 6px 0 12px; color: var(--vscode-descriptionForeground); }
+
   .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; }
-  button { padding: 6px 10px; border: 1px solid var(--vscode-button-border, transparent);
-    border-radius: 6px; background: var(--vscode-button-background);
-    color: var(--vscode-button-foreground); cursor: pointer; }
-  .danger { background: var(--vscode-inputValidation-errorBackground); color: var(--vscode-editor-foreground); }
+  .row.stack { flex-direction: column; gap: 10px; }
+  .row.actions { gap: 8px; }
+
+  button {
+    padding: 6px 10px;
+    border: 1px solid var(--vscode-button-border, transparent);
+    border-radius: 6px;
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    cursor: pointer;
+  }
+
+  button.danger {
+    background: var(--vscode-inputValidation-errorBackground);
+    color: var(--vscode-editor-foreground);
+  }
+
+  label { cursor: pointer; user-select: none; }
 </style>
+
 </head>
 <body data-cloud="${this.isCloud ? '1' : '0'}">
   <h1>Locust ${this.isCloud ? 'Server' : 'Cloud'}</h1>
@@ -80,15 +113,25 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   const isCloud = document.body.getAttribute('data-cloud') === '1';
 
   if (isCloud) {
-    
+    // Cloud: no headless toggle; shutdown deletes cloud deployment
     document.getElementById('btnRunUI')?.addEventListener('click', () => run('locust.openLocustCloud'));
     document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
   } else {
-    document.getElementById('btnRunCLI')?.addEventListener('click', () => run('locust.runHeadless'));
-    document.getElementById('btnLocustCloud')?.addEventListener('click', () => run('locust.openLocustCloud'));
-    document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
-  }
+    // Desktop: Run Test obeys headless checkbox
+    document.getElementById('btnRunLocal')?.addEventListener('click', () => {
+      const headless = !!document.getElementById('chkHeadless')?.checked;
+      run(headless ? 'locust.runHeadless' : 'locust.runUI');
+    });
 
+    // Desktop: Launch Cloud → open login in split simple browser
+    document.getElementById('btnLocustCloud')?.addEventListener('click', () => {
+      vscode.postMessage({ type: 'openUrl', url: 'https://auth.locust.cloud/login' });
+    });
+
+    // Desktop: Shut Down → stop last local run
+    document.getElementById('btnShutdownLocal')?.addEventListener('click', () => run('locust.stopLastRun'));
+  }
+    
   // Open the CodeTour-based Beginner Guide
   document.getElementById('linkGuide')?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -107,9 +150,47 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
           return;
         }
         await vscode.commands.executeCommand(msg.command);
+        return;
+      }
+
+      // NEW: open arbitrary URL in a bottom split Simple Browser (≈45%)
+      if (msg?.type === 'openUrl' && typeof msg.url === 'string' && msg.url) {
+        await openUrlInSimpleBrowserSplit(msg.url, 0.45);
       }
     });
   }
+}
+
+/** Open a URL in Simple Browser in a bottom group sized to ~45% height. */
+async function openUrlInSimpleBrowserSplit(url: string, browserRatio = 0.45) {
+  const r = Math.min(0.8, Math.max(0.2, browserRatio));
+
+  if (vscode.window.tabGroups.all.length < 2) {
+    // Create an EMPTY group below (no file duplication).
+    await vscode.commands.executeCommand('workbench.action.newGroupBelow').then(undefined, () => {});
+  }
+
+  const ok = await vscode.commands
+    .executeCommand('simpleBrowser.show', url, {
+      viewColumn: vscode.ViewColumn.Two, // open in the second (bottom) group
+      preserveFocus: true,
+      preview: true,
+    })
+    .then(() => true, () => false);
+
+  if (!ok) {
+    await vscode.env.openExternal(vscode.Uri.parse(url));
+    return;
+  }
+
+  if (vscode.window.tabGroups.all.length === 2) {
+    await vscode.commands.executeCommand('vscode.setEditorLayout', {
+      orientation: 0, // horizontal rows (top/bottom)
+      groups: [{ size: 1 - r }, { size: r }], // top then bottom
+    }).then(undefined, () => {});
+  }
+
+  await vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup').then(undefined, () => {});
 }
 
 export async function activate(ctx: vscode.ExtensionContext) {
@@ -133,14 +214,14 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const treeReg = vscode.window.registerTreeDataProvider('locust.scenarios', tree); 
   ctx.subscriptions.push(treeReg, tree);
 
-  // Optional gating via context key 
+  // Gating context key 
   await vscode.commands.executeCommand('setContext', 'locust.showScenarios', false);
 
-  // Welcome view provider (pass environment)
+  // Welcome view provider
   const welcomeReg = vscode.window.registerWebviewViewProvider('locust.welcome', new LocustWelcomeViewProvider(ctx, isCloud));
   ctx.subscriptions.push(welcomeReg);
 
-  // Focus the Welcome view on startup
+  // Focus Welcome view on startup
   await vscode.commands.executeCommand('locust.welcome.focus');
 
   // Commands

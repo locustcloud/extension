@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 import { SetupService } from '../services/setupService';
 import { EnvService } from '../services/envService';
 import { McpService } from '../services/mcpService';
@@ -55,6 +54,42 @@ export function registerCommands(
   registerLocustCloudCommands(ctx);
 
   const { setup, runner, harRunner, tree } = deps;
+
+  // Simple browser split-view opener
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand('locust.openUrlInSplit', async (url: string, ratio = 0.45) => {
+      if (typeof url !== 'string' || !url) return;
+
+      const r = Math.min(0.8, Math.max(0.2, ratio));
+
+      if (vscode.window.tabGroups.all.length < 2) {
+        // Create an empty group below (avoids duplicating current editor)
+        await vscode.commands.executeCommand('workbench.action.newGroupBelow').then(undefined, () => {});
+      }
+
+      const ok = await vscode.commands
+        .executeCommand('simpleBrowser.show', url, {
+          viewColumn: vscode.ViewColumn.Two, // second (bottom) group
+          preserveFocus: true,
+          preview: true,
+        })
+        .then(() => true, () => false);
+
+      if (!ok) {
+        await vscode.env.openExternal(vscode.Uri.parse(url));
+        return;
+      }
+
+      if (vscode.window.tabGroups.all.length === 2) {
+        await vscode.commands.executeCommand('vscode.setEditorLayout', {
+          orientation: 0, // horizontal rows (top/bottom)
+          groups: [{ size: 1 - r }, { size: r }], // top then bottom
+        }).then(undefined, () => {});
+      }
+
+      await vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup').then(undefined, () => {});
+    })
+  );
 
   ctx.subscriptions.push(
     vscode.commands.registerCommand('locust.refreshTree', () => tree.refresh()),
