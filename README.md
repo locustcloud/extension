@@ -20,9 +20,12 @@ Please report any issues at [Github Issues](https://github.com/locustcloud/exten
 ## Features
 
 * **Automated setup**: Zero touch environment setup.
-* **Launch**: Launch a Locust Cloud Load Test.
-* **Shut down**: Shut down Locust Cloud instance. 
+* **webUI**: Integrated in VSCode.
+* **Run Test Locally**: Run Test: Default: webUI, Checkbox: Headless
+* **Run Test in Locust Cloud**: Run Test (webUI)
+* **Stop Test**: Stop running test 
 * **Create**: Generate a basic locustfile.
 * **Run in Debugger**: Run single user in debugger.
+* **Beginner Guide**: Your first locustfile code walk.
 
 ---
