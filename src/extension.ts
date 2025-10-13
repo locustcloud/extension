@@ -33,22 +33,21 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
         </label>
 
         <div class="row actions">
-          <button id="btnRunLocal" title="Run locally: locust -f locustfile.py [--headless]">Run Test</button>
-          <button id="btnLocustCloud" title="Open Locust Cloud login">Launch Cloud</button>
+          <button id="btnRunLocal" title="locust -f locustfile.py">Run Test</button>
+          <button id="btnLocustCloud" title="Open Locust Cloud login">Run Cloud</button>
         </div>
 
         <div class="row">
-          <button id="btnShutdownLocal" class="danger" title="Stop last local run">Shut Down</button>
+          <button id="btnShutdownLocal" class="danger" title="Stop last local run">Stop Test</button>
         </div>
       </div>`;
 
-    // Cloud controls: no headless, Run Test = locust -f locustfile.py --cloud, Shut Down = deleteLocustCloud
+    // Cloud controls: Run Test = openLocustCloud, Shut Down = deleteLocustCloud
     const cloudControls = `
       <div class="row">
-        <button id="btnRunUI"  title="Run in Locust Cloud: locust -f locustfile.py --cloud">Run UI</button>
-        <button id="btnDeleteCloud" class="danger" title="Shut down current Test">Shut Down</button>
+        <button id="btnRunUI"  title="locust -f locustfile.py --cloud">Run Test</button>
+        <button id="btnDeleteCloud" class="danger" title="Shut down current Test">Stop Test</button>
       </div>`;
-
 
     // Desktop Support block: email  
     const supportBlock = this.isCloud
@@ -107,37 +106,56 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     ${supportBlock}
   </p>
 
-<script nonce="${nonce}">
-  const vscode = acquireVsCodeApi();
-  const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
-  const isCloud = document.body.getAttribute('data-cloud') === '1';
+  <script nonce="${nonce}">
+    (function () {
+      const vscode = acquireVsCodeApi();
+      const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
+      const isCloud = document.body.getAttribute('data-cloud') === '1';
 
-  if (isCloud) {
-    // Cloud: no headless toggle; shutdown deletes cloud deployment
-    document.getElementById('btnRunUI')?.addEventListener('click', () => run('locust.openLocustCloud'));
-    document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
-  } else {
-    // Desktop: Run Test obeys headless checkbox
-    document.getElementById('btnRunLocal')?.addEventListener('click', () => {
-      const headless = !!document.getElementById('chkHeadless')?.checked;
-      run(headless ? 'locust.runHeadless' : 'locust.runUI');
-    });
+      // Run Test tooltip sync headless checkbox
+      function updateRunLocalTitle() {
+        const btn = document.getElementById('btnRunLocal');
+        const chk = document.getElementById('chkHeadless');
+        const headless = !!(chk && chk.checked);
+        if (btn) {
+          btn.title = 'locust -f locustfile.py' + (headless ? ' --headless' : '');
+        }
+      }
 
-    // Desktop: Launch Cloud → open login in split simple browser
-    document.getElementById('btnLocustCloud')?.addEventListener('click', () => {
-      vscode.postMessage({ type: 'openUrl', url: 'https://auth.locust.cloud/login' });
-    });
+      if (isCloud) {
+        // Cloud: static tooltips, Run Test = openLocustCloud
+        const runUi = document.getElementById('btnRunUI');
+        if (runUi) {
+          runUi.title = 'locust -f locustfile.py --cloud';
+          runUi.addEventListener('click', () => run('locust.openLocustCloud'));
+        }
+        document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
+      } else {
+        // Desktop: Run Test button toggles  UI and headless
+        document.getElementById('chkHeadless')?.addEventListener('change', updateRunLocalTitle);
+        updateRunLocalTitle(); // initialize tooltip at load
 
-    // Desktop: Shut Down → stop last local run
-    document.getElementById('btnShutdownLocal')?.addEventListener('click', () => run('locust.stopLastRun'));
-  }
-    
-  // Open the CodeTour-based Beginner Guide
-  document.getElementById('linkGuide')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    run('locust.startBeginnerTour'); 
-  });
-</script>
+        document.getElementById('btnRunLocal')?.addEventListener('click', () => {
+          const headless = !!document.getElementById('chkHeadless')?.checked;
+          run(headless ? 'locust.runHeadless' : 'locust.runUI');
+        });
+
+        // Desktop: Run Cloud open Locust Cloud login page
+        document.getElementById('btnLocustCloud')?.addEventListener('click', () => {
+          vscode.postMessage({ type: 'openUrl', url: 'https://auth.locust.cloud/login' });
+        });
+
+        // Desktop: Shut Down stop last local run
+        document.getElementById('btnShutdownLocal')?.addEventListener('click', () => run('locust.stopLastRun'));
+      }
+
+      // Open Beginner Guide
+      document.getElementById('linkGuide')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        run('locust.startBeginnerTour');
+      });
+    })();
+  </script>
 </body>
 </html>
 `;
@@ -153,7 +171,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
         return;
       }
 
-      // NEW: open arbitrary URL in a bottom split Simple Browser (≈45%)
+      // Open arbitrary URL in a bottom split Simple Browser (≈45%)
       if (msg?.type === 'openUrl' && typeof msg.url === 'string' && msg.url) {
         await openUrlInSimpleBrowserSplit(msg.url, 0.45);
       }
@@ -161,7 +179,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   }
 }
 
-/** Open a URL in Simple Browser in a bottom group sized to ~45% height. */
+/** Open URL in Simple Browser in a bottom group sized to ~45% height. */
 async function openUrlInSimpleBrowserSplit(url: string, browserRatio = 0.45) {
   const r = Math.min(0.8, Math.max(0.2, browserRatio));
 
@@ -172,7 +190,7 @@ async function openUrlInSimpleBrowserSplit(url: string, browserRatio = 0.45) {
 
   const ok = await vscode.commands
     .executeCommand('simpleBrowser.show', url, {
-      viewColumn: vscode.ViewColumn.Two, // open in the second (bottom) group
+      viewColumn: vscode.ViewColumn.Two, // Open in the bottom group
       preserveFocus: true,
       preview: true,
     })
