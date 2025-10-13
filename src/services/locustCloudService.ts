@@ -124,7 +124,7 @@ export class LocustCloudService {
     let bufErr = "";
 
     const tryExtractAndOpen = async (text: string) => {
-      const url = extractLocustUrl(text);
+      const url = extractLocustUrl(text, { forceDashboardFalse: true }); // <— force for cloud
       if (url && !opened) {
         opened = true;
         out.appendLine(`[cloud] web UI: ${url}`);

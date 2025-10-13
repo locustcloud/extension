@@ -171,9 +171,9 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
         return;
       }
 
-      // Open arbitrary URL in a bottom split Simple Browser (≈45%)
+      // Always open inside the split Simple Browser via the shared command
       if (msg?.type === 'openUrl' && typeof msg.url === 'string' && msg.url) {
-        await openUrlInSimpleBrowserSplit(msg.url, 0.45);
+        await vscode.commands.executeCommand('locust.openUrlInSplit', msg.url, 0.45);
       }
     });
   }

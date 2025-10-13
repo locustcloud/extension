@@ -76,7 +76,8 @@ export function registerCommands(
         .then(() => true, () => false);
 
       if (!ok) {
-        await vscode.env.openExternal(vscode.Uri.parse(url));
+        // No external fallback — keep behavior consistent
+        vscode.window.showErrorMessage('Could not open Simple Browser.');
         return;
       }
 
@@ -90,6 +91,7 @@ export function registerCommands(
       await vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup').then(undefined, () => {});
     })
   );
+
 
   ctx.subscriptions.push(
     vscode.commands.registerCommand('locust.refreshTree', () => tree.refresh()),

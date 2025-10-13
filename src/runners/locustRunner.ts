@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { getConfig } from '../core/config';
 import { EnvService } from '../services/envService';
-import { extractLocustUrl } from "../core/utils/locustUrl";
+import * as http from 'http';
 import path from 'path';
 
 /**
@@ -36,46 +36,83 @@ export class LocustRunner {
     return t;
   }
 
-  private buildLocustCommand(filePath: string, mode: RunMode, extraArgs: string[] = []): string {
+  private buildLocustCommand(fileName: string, mode: RunMode, extraArgs: string[] = []): string {
     const { locustPath, defaultHost } = getConfig();
     const headless = mode === 'headless' ? '--headless' : '';
     const host = defaultHost ? `-H "${defaultHost}"` : '';
     const extras = extraArgs.join(' ');
-    return `${locustPath} -f "${filePath}" ${headless} ${host} ${extras}`.trim();
+    return `${locustPath} -f "${fileName}" ${headless} ${host} ${extras}`.trim();
   }
 
-  /**
-   * Opens Locust UI in VS Code's Simple Browser, sized to ~45% width (right column). 
-   * Fallback: External browser if Simple Browser fails.
-   */
-  private openLocustUIBrowser(url: vscode.Uri = vscode.Uri.parse('http://127.0.0.1:8089')) {
-  // Ensure dashboard=false for embedded Simple Browser
-  const target = extractLocustUrl(url.toString()) ?? url.toString();
-  const open = () => vscode.commands.executeCommand('locust.openUrlInSplit', target, 0.45);
-  setTimeout(open, 600);
-  setTimeout(open, 1800);
-}
+  /** Open 127.0.0.1:8089 in Simple Browser split (bottom ~45%). */
+  private openLocalUiSplit() {
+    return vscode.commands.executeCommand('locust.openUrlInSplit', 'http://127.0.0.1:8089', 0.45);
+  }
+
+  /** Quick probe: local UI up */
+  private async isLocalUiUp(url = 'http://127.0.0.1:8089'): Promise<boolean> {
+    return new Promise((resolve) => {
+      try {
+        const req = http.get(url, (res) => {
+          res.resume(); // drain body
+          resolve(res.statusCode !== undefined && res.statusCode >= 200 && res.statusCode < 400);
+        });
+        req.on('error', () => resolve(false));
+        req.setTimeout(800, () => { req.destroy(); resolve(false); });
+      } catch {
+        resolve(false);
+      }
+    });
+  }
+
+  /** Wait local UI responds OK. */
+  private async waitForLocalUi(timeoutMs = 20000, intervalMs = 500): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (await this.isLocalUiUp()) return true;
+      await new Promise(r => setTimeout(r, intervalMs));
+    }
+    return false;
+  }
 
   private async runLocustFile(filePath: string, mode: RunMode, extraArgs: string[] = []) {
     if (!vscode.workspace.isTrusted) {
       vscode.window.showWarningMessage('Trust this workspace to run commands.');
       return;
     }
+
+    // If UI is already running, avoid starting a new process
+    if (mode === 'ui' && await this.isLocalUiUp()) {
+      await this.openLocalUiSplit();
+      vscode.window.setStatusBarMessage('Locust: UI already running — opened existing UI.', 3000);
+      return;
+    }
+
     const term = this.getOrCreateLocustTerminal();
     term.show();
     const { envFolder } = getConfig();
     this.env.ensureTerminalEnv(term, envFolder);
 
-    // Record cwd and command for this run
-    const cwd = path.dirname(filePath);
-    const cmd = this.buildLocustCommand(filePath, mode, extraArgs);
-    this._lastCmd = cmd;
-    this._lastCwd = cwd;
+    // Use relative -f
+    const fileDir = path.dirname(filePath);
+    const relFile = path.basename(filePath);
 
-    term.sendText(`cd "${cwd}"`);
+    // Record cwd and command
+    const cmd = this.buildLocustCommand(relFile, mode, extraArgs);
+    this._lastCmd = cmd;
+    this._lastCwd = fileDir;
+
+    term.sendText(`cd "${fileDir}"`);
+
+    // Prevent Python/webbrowser from opening the system browser
+    if (process.platform === 'win32') {
+      term.sendText(`$env:BROWSER='none'`);
+    } else {
+      term.sendText(`export BROWSER=none`);
+    }
+
     term.sendText(cmd);
 
-    // Capture the terminal pid for one-click stop later
     try {
       this._lastPid = await term.processId ?? undefined;
     } catch {
@@ -83,7 +120,9 @@ export class LocustRunner {
     }
 
     if (mode === 'ui') {
-      this.openLocustUIBrowser();
+      const up = await this.waitForLocalUi(20000, 500);
+      if (!up) vscode.window.setStatusBarMessage('Locust: UI did not respond in time; opening anyway…', 4000);
+      await this.openLocalUiSplit();
     }
   }
 
@@ -141,38 +180,46 @@ export class LocustRunner {
 
     const dest = await this.nextLocustfileUri(dir);
 
-    // Minimal, snippet-inspired boilerplate
-    const content = `import random
-from locust import FastHttpUser, constant, run_single_user, task
+    // Minimal, snippet-inspired boilerplate (your current content kept)
+    const content = `# Welcome to Locust Cloud's Online Test Editor!
+#
+# This is a quick way to get started with load tests without having
+# to set up your own Python development environment.
+
+from locust import FastHttpUser, task
 
 
-class SimpleUrl(FastHttpUser):
-    wait_time = constant(1)
-
-    @task
-    def index(self):
-        self.client.get("/")
-
-
-class MockTarget(FastHttpUser):
-    wait_time = constant(1)
+class MyUser(FastHttpUser):
+    # Change this to your actual target site, or leave it as is
     host = "https://mock-test-target.eu-north-1.locust.cloud"
-    product_ids = [1, 2, 42, 4711]
 
     @task
     def t(self):
+        # Simple request
         self.client.get("/")
-        self.client.post("/authenticate", json={"user": "foo", "password": "bar"})
-        for product_id in random.sample(self.product_ids, 2):
-            self.client.post("/cart/add", json={"productId": product_id})
-        with self.client.post("/checkout/confirm", catch_response=True) as resp:
-            if not resp.json().get("orderId"):
-                resp.failure("orderId missing")
+
+        # Example rest call with validation
+        with self.client.post(
+            "/authenticate",
+            json={"username": "foo", "password": "bar"},
+            catch_response=True,
+        ) as resp:
+            if "token" not in resp.text:
+                resp.failure("missing token in response")
 
 
-if __name__ == "__main__":
-    run_single_user(MockTarget)
-
+# To deploy this test to the load generators click the Launch button.
+#
+# When you are done, or want to deploy an updated test, click Shut Down
+#
+# If you get stuck reach out to us at support@locust.cloud
+#
+# When you are ready to run Locust from your own machine,
+# check out the documentation:
+# https://docs.locust.io/en/stable/locust-cloud/locust-cloud.html
+#
+# Please remember to save your work outside of this editor as the
+# storage is not permanent.
 `;
 
     await vscode.workspace.fs.writeFile(dest, Buffer.from(content, 'utf8'));
