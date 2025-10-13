@@ -42,15 +42,15 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
         </div>
       </div>`;
 
-    // Cloud controls: no headless, Run UI = locust --cloud, Shut Down = deleteLocustCloud
+    // Cloud controls: no headless, Run Test = locust -f locustfile.py --cloud, Shut Down = deleteLocustCloud
     const cloudControls = `
       <div class="row">
-        <button id="btnRunUI"  title="Run in Locust Cloud: locust --cloud">Run UI</button>
-        <button id="btnDeleteCloud" class="danger" title="Shut down current Locust Cloud deployment">Shut Down</button>
+        <button id="btnRunUI"  title="Run in Locust Cloud: locust -f locustfile.py --cloud">Run UI</button>
+        <button id="btnDeleteCloud" class="danger" title="Shut down current Test">Shut Down</button>
       </div>`;
 
 
-    // Desktop Support block: email + Go Cloud link  
+    // Desktop Support block: email  
     const supportBlock = this.isCloud
       ? ''
       : `

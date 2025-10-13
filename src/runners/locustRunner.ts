@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { getConfig } from '../core/config';
 import { EnvService } from '../services/envService';
+import { extractLocustUrl } from "../core/utils/locustUrl";
 import path from 'path';
 
 /**
@@ -48,11 +49,12 @@ export class LocustRunner {
    * Fallback: External browser if Simple Browser fails.
    */
   private openLocustUIBrowser(url: vscode.Uri = vscode.Uri.parse('http://127.0.0.1:8089')) {
-    const open = () => vscode.commands.executeCommand('locust.openUrlInSplit', url.toString(), 0.45);
-    // Try twice, small delays between to allow Locust UI to start
-    setTimeout(open, 600);
-    setTimeout(open, 1800);
-  }
+  // Ensure dashboard=false for embedded Simple Browser
+  const target = extractLocustUrl(url.toString()) ?? url.toString();
+  const open = () => vscode.commands.executeCommand('locust.openUrlInSplit', target, 0.45);
+  setTimeout(open, 600);
+  setTimeout(open, 1800);
+}
 
   private async runLocustFile(filePath: string, mode: RunMode, extraArgs: string[] = []) {
     if (!vscode.workspace.isTrusted) {
