@@ -75,10 +75,11 @@ export class LocustCloudService {
 
   /** Wrapper: "open in bottom split" command. */
   private async openUrlSplit(url: string, ratio = 0.45) {
-    try {
-      await vscode.commands.executeCommand("locust.openUrlSplit", url, ratio);
-    } catch {
-      // Fallback to external browser
+    const tryCmd = async (id: string) =>
+      vscode.commands.executeCommand(id, url, ratio).then(() => true, () => false);
+
+    const ok = await tryCmd("locust.openUrlInSplit") || await tryCmd("locust.openUrlSplit");
+    if (!ok) {
       await vscode.env.openExternal(vscode.Uri.parse(url));
     }
   }
