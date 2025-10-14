@@ -36,26 +36,12 @@ export class LocustRunner {
     return t;
   }
 
-    private buildLocustCommand(fileName: string, mode: RunMode, extraArgs: string[] = []): string {
+  private buildLocustCommand(fileName: string, mode: RunMode, extraArgs: string[] = []): string {
     const { locustPath, defaultHost } = getConfig();
-    const base = [locustPath, '-f', `"${fileName}"`];
-
-    if (mode === 'ui') {
-      // ensure the UI binds where we probe
-      base.push('--autostart');
-    } else {
-      base.push('--headless');
-    }
-
-    if (defaultHost) {
-      base.push('-H', `"${defaultHost}"`);
-    }
-
-    if (extraArgs.length) {
-      base.push(...extraArgs);
-    }
-
-    return base.join(' ').trim();
+    const headless = mode === 'headless' ? '--headless' : '';
+    const host = defaultHost ? `-H "${defaultHost}"` : '';
+    const extras = extraArgs.join(' ');
+    return `${locustPath} -f "${fileName}" ${headless} ${host} ${extras}`.trim();
   }
 
   /** Open 127.0.0.1:8089 in Simple Browser split (bottom ~45%). */
