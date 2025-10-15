@@ -15,7 +15,7 @@ export function registerLocustCloudCommands(ctx: vscode.ExtensionContext) {
   ctx.subscriptions.push(
     vscode.commands.registerCommand("locust.openLocustCloud", async () => {
       try {
-        await cloud.openLocustCloudLanding(); // Default https://auth.locust.cloud/load-test 
+        await cloud.openLocustCloudLanding(); // Default https://auth.locust.cloud/load-test
       } catch (e: any) {
         vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? "unexpected error"}`);
       }
@@ -50,7 +50,7 @@ export function registerCommands(
     tree: LocustTreeProvider;
   }
 ) {
-  // Make Locust Cloud command available
+  // Make Locust Cloud commands available
   registerLocustCloudCommands(ctx);
 
   const { setup, runner, harRunner, tree } = deps;
@@ -100,34 +100,29 @@ export function registerCommands(
       await runner.createLocustfile({ open: true });
     }),
 
-    /*
-    vscode.commands.registerCommand('locust.openBeginnerTourPage', async () => {
-      try {
-        const md = vscode.Uri.file(
-          path.join(ctx.extensionUri.fsPath, 'media', 'walkthrough', '00-beginner-tour.md')
-        );
-        // Open the Markdown in preview (like a welcome page)
-        await vscode.commands.executeCommand('markdown.showPreview', md);
-      } catch (err) {
-        vscode.window.showErrorMessage('Could not open the Locust Beginner page.');
-      }
-    }),
-    */
-
     vscode.commands.registerCommand(
       'locust.runFileUI',
       async (node?: { filePath?: string; resourceUri?: vscode.Uri }) => {
-        await runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'ui');
+        try {
+          await runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'ui');
+        } catch (e: any) {
+          vscode.window.showErrorMessage(`Locust (UI): ${e?.message ?? 'failed to start UI run'}`);
+        }
       }
     ),
 
     vscode.commands.registerCommand(
       'locust.runFileHeadless',
-      (node?: { filePath?: string; resourceUri?: vscode.Uri }) =>
-        runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'headless')
+      async (node?: { filePath?: string; resourceUri?: vscode.Uri }) => {
+        try {
+          await runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'headless');
+        } catch (e: any) {
+          vscode.window.showErrorMessage(`Locust (headless): ${e?.message ?? 'failed to start headless run'}`);
+        }
+      }
     ),
 
-    // Stop Locust run
+    // Stop Locust run (stops spawned UI child first, otherwise sends Ctrl+C to "Locust" terminal)
     vscode.commands.registerCommand('locust.stopLastRun', async () => {
       try {
         await runner.stopLastRun();
@@ -136,14 +131,10 @@ export function registerCommands(
       }
     }),
 
-    /*
-    Future implememntation in package.json commands:
-    { "command": "locust.runTaskUI", "when": "view == locust.scenarios && viewItem == locust.task", "group": "inline" },
-    { "command": "locust.runTaskHeadless", "when": "view == locust.scenarios && viewItem == locust.task", "group": "inline" },
-    */
+    // Future inline task actions (currently both route to runner helpers)
     vscode.commands.registerCommand('locust.runTaskUI', (node) => runner.runTaskUI(node)),
     vscode.commands.registerCommand('locust.runTaskHeadless', (node) => runner.runTaskHeadless(node)),
-    
+
     vscode.commands.registerCommand('locust.init', () =>
       setup.checkAndOfferSetup({ forcePrompt: true })
     ),
@@ -159,26 +150,13 @@ export function registerCommands(
       await vscode.commands.executeCommand('locust.scenarios.focus');
     }),
 
-    /* Copilot walkthrough launcher
-    Future implementation add in package.json commands: 
-    { "command": "locust.openCopilotWalkthrough", "title": "Locust: Open Copilot Walkthrough", "icon": "$(sparkle)" },
-    */
+    // Copilot walkthrough
     vscode.commands.registerCommand('locust.openCopilotWalkthrough', () =>
       vscode.commands.executeCommand(
         'workbench.action.openWalkthrough',
         'locust.locust-vscode-extension#locust.copilotWalkthrough'
       )
     ),
-
-    // Beginner walkthrough
-    /*
-    vscode.commands.registerCommand('locust.openBeginnerWalkthrough', () =>
-      vscode.commands.executeCommand(
-        'workbench.action.openWalkthrough',
-        'locust.locust-vscode-extension#locust.beginnerWalkthrough'
-      )
-    ),
-    */
 
     // Start beginner tour
     vscode.commands.registerCommand('locust.startBeginnerTour', async () => {
@@ -195,31 +173,39 @@ export function registerCommands(
 
     vscode.commands.registerCommand('locust.convertHar', () => harRunner.convertHar()),
 
-    // Prefer active editor's Python file from menu/welcome
+    // Run using active editor if it's a Python file, otherwise prompt
     vscode.commands.registerCommand('locust.runUI', async () => {
-      const doc = vscode.window.activeTextEditor?.document;
-      const activePy =
-        doc && doc.languageId === 'python' && doc.uri.scheme === 'file'
-          ? doc.uri.fsPath
-          : undefined;
+      try {
+        const doc = vscode.window.activeTextEditor?.document;
+        const activePy =
+          doc && doc.languageId === 'python' && doc.uri.scheme === 'file'
+            ? doc.uri.fsPath
+            : undefined;
 
-      if (activePy) {
-        return runner.runFile(activePy, 'ui');
+        if (activePy) {
+          return runner.runFile(activePy, 'ui');
+        }
+        return runner.runSelected('ui');
+      } catch (e: any) {
+        vscode.window.showErrorMessage(`Locust (UI): ${e?.message ?? 'failed to start'}`);
       }
-      return runner.runSelected('ui');
     }),
 
     vscode.commands.registerCommand('locust.runHeadless', async () => {
-      const doc = vscode.window.activeTextEditor?.document;
-      const activePy =
-        doc && doc.languageId === 'python' && doc.uri.scheme === 'file'
-          ? doc.uri.fsPath
-          : undefined;
+      try {
+        const doc = vscode.window.activeTextEditor?.document;
+        const activePy =
+          doc && doc.languageId === 'python' && doc.uri.scheme === 'file'
+            ? doc.uri.fsPath
+            : undefined;
 
-      if (activePy) {
-        return runner.runFile(activePy, 'headless');
+        if (activePy) {
+          return runner.runFile(activePy, 'headless');
+        }
+        return runner.runSelected('headless');
+      } catch (e: any) {
+        vscode.window.showErrorMessage(`Locust (headless): ${e?.message ?? 'failed to start'}`);
       }
-      return runner.runSelected('headless');
     }),
 
     vscode.commands.registerCommand('locust.runByTag', () => runner.runByTag())

@@ -34,7 +34,7 @@ export class LocustCloudService {
     const env = { ...process.env };
     try {
       const venvPy = this.envSvc.getEnvInterpreterPath(this.envFolder);
-      const venvDir = path.dirname(path.dirname(venvPy)); // .../.locust_env/{bin|Scripts}/python -> .../.locust_env
+      const venvDir = path.dirname(path.dirname(venvPy)); // .../.locust_env/{bin|Scripts}/python .../.locust_env
       const binDir = path.join(venvDir, process.platform === "win32" ? "Scripts" : "bin");
       env.VIRTUAL_ENV = venvDir;
       env.PATH = `${binDir}${path.delimiter}${env.PATH ?? ""}`;
@@ -125,7 +125,8 @@ export class LocustCloudService {
     let bufErr = "";
 
     const tryExtractAndOpen = async (text: string) => {
-      const url = extractLocustUrl(text, { forceDashboardFalse: true }); // <— force for cloud
+      // force Start form
+      const url = extractLocustUrl(text, { addDashboardFalse: true });
       if (url && !opened) {
         opened = true;
         out.appendLine(`[cloud] web UI: ${url}`);

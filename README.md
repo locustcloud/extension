@@ -19,13 +19,12 @@ Please report any issues at [Github Issues](https://github.com/locustcloud/exten
 
 ## Features
 
-* **Automated setup**: Zero touch environment setup.
-* **webUI**: Integrated in VSCode.
-* **Run Test Locally**: Run Test: Default: webUI, Checkbox: Headless
-* **Run Test in Locust Cloud**: Run Test (webUI)
+* **Automated setup**: Zero touch environment setup
+* **Run Test Locally**: Run Test in Integrated webUI
+* **Run Test in Locust Cloud**: Run Test in Integrated webUI
 * **Stop Test**: Stop running test 
-* **Create**: Generate a basic locustfile.
-* **Run in Debugger**: Run single user in debugger.
-* **Beginner Guide**: Your first locustfile code walk.
+* **Create**: Generate a basic locustfile
+* **Run in Debugger**: Run single user in debugger
+* **Beginner Guide**: Your first locustfile code walk
 
 ---
