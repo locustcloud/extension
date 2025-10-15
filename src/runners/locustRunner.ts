@@ -437,7 +437,6 @@ class MyUser(FastHttpUser):
   }
 
   // Stop last run
-
   public async stopLastRun(): Promise<void> {
     // First try to stop a spawned UI process
     if (this._uiChild && !this._uiChild.killed) {

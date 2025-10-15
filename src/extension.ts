@@ -24,17 +24,18 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     // Desktop controls
     const desktopControls = `
       <div class="row actions">
-        <button id="btnRunLocal" title="locust -f locustfile.py">Run Test</button>
-        <button id="btnLocustCloud" title="Open Locust Cloud login">Run Cloud</button>
+        <button id="btnRunLocal"    title="locust -f locustfile.py">Run Test</button>
+        <button id="btnLocustCloud" title="locust -f locustfile.py --cloud">Run Cloud</button>
       </div>
       <div class="row">
         <button id="btnShutdownLocal" class="danger" title="Stop last local run">Stop Test</button>
       </div>`;
 
+
     // Cloud controls
     const cloudControls = `
       <div class="row">
-        <button id="btnRunUI"  title="locust -f locustfile.py --cloud">Run Test</button>
+        <button id="btnRunUI"       title="locust -f locustfile.py --cloud">Run Test</button>
         <button id="btnDeleteCloud" class="danger" title="Shut down current Test">Stop Test</button>
       </div>`;
 
@@ -88,12 +89,10 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 
       if (isCloud) {
         document.getElementById('btnRunUI')?.addEventListener('click', () => run('locust.openLocustCloud'));
-        document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.deleteLocustCloud'));
+        document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.stopLocustCloud'));
       } else {
         document.getElementById('btnRunLocal')?.addEventListener('click', () => run('locust.runFileUI'));
-        document.getElementById('btnLocustCloud')?.addEventListener('click', () => {
-          vscode.postMessage({ type: 'openUrl', url: 'https://auth.locust.cloud/login' });
-        });
+        document.getElementById('btnLocustCloud')?.addEventListener('click', () => run('locust.openLocustCloud'));
         document.getElementById('btnShutdownLocal')?.addEventListener('click', () => run('locust.stopLastRun'));
       }
 
@@ -117,10 +116,6 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
           }
           await vscode.commands.executeCommand(msg.command);
           return;
-        }
-        // Always open inside the split Simple Browser via the shared command
-        if (msg?.type === 'openUrl' && typeof msg.url === 'string' && msg.url) {
-          await vscode.commands.executeCommand('locust.openUrlInSplit', msg.url, 0.45);
         }
       } catch (e: any) {
         vscode.window.showErrorMessage(e?.message ?? 'Failed to execute action.');

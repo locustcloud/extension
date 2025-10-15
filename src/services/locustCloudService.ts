@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import { spawn } from "child_process";
+import { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import { LocustTreeProvider } from "../tree/locustTree";
 import { EnvService } from "./envService";
 import { extractLocustUrl } from "../core/utils/locustUrl";
@@ -9,9 +9,12 @@ import { extractLocustUrl } from "../core/utils/locustUrl";
 export class LocustCloudService {
   private readonly envSvc = new EnvService();
 
+  // Track attached cloud CLI process
+  private _cloudChild?: ChildProcessWithoutNullStreams;
+  
   constructor(private readonly ctx: vscode.ExtensionContext) {}
 
-  /** Fallback URL if the CLI never prints a UI URL. */
+  /** Fallback URL if CLI never prints UI URL. */
   private get cloudFallbackUrl(): string {
     const cfg = vscode.workspace.getConfiguration("locust");
     return cfg.get<string>("cloud.rootUrl", "https://auth.locust.cloud/load-test?dashboard=false");
@@ -34,7 +37,7 @@ export class LocustCloudService {
     const env = { ...process.env };
     try {
       const venvPy = this.envSvc.getEnvInterpreterPath(this.envFolder);
-      const venvDir = path.dirname(path.dirname(venvPy)); // .../.locust_env/{bin|Scripts}/python .../.locust_env
+      const venvDir = path.dirname(path.dirname(venvPy)); // .../.locust_env/{bin|Scripts}/python -> .../.locust_env
       const binDir = path.join(venvDir, process.platform === "win32" ? "Scripts" : "bin");
       env.VIRTUAL_ENV = venvDir;
       env.PATH = `${binDir}${path.delimiter}${env.PATH ?? ""}`;
@@ -51,7 +54,7 @@ export class LocustCloudService {
   private async pickLocustfile(): Promise<string | undefined> {
     const tree = new LocustTreeProvider();
     try {
-      const roots = await tree.getChildren(); // file nodes at root
+      const roots = await tree.getChildren();
       const files = roots.filter(n => (n as any).kind === "file") as Array<{ label: string; fileUri: vscode.Uri; filePath?: string }>;
       if (files.length === 0) return undefined;
 
@@ -108,7 +111,6 @@ export class LocustCloudService {
     const env = this.buildEnv();
     const cmd = this.locustCmd;
 
-    // Run and pass relative -f 
     const fileDir = path.dirname(locustfile);
     const relFile = path.basename(locustfile);
 
@@ -117,21 +119,28 @@ export class LocustCloudService {
     const child = spawn(cmd, ["-f", relFile, "--cloud"], {
       cwd: fileDir,
       env,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: "pipe",
     });
+    this._cloudChild = child;
 
     let opened = false;
     let bufOut = "";
     let bufErr = "";
 
+    const isWeb = vscode.env.uiKind === vscode.UIKind.Web; // decide here
+
     const tryExtractAndOpen = async (text: string) => {
-      // force Start form
       const url = extractLocustUrl(text, { addDashboardFalse: true });
       if (url && !opened) {
         opened = true;
         out.appendLine(`[cloud] web UI: ${url}`);
-        await this.openUrlSplit(url, 0.45);
-        vscode.window.setStatusBarMessage("Locust Cloud: web UI opened in split view.", 60000);
+        if (isWeb) {
+          await this.openUrlSplit(url, 0.45);
+          vscode.window.setStatusBarMessage("Locust Cloud: web UI opened in split view.", 60000);
+        } else {
+          await vscode.env.openExternal(vscode.Uri.parse(url));
+          vscode.window.setStatusBarMessage("Locust Cloud: web UI opened in your browser.", 60000);
+        }
       }
     };
 
@@ -168,7 +177,11 @@ export class LocustCloudService {
         `Failed to run "${cmd}". Ensure Locust is installed (in your venv or PATH) or set "locust.path" in settings.`
       );
     });
-    child.on("close", (code) => out.appendLine(`[cloud] exited with code ${code}`));
+
+    child.on("close", (code) => {
+      out.appendLine(`[cloud] exited with code ${code}`);
+      this._cloudChild = undefined;
+    });
 
     // Fallback: 60 sec timeout
     setTimeout(() => {
@@ -176,13 +189,45 @@ export class LocustCloudService {
         opened = true;
         const fallback = this.cloudFallbackUrl;
         out.appendLine(`[cloud] no UI URL detected — opening fallback: ${fallback}`);
-        this.openUrlSplit(fallback, 0.45).catch(() => {});
+        if (isWeb) {
+          this.openUrlSplit(fallback, 0.45).catch(() => {});
+        } else {
+          vscode.env.openExternal(vscode.Uri.parse(fallback)).then(undefined, () => {});
+        }
       }
     }, 60000);
   }
 
-  /** Run `locust --cloud --delete` using the same environment. */
+  /**
+   * Prefer stopping the attached cloud CLI process.
+   * Fallback to `locust --cloud --delete`.
+   */
   async deleteLocustCloud(): Promise<void> {
+    // Live child process, try gracefull kill first.
+    if (this._cloudChild && !this._cloudChild.killed) {
+      const child = this._cloudChild;
+      const out = vscode.window.createOutputChannel("Locust Cloud");
+      out.show(true);
+      out.appendLine(`[cloud] stopping attached cloud process (PID ${child.pid})`);
+
+      const trySignal = (sig: NodeJS.Signals) =>
+        new Promise<void>((resolve) => {
+          try { child.kill(sig); } catch { /* ignore */ }
+          setTimeout(() => resolve(), 1200);
+        });
+
+      await trySignal("SIGINT");   // Graceful
+      if (!child.killed) await trySignal("SIGTERM"); // Terminate
+      if (!child.killed) {
+        try { child.kill(); } catch { /* ignore */ } // Force
+      }
+
+      this._cloudChild = undefined;
+      vscode.window.setStatusBarMessage("Locust Cloud: stopped attached run.", 3000);
+      return;
+    }
+
+    // No child (code-server): --delete
     const ws = vscode.workspace.workspaceFolders?.[0];
     if (!ws) {
       vscode.window.showErrorMessage("Locust Cloud: open a workspace folder first.");
@@ -197,20 +242,20 @@ export class LocustCloudService {
     out.show(true);
     out.appendLine(`[cloud] deleting: ${cmd} --cloud --delete (cwd=${cwd})`);
 
-    const child = spawn(cmd, ["--cloud", "--delete"], {
+    const del = spawn(cmd, ["--cloud", "--delete"], {
       cwd,
       env,
       stdio: ["ignore", "pipe", "pipe"],
     });
 
-    child.stdout.on("data", (b) => out.append(b.toString()));
-    child.stderr.on("data", (b) => out.append(`[stderr] ${b.toString()}`));
-    child.on("error", (e: any) => {
+    del.stdout.on("data", (b) => out.append(b.toString()));
+    del.stderr.on("data", (b) => out.append(`[stderr] ${b.toString()}`));
+    del.on("error", (e: any) => {
       out.appendLine(`[error] ${e?.message ?? e}`);
       vscode.window.showErrorMessage(
         `Failed to run "${cmd}". Ensure Locust is installed (in your venv or PATH) or set "locust.path" in settings.`
       );
     });
-    child.on("close", (code) => out.appendLine(`[cloud] delete exited with code ${code}`));
+    del.on("close", (code) => out.appendLine(`[cloud] delete exited with code ${code}`));
   }
 }

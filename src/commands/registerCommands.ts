@@ -12,27 +12,37 @@ import { LocustCloudService } from '../services/locustCloudService';
 export function registerLocustCloudCommands(ctx: vscode.ExtensionContext) {
   const cloud = new LocustCloudService(ctx);
 
+  const withProgress = (title: string, fn: () => Thenable<void>) =>
+    vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title, cancellable: false },
+      fn
+    );
+
   ctx.subscriptions.push(
     vscode.commands.registerCommand("locust.openLocustCloud", async () => {
       try {
-        await cloud.openLocustCloudLanding(); // Default https://auth.locust.cloud/load-test
+        // On web/code-server: Simple Browser; on desktop: system browser
+        const preferSimple = vscode.env.uiKind === vscode.UIKind.Web;
+        await cloud.openLocustCloudLanding();
       } catch (e: any) {
         vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? "unexpected error"}`);
       }
-    })
-  );
+    }),
 
-  // Delete/stop current Locust Cloud deployment
-  ctx.subscriptions.push(
+
     vscode.commands.registerCommand("locust.deleteLocustCloud", async () => {
       try {
-        await vscode.window.withProgress(
-          { location: vscode.ProgressLocation.Notification, title: "Locust Cloud: shutting down…", cancellable: false },
-          async () => {
-            await cloud.deleteLocustCloud();
-          }
-        );
-        vscode.window.setStatusBarMessage("Locust Cloud: shutdown command sent.", 3000);
+        await withProgress("Locust Cloud: stopping…", () => cloud.deleteLocustCloud());
+        vscode.window.setStatusBarMessage("Locust Cloud: stopped.", 3000);
+      } catch (e: any) {
+        vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? "unexpected error"}`);
+      }
+    }),
+
+    vscode.commands.registerCommand("locust.stopLocustCloud", async () => {
+      try {
+        await withProgress("Locust Cloud: stopping…", () => cloud.deleteLocustCloud());
+        vscode.window.setStatusBarMessage("Locust Cloud: stopped.", 3000);
       } catch (e: any) {
         vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? "unexpected error"}`);
       }
@@ -63,7 +73,7 @@ export function registerCommands(
       const r = Math.min(0.8, Math.max(0.2, ratio));
 
       if (vscode.window.tabGroups.all.length < 2) {
-        // Create an empty group below (avoids duplicating current editor)
+        // Avoid duplicating editor)
         await vscode.commands.executeCommand('workbench.action.newGroupBelow').then(undefined, () => {});
       }
 
@@ -76,7 +86,7 @@ export function registerCommands(
         .then(() => true, () => false);
 
       if (!ok) {
-        // No external fallback — keep behavior consistent
+        // No external fallback 
         vscode.window.showErrorMessage('Could not open Simple Browser.');
         return;
       }
@@ -122,7 +132,7 @@ export function registerCommands(
       }
     ),
 
-    // Stop Locust run (stops spawned UI child first, otherwise sends Ctrl+C to "Locust" terminal)
+    // Stop Locust run
     vscode.commands.registerCommand('locust.stopLastRun', async () => {
       try {
         await runner.stopLastRun();
@@ -131,7 +141,7 @@ export function registerCommands(
       }
     }),
 
-    // Future inline task actions (currently both route to runner helpers)
+    // Future inline task actions
     vscode.commands.registerCommand('locust.runTaskUI', (node) => runner.runTaskUI(node)),
     vscode.commands.registerCommand('locust.runTaskHeadless', (node) => runner.runTaskHeadless(node)),
 
