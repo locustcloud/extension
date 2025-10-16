@@ -41,24 +41,20 @@ export class Har2LocustRunner {
     const harPath = picked[0].fsPath;
     const harBase = path.basename(harPath, '.har');
 
-    // Ensure templates dir
-    const outDir = uriJoinPath(ws.uri, 'templates');
-    try {
-      await vscode.workspace.fs.stat(outDir);
-    } catch {
-      await vscode.workspace.fs.createDirectory(outDir);
-    }
-
-    // Default output file
+    // Suggest a default filename and let the user choose any folder/file
     const defaultOut = `${harBase}_locustfile.py`;
-    const outName = await vscode.window.showInputBox({
-      prompt: 'Enter output locustfile name',
-      value: defaultOut,
-      validateInput: (v) => v.trim() ? undefined : 'File name is required'
+    const suggestedUri = uriJoinPath(ws.uri, defaultOut);
+    const chosen = await vscode.window.showSaveDialog({
+      defaultUri: suggestedUri,
+      saveLabel: 'Save locustfile',
+      filters: { Python: ['py'] }
     });
-    if (!outName) return;
+    if (!chosen) return;
 
-    const outUri = uriJoinPath(ws.uri, 'templates', outName);
+    // Ensure .py extension if omitted
+    const outUri = chosen.fsPath.toLowerCase().endsWith('.py')
+      ? chosen
+      : vscode.Uri.file(chosen.fsPath + '.py');
 
     // Optional flags
     const applyOptions = await vscode.window.showQuickPick(

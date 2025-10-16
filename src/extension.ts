@@ -35,10 +35,12 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
       <div class="row actions">
         <button id="btnRunLocal"    title="locust -f locustfile.py">Run Test</button>
         <button id="btnLocustCloud" title="locust -f locustfile.py --cloud">Run Cloud</button>
+        <button id="btnConvertHar"  title="Convert a HAR file to a Locust test">Convert HAR</button>
       </div>
       <div class="row">
         <button id="btnShutdownLocal" class="danger" title="Stop last local run">Stop Test</button>
       </div>`;
+
 
     // Cloud controls
     const cloudControls = `
@@ -101,8 +103,9 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
       } else {
         const btnCloud = document.getElementById('btnLocustCloud');
         const btnStop  = document.getElementById('btnShutdownLocal');
+        document.getElementById('btnConvertHar')?.addEventListener('click', () => run('locust.convertHar'));
 
-        // --- Dynamic label setup (reads persisted flag injected into HTML) ---
+        // Dynamic label setup based on persisted state
         const startedFlag = document.body.getAttribute('data-cloud-started') === '1';
         const setCloudBtnLabel = (running) => {
           if (!btnCloud) return;
