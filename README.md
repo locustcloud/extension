@@ -21,9 +21,10 @@ Please report any issues at [Github Issues](https://github.com/locustcloud/exten
 
 * **Automated setup**: Zero touch environment setup
 * **Run Test Locally**: Run Test in Integrated webUI
-* **Run Test in Locust Cloud**: Run Test in Integrated webUI
+* **Run Locust Cloud Test**: Run Locust Cloud Test in new browser window
 * **Stop Test**: Stop running test 
 * **Create**: Generate a basic locustfile
+* **Convert HAR**: Convert HAR file to locustfile
 * **Run in Debugger**: Run single user in debugger
 * **Beginner Guide**: Your first locustfile code walk
 
