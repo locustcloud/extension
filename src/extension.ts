@@ -75,7 +75,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     label { cursor: pointer; user-select: none; }
   </style>
 </head>
-<body data-cloud="${this.isCloud ? '1' : '0'}">
+<body data-cloud="${this.isCloud ? '1' : '0'}" data-cloud-started="${getCloudStarted(this.ctx) ? '1' : '0'}">
   <h1>Locust ${this.isCloud ? 'Cloud' : 'Local'}</h1>
   <p>${this.isCloud ? 'Manage runs in Locust Cloud.' : 'Run Locust locally or open Locust Cloud.'}</p>
 
@@ -99,11 +99,32 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
         document.getElementById('btnRunUI')?.addEventListener('click', () => run('locust.openLocustCloud'));
         document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.stopLocustCloud'));
       } else {
+        const btnCloud = document.getElementById('btnLocustCloud');
+        const btnStop  = document.getElementById('btnShutdownLocal');
+
+        // --- Dynamic label setup (reads persisted flag injected into HTML) ---
+        const startedFlag = document.body.getAttribute('data-cloud-started') === '1';
+        const setCloudBtnLabel = (running) => {
+          if (!btnCloud) return;
+          btnCloud.textContent = running ? 'Stop Cloud' : 'Run Cloud';
+        };
+        setCloudBtnLabel(startedFlag);
+
+        // Start/Stop Cloud toggle (keeps existing command logic)
+        btnCloud?.addEventListener('click', async () => {
+          run('locust.toggleCloudSimple');
+          // optimistically flip the label; logic remains in commands
+          setCloudBtnLabel(btnCloud.textContent?.trim() !== 'Stop Cloud');
+        });
+
+        // Stop Test also clears cloud label (since it stops both)
+        btnStop?.addEventListener('click', () => {
+          run('locust.stopLocalThenCloudIfAny');
+          setCloudBtnLabel(false);
+        });
+
+        // Local run button unchanged
         document.getElementById('btnRunLocal')?.addEventListener('click', () => run('locust.runFileUI'));
-        // minimal change: make Run Cloud a toggle start/stop using our simple flag
-        document.getElementById('btnLocustCloud')?.addEventListener('click', () => run('locust.toggleCloudSimple'));
-        // minimal change: Stop Test also stops cloud if we started it from the button
-        document.getElementById('btnShutdownLocal')?.addEventListener('click', () => run('locust.stopLocalThenCloudIfAny'));
       }
 
       document.getElementById('linkGuide')?.addEventListener('click', (e) => {
@@ -179,8 +200,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
   // Centralized command registration (includes locust.openUrlInSplit)
   registerCommands(ctx, { setup, runner: locustRunner, harRunner, tree });
 
-  
-  // Minimal helper commands for the cloud toggle behavior  
+  // Minimal helper commands for the cloud toggle behavior
   ctx.subscriptions.push(
     vscode.commands.registerCommand('locust.toggleCloudSimple', async () => {
       try {
@@ -190,7 +210,6 @@ export async function activate(ctx: vscode.ExtensionContext) {
           await setCloudStarted(ctx, true);
           vscode.window.setStatusBarMessage('Locust Cloud: starting…', 3000);
         } else {
-          // Prefer delete; ignore if not available
           await vscode.commands.executeCommand('locust.deleteLocustCloud').then(undefined, () => {});
           await setCloudStarted(ctx, false);
           vscode.window.setStatusBarMessage('Locust Cloud: stopped.', 3000);
