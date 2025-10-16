@@ -8,8 +8,8 @@ function uriJoinPath(base: vscode.Uri, ...paths: string[]): vscode.Uri {
   return vscode.Uri.file(path.join(base.fsPath, ...paths));
 }
 
-/**
- * HAR → Locustfile runner (thin controller)
+/*
+ * HAR -> Locustfile runner (thin controller)
  * Handles user interaction, delegates execution to Har2LocustService.
  */
 export class Har2LocustRunner {
@@ -18,7 +18,7 @@ export class Har2LocustRunner {
     private service: Har2LocustService
   ) {}
 
-  /** Interactive flow to pick a HAR and convert it into a locustfile. */
+  /* Interactive flow to pick a HAR and convert it into a locustfile. */
   async convertHar(): Promise<void> {
     if (!vscode.workspace.isTrusted) {
       vscode.window.showWarningMessage('Trust this workspace to run commands.');

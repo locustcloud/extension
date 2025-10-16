@@ -11,7 +11,16 @@ import { LocustTreeProvider } from './tree/locustTree';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-// Persistent Welcome panel with quick actions.
+// Minimal cloud toggle state (persisted; does NOT touch code-server logic)
+const CLOUD_FLAG_KEY = 'locust.cloudWasStarted';
+function getCloudStarted(ctx: vscode.ExtensionContext): boolean {
+  return !!ctx.globalState.get<boolean>(CLOUD_FLAG_KEY, false);
+}
+async function setCloudStarted(ctx: vscode.ExtensionContext, v: boolean) {
+  await ctx.globalState.update(CLOUD_FLAG_KEY, v);
+}
+
+// Persistent Welcome panel: quick actions.
 class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   constructor(private ctx: vscode.ExtensionContext, private readonly isCloud: boolean) {}
 
@@ -30,7 +39,6 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
       <div class="row">
         <button id="btnShutdownLocal" class="danger" title="Stop last local run">Stop Test</button>
       </div>`;
-
 
     // Cloud controls
     const cloudControls = `
@@ -92,8 +100,10 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
         document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.stopLocustCloud'));
       } else {
         document.getElementById('btnRunLocal')?.addEventListener('click', () => run('locust.runFileUI'));
-        document.getElementById('btnLocustCloud')?.addEventListener('click', () => run('locust.openLocustCloud'));
-        document.getElementById('btnShutdownLocal')?.addEventListener('click', () => run('locust.stopLastRun'));
+        // minimal change: make Run Cloud a toggle start/stop using our simple flag
+        document.getElementById('btnLocustCloud')?.addEventListener('click', () => run('locust.toggleCloudSimple'));
+        // minimal change: Stop Test also stops cloud if we started it from the button
+        document.getElementById('btnShutdownLocal')?.addEventListener('click', () => run('locust.stopLocalThenCloudIfAny'));
       }
 
       document.getElementById('linkGuide')?.addEventListener('click', (e) => {
@@ -136,7 +146,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const setup = new SetupService(env, mcp, ctx);
 
   // Runners / Services
-  const locustRunner = new LocustRunner(); // headless UI removed from surface; runner still supports UI
+  const locustRunner = new LocustRunner(); // headless interface removed; runner still supports UI
   const harService = new Har2LocustService(env);
   const harRunner = new Har2LocustRunner(env, harService);
 
@@ -168,6 +178,41 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
   // Centralized command registration (includes locust.openUrlInSplit)
   registerCommands(ctx, { setup, runner: locustRunner, harRunner, tree });
+
+  
+  // Minimal helper commands for the cloud toggle behavior  
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand('locust.toggleCloudSimple', async () => {
+      try {
+        const started = getCloudStarted(ctx);
+        if (!started) {
+          await vscode.commands.executeCommand('locust.openLocustCloud');
+          await setCloudStarted(ctx, true);
+          vscode.window.setStatusBarMessage('Locust Cloud: starting…', 3000);
+        } else {
+          // Prefer delete; ignore if not available
+          await vscode.commands.executeCommand('locust.deleteLocustCloud').then(undefined, () => {});
+          await setCloudStarted(ctx, false);
+          vscode.window.setStatusBarMessage('Locust Cloud: stopped.', 3000);
+        }
+      } catch (e: any) {
+        vscode.window.showErrorMessage(e?.message ?? 'Failed to toggle Locust Cloud.');
+      }
+    }),
+
+    vscode.commands.registerCommand('locust.stopLocalThenCloudIfAny', async () => {
+      try {
+        await vscode.commands.executeCommand('locust.stopLastRun').then(undefined, () => {});
+        if (getCloudStarted(ctx)) {
+          await vscode.commands.executeCommand('locust.deleteLocustCloud').then(undefined, () => {});
+          await setCloudStarted(ctx, false);
+        }
+        vscode.window.setStatusBarMessage('Locust: stopped local (and cloud if active).', 3000);
+      } catch (e: any) {
+        vscode.window.showErrorMessage(e?.message ?? 'Failed to stop runs.');
+      }
+    }),
+  );
 
   // Auto-setup
   setup.autoSetupSilently();
