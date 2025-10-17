@@ -19,7 +19,7 @@ Please report any issues at [Github Issues](https://github.com/locustcloud/exten
 
 ## Features
 
-* **Automated setup**: Zero touch environment setup
+* **Automated setup**: Zero touch installation and environment setup
 * **Run Test Locally**: Run Test in Integrated webUI
 * **Run Locust Cloud Test**: Run Locust Cloud Test in new browser window
 * **Stop Test**: Stop running test 
