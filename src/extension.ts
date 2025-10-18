@@ -11,13 +11,21 @@ import { LocustTreeProvider } from './tree/locustTree';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-// Minimal cloud toggle state (persisted; does NOT touch code-server logic)
+// Cloud toggle
 const CLOUD_FLAG_KEY = 'locust.cloudWasStarted';
 function getCloudStarted(ctx: vscode.ExtensionContext): boolean {
   return !!ctx.globalState.get<boolean>(CLOUD_FLAG_KEY, false);
 }
 async function setCloudStarted(ctx: vscode.ExtensionContext, v: boolean) {
   await ctx.globalState.update(CLOUD_FLAG_KEY, v);
+}
+
+// Local toggle 
+function getLocalStarted(ctx: vscode.ExtensionContext): boolean {
+  return !!ctx.workspaceState.get<boolean>('locust.localStarted', false);
+}
+async function setLocalStarted(ctx: vscode.ExtensionContext, v: boolean) {
+  await ctx.workspaceState.update('locust.localStarted', v);
 }
 
 // Persistent Welcome panel: quick actions.
@@ -33,23 +41,22 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     // Desktop controls
     const desktopControls = `
       <div class="row actions">
-        <button id="btnRunLocal"    title="locust -f locustfile.py">Run Test</button>
+        <button id="btnRunLocal" title="locust -f locustfile.py">Run Test</button>
         <button id="btnLocustCloud" title="locust -f locustfile.py --cloud">Run Cloud</button>
-        <button id="btnConvertHar"  title="Convert a HAR file to a Locust test">Convert HAR</button>
-      </div>
-      <div class="row">
-        <button id="btnShutdownLocal" class="danger" title="Stop last local run">Stop Test</button>
+        <button id="btnConvertHar" title="Convert a HAR file to a Locust test">HAR to Locust</button>
       </div>`;
-
 
     // Cloud controls
     const cloudControls = `
       <div class="row">
-        <button id="btnRunUI"       title="locust -f locustfile.py --cloud">Run Test</button>
+        <button id="btnRunUI" title="locust -f locustfile.py --cloud">Run Test</button>
         <button id="btnDeleteCloud" class="danger" title="Shut down current Test">Stop Test</button>
       </div>`;
 
     const supportBlock = this.isCloud ? '' : `<a href="mailto:support@locust.cloud">support@locust.cloud</a><br>`;
+
+    const cloudStartedFlag = getCloudStarted(this.ctx) ? '1' : '0';
+    const localStartedFlag = !this.isCloud && getLocalStarted(this.ctx) ? '1' : '0';
 
     webview.html = `
 <!doctype html>
@@ -62,22 +69,126 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Locust Menu</title>
   <style>
-    body { font-family: var(--vscode-font-family); padding: 12px; }
-    h1 { margin: 0 0 8px; font-size: 16px; }
-    p { margin: 6px 0 12px; color: var(--vscode-descriptionForeground); }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; }
-    .row.stack { flex-direction: column; gap: 10px; }
-    .row.actions { gap: 8px; }
-    button {
-      padding: 6px 10px; border: 1px solid var(--vscode-button-border, transparent);
-      border-radius: 6px; background: var(--vscode-button-background);
-      color: var(--vscode-button-foreground); cursor: pointer;
+    /* Locust theme */
+    :root{
+      --bg:            #111315;   /* page */
+      --panel:         #1a1d1f;   /* card/panel */
+      --panel-border:  #2a2f34;
+      --text:          #e6e6e6;   /* main text */
+      --muted:         #9aa0a6;   /* secondary text */
+      --accent:        #28a745;   /* Locust green */
+      --accent-hover:  #23913d;
     }
-    button.danger { background: var(--vscode-inputValidation-errorBackground); color: var(--vscode-editor-foreground); }
-    label { cursor: pointer; user-select: none; }
+
+    body{
+      font-family: var(--vscode-font-family);
+      background: var(--bg);
+      color: var(--text);
+      padding: 0;           
+    }
+
+    /* View like Locust "card" */
+    body{
+      margin: 0;
+      padding: 14px 16px;
+      background:
+        linear-gradient(0deg, rgba(0,0,0,.0), rgba(0,0,0,.0)),
+        var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.35);
+    }
+
+    h1{
+      margin: 0 0 8px;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: .2px;
+    }
+    h2{
+      margin: 16px 0 6px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    p{
+      margin: 6px 0 12px;
+      color: var(--muted);
+    }
+
+    .row{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 12px; }
+    .row.stack{ flex-direction:column; gap:10px; }
+    .row.actions{ gap:8px; }
+
+    /* Buttons Locust green */
+    button{
+      padding: 8px 14px;
+      border: 1px solid #1f7a36;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #ffffff;
+      cursor: pointer;
+      font-weight: 600;
+      letter-spacing: .1px;
+      transition: background 120ms ease, box-shadow 120ms ease, transform 60ms ease;
+    }
+    button:hover,
+    button:focus-visible{
+      background: var(--accent-hover);
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(40,167,69,.25);
+    }
+    button:active{ transform: translateY(1px); }
+
+    /* Danger button (for cloud stop) uses VS Code error palette */
+    button.danger{
+      background: var(--vscode-inputValidation-errorBackground);
+      color: var(--vscode-editor-foreground);
+      border-color: transparent;
+      font-weight: 600;
+    }
+    button.danger:hover,
+    button.danger:focus-visible{
+      filter: brightness(1.05);
+      box-shadow: none;
+    }
+
+    label{ cursor: pointer; user-select: none; color: var(--text); }
+
+    /* HAR to Locust below run buttons */
+    .row.actions::before{
+      content:'';
+      flex-basis:100%;
+      order:1;
+    }
+    #btnConvertHar{
+      order:2;
+      flex: 0 0 auto;
+      width: max-content;
+      align-self: flex-start;
+      margin-top: 4px;
+    }
+
+    /* Links Locust green */
+    a{
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    a:hover,
+    a:focus-visible{
+      color: var(--accent-hover);
+      text-decoration: underline;
+      outline: none;
+    }
   </style>
 </head>
-<body data-cloud="${this.isCloud ? '1' : '0'}" data-cloud-started="${getCloudStarted(this.ctx) ? '1' : '0'}">
+<body
+  data-cloud="${this.isCloud ? '1' : '0'}"
+  data-cloud-started="${cloudStartedFlag}"
+  data-local-started="${localStartedFlag}">
   <h1>Locust ${this.isCloud ? 'Cloud' : 'Local'}</h1>
   <p>${this.isCloud ? 'Manage runs in Locust Cloud.' : 'Run Locust locally or open Locust Cloud.'}</p>
 
@@ -95,44 +206,61 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     (function () {
       const vscode = acquireVsCodeApi();
       const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
+
       const isCloud = document.body.getAttribute('data-cloud') === '1';
 
       if (isCloud) {
+        // Cloud buttons: Run / Stop separate
         document.getElementById('btnRunUI')?.addEventListener('click', () => run('locust.openLocustCloud'));
         document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.stopLocustCloud'));
       } else {
+        // Desktop: Cloud and Local toggles
         const btnCloud = document.getElementById('btnLocustCloud');
-        const btnStop  = document.getElementById('btnShutdownLocal');
+        const btnLocal = document.getElementById('btnRunLocal');
         document.getElementById('btnConvertHar')?.addEventListener('click', () => run('locust.convertHar'));
 
-        // Dynamic label setup based on persisted state
-        const startedFlag = document.body.getAttribute('data-cloud-started') === '1';
-        const setCloudBtnLabel = (running) => {
-          if (!btnCloud) return;
-          btnCloud.textContent = running ? 'Stop Cloud' : 'Run Cloud';
-        };
-        setCloudBtnLabel(startedFlag);
+        // Cloud toggle
+        const cloudStarted = document.body.getAttribute('data-cloud-started') === '1';
+        const setCloudBtnLabel = (running) => { if (btnCloud) btnCloud.textContent = running ? 'Stop Cloud' : 'Run Cloud'; };
+        setCloudBtnLabel(cloudStarted);
 
-        // Start/Stop Cloud toggle (keeps existing command logic)
-        btnCloud?.addEventListener('click', async () => {
+        btnCloud?.addEventListener('click', () => {
           run('locust.toggleCloudSimple');
-          // optimistically flip the label; logic remains in commands
-          setCloudBtnLabel(btnCloud.textContent?.trim() !== 'Stop Cloud');
+          const willRun = (btnCloud.textContent?.trim() !== 'Stop Cloud');
+          setCloudBtnLabel(willRun);
         });
 
-        // Stop Test also clears cloud label (since it stops both)
-        btnStop?.addEventListener('click', () => {
-          run('locust.stopLocalThenCloudIfAny');
-          setCloudBtnLabel(false);
-        });
+        // Local toggle
+        const localStarted = document.body.getAttribute('data-local-started') === '1';
+        const setLocalBtnLabel = (running) => { if (btnLocal) btnLocal.textContent = running ? 'Stop Test' : 'Run Test'; };
+        setLocalBtnLabel(localStarted);
 
-        // Local run button unchanged
-        document.getElementById('btnRunLocal')?.addEventListener('click', () => run('locust.runFileUI'));
+        btnLocal?.addEventListener('click', () => {
+          run('locust.toggleLocalSimple');
+          const willRun = (btnLocal.textContent?.trim() !== 'Stop Test');
+          setLocalBtnLabel(willRun);
+        });
       }
 
+      // Beginner guide
       document.getElementById('linkGuide')?.addEventListener('click', (e) => {
         e.preventDefault();
         run('locust.startBeginnerTour');
+      });
+
+      // Extension state sync
+      window.addEventListener('message', (ev) => {
+        const msg = ev.data || {};
+        if (msg.type === 'state') {
+          const btnCloud = document.getElementById('btnLocustCloud');
+          const btnLocal = document.getElementById('btnRunLocal');
+          if (typeof msg.cloudStarted === 'boolean' && btnCloud) {
+            btnCloud.textContent = msg.cloudStarted ? 'Stop Cloud' : 'Run Cloud';
+          }
+          if (typeof msg.localStarted === 'boolean' && btnLocal) {
+            btnLocal.textContent = msg.localStarted ? 'Stop Test' : 'Run Test';
+          }
+        }
       });
     })();
   </script>
@@ -170,7 +298,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const setup = new SetupService(env, mcp, ctx);
 
   // Runners / Services
-  const locustRunner = new LocustRunner(); // headless interface removed; runner still supports UI
+  const locustRunner = new LocustRunner(); // headless interface removed
   const harService = new Har2LocustService(env);
   const harRunner = new Har2LocustRunner(env, harService);
 
@@ -200,10 +328,10 @@ export async function activate(ctx: vscode.ExtensionContext) {
     })
   );
 
-  // Centralized command registration (includes locust.openUrlInSplit)
+  // Centralized command registration
   registerCommands(ctx, { setup, runner: locustRunner, harRunner, tree });
 
-  // Minimal helper commands for the cloud toggle behavior
+  // Cloud toggle behavior
   ctx.subscriptions.push(
     vscode.commands.registerCommand('locust.toggleCloudSimple', async () => {
       try {
@@ -222,9 +350,28 @@ export async function activate(ctx: vscode.ExtensionContext) {
       }
     }),
 
+    // Local toggle behavior
+    vscode.commands.registerCommand('locust.toggleLocalSimple', async () => {
+      try {
+        const started = getLocalStarted(ctx);
+        if (!started) {
+          await vscode.commands.executeCommand('locust.runFileUI');
+          await setLocalStarted(ctx, true);
+          vscode.window.setStatusBarMessage('Locust: local test starting…', 3000);
+        } else {
+          await vscode.commands.executeCommand('locust.stopLastRun').then(undefined, () => {});
+          await setLocalStarted(ctx, false);
+          vscode.window.setStatusBarMessage('Locust: local test stopped.', 3000);
+        }
+      } catch (e: any) {
+        vscode.window.showErrorMessage(e?.message ?? 'Failed to toggle local run.');
+      }
+    }),
+
     vscode.commands.registerCommand('locust.stopLocalThenCloudIfAny', async () => {
       try {
         await vscode.commands.executeCommand('locust.stopLastRun').then(undefined, () => {});
+        await setLocalStarted(ctx, false);
         if (getCloudStarted(ctx)) {
           await vscode.commands.executeCommand('locust.deleteLocustCloud').then(undefined, () => {});
           await setCloudStarted(ctx, false);
@@ -236,16 +383,23 @@ export async function activate(ctx: vscode.ExtensionContext) {
     }),
   );
 
-  // Auto-setup
-  setup.autoSetupSilently();
+  if (!isCloud) {
+    await setup.checkAndOfferSetup(); //  Prompt/always/never + trust
+    // Re-run after trust is granted (desktop)
+    ctx.subscriptions.push(
+      vscode.workspace.onDidGrantWorkspaceTrust(() => {
+        setup.checkAndOfferSetup().catch(() => {});
+      })
+    );
+
+    // Re-run setup on workspace changes (DESKTOP ONLY)
+    ctx.subscriptions.push(
+      vscode.workspace.onDidChangeWorkspaceFolders(() => setup.checkAndOfferSetup())
+    );
+  }
 
   // Scaffold if needed
   await ensureLocustfileOrScaffold();
-
-  // Re-run setup on dir changes
-  ctx.subscriptions.push(
-    vscode.workspace.onDidChangeWorkspaceFolders(() => setup.autoSetupSilently())
-  );
 }
 
 export function deactivate() { /* noop */ }

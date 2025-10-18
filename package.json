@@ -138,10 +138,10 @@
           "default": "",
           "description": "Default host to target in generated locustfile.py."
         },
-        "locust.autoSetup": {
+       "locust.autoSetup": {
           "type": "string",
           "enum": ["prompt", "always", "never"],
-          "default": "always",
+          "default": "prompt",
           "description": "When the extension activates: prompt to set up the Locust environment, always set it up automatically, or never run setup."
         },
         "locust.offerCopilotOnInit": {

@@ -230,6 +230,20 @@ async function readJson(uriOrPath: vscode.Uri | string): Promise<any | undefined
   }
 }
 
+async function venvPythonPath(wsPath: string, envFolder: string): Promise<string> {
+  const isWin = process.platform === 'win32';
+  return path.join(wsPath, envFolder, isWin ? 'Scripts' : 'bin', 'python');
+}
+
+async function needsSetup(wsPath: string, absPy: string): Promise<boolean> {
+  const venvExists = await fileExists(absPy);
+  if (!venvExists) return true;
+  const hasLocust = await canImport(absPy, 'locust', wsPath);
+  const hasH2L = await canImport(absPy, 'har2locust', wsPath);
+  const hasMCP = await canImport(absPy, 'mcp', wsPath);
+  return !(hasLocust && hasH2L && hasMCP);
+}
+
 export class SetupService {
   constructor(
     private env: EnvService,
@@ -244,7 +258,7 @@ export class SetupService {
     return preferred && preferred.trim().length > 0 ? preferred : 'python';
   }
 
-  // AUTO setup.
+  // AUTO setup (no prompt). Only call this when user explicitly consented OR setting is "always".
   async autoSetupSilently() {
     try {
       if (!vscode.workspace.isTrusted) return;
@@ -253,9 +267,8 @@ export class SetupService {
 
       const already = this.ctx.workspaceState.get<boolean>(WS_SETUP_KEY, false);
 
-      const envFolder = '.locust_env';
-      const isWin = process.platform === 'win32';
-      const absPy = path.join(wsPath, envFolder, isWin ? 'Scripts' : 'bin', 'python');
+      const envFolder = (await readWorkspaceSetting<string>('locust', 'envFolder')) ?? '.locust_env';
+      const absPy = await venvPythonPath(wsPath, envFolder);
       const venvExists = await fileExists(absPy);
 
       // Create venv if needed
@@ -302,8 +315,6 @@ export class SetupService {
       const createdSettings = await ensureWorkspaceSettingsIfMissing(wsPath);
       await configureRuffIfNew(this.ctx, createdSettings);
 
-      // removed: await ensureWorkspaceTour(this.ctx, wsPath);
-
       // Ensure active file debug config
       await ensurePythonActiveFileLaunch(wsPath, absPy);
 
@@ -322,8 +333,68 @@ export class SetupService {
     }
   }
 
+  /**
+   * Entry point called on activation. Behavior:
+   * - If untrusted workspace: do nothing (no prompt, no setup).
+   * - If locust.autoSetup === "never": do nothing.
+   * - If "always": run setup automatically (implicit consent by user setting).
+   * - If "prompt": show a modal asking for consent BEFORE creating venv / installing packages.
+   *   - "Set up" -> run setup
+   *   - "Not now" -> skip once
+   *   - "Don’t ask again" -> set locust.autoSetup=never (workspace)
+   */
   async checkAndOfferSetup(_opts: { forcePrompt?: boolean } = {}) {
-    return this.autoSetupSilently();
+    if (!vscode.workspace.isTrusted) {
+      // Stay silent in untrusted workspaces (VS Code policy).
+      return;
+    }
+
+    const wsPath = wsRoot();
+    if (!wsPath) return;
+
+    const mode = (await readWorkspaceSetting<string>('locust', 'autoSetup')) ?? 'prompt';
+    const envFolder = (await readWorkspaceSetting<string>('locust', 'envFolder')) ?? '.locust_env';
+    const absPy = await venvPythonPath(wsPath, envFolder);
+
+    // If everything is already set up, mark and exit quietly.
+    const alreadyDone = this.ctx.workspaceState.get<boolean>(WS_SETUP_KEY, false);
+    if (alreadyDone === true && !(await needsSetup(wsPath, absPy))) {
+      return;
+    }
+
+    if (mode === 'never') {
+      return;
+    }
+
+    if (mode === 'always') {
+      // User opted in globally; proceed silently.
+      return this.autoSetupSilently();
+    }
+
+    // mode === 'prompt' (default & Marketplace-safe)
+    const needs = await needsSetup(wsPath, absPy);
+    if (!needs) {
+      await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
+      return;
+    }
+
+    const choice = await vscode.window.showInformationMessage(
+      'Locust needs a local Python environment and dependencies (locust, har2locust, mcp, pytest). Do you want to set this up now?',
+      { modal: true, detail: `Actions to be performed:\n• Create a virtual environment in "${envFolder}"\n• Update pip\n• Install required Python packages\n• Add minimal VS Code workspace settings & debug configs (if missing)` },
+      'Set up',
+      'Not now',
+      'Don’t ask again'
+    );
+
+    if (choice === 'Set up') {
+      return this.autoSetupSilently();
+    }
+    if (choice === 'Don’t ask again') {
+      await vscode.workspace.getConfiguration('locust').update('autoSetup', 'never', vscode.ConfigurationTarget.Workspace);
+      vscode.window.showInformationMessage('Okay, I won’t prompt for Locust setup again in this workspace.');
+      return;
+    }
+    // 'Not now' -> do nothing.
   }
 
   private async finalizeWorkspace(wsPath: string, python: string) {
