@@ -7,7 +7,7 @@ import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
 
 /**
  * Locust run functions.
- * - UI: spawn locust, parse the UI URL from stdout, open Simple Browser split (like Cloud)
+ * - UI: spawn locust, parse the UI URL from stdout, open Simple Browser split
  * - Headless: run in a dedicated "Locust" terminal
  */
 
