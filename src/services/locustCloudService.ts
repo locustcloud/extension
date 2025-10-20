@@ -162,7 +162,6 @@ export class LocustCloudService {
    * Run Locust in the cloud and mirror output to the "Locust Cloud" output channel:
    * - Launch via venv-stable runner (python -m locust or absolute binary)
    * - Parse and open the printed web UI URL (split on web / default browser on desktop)
-   * - Keep stdout/stderr flowing so the CEO sees the same summary as local runs
    */
   async openLocustCloudLanding(): Promise<void> {
     const ws = this.getWorkspaceRoot();
@@ -319,7 +318,7 @@ export class LocustCloudService {
       return;
     }
 
-    // No child: run "--cloud --delete" via resolver
+    // No child: run "--cloud --delete" 
     const ws = this.getWorkspaceRoot();
     if (!ws) {
       vscode.window.showErrorMessage("Locust Cloud: open a workspace folder first.");

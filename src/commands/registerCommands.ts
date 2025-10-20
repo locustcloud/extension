@@ -73,7 +73,7 @@ export function registerCommands(
       const r = Math.min(0.8, Math.max(0.2, ratio));
 
       if (vscode.window.tabGroups.all.length < 2) {
-        // Avoid duplicating editor)
+        // Avoid duplicating editor
         await vscode.commands.executeCommand('workbench.action.newGroupBelow').then(undefined, () => {});
       }
 

@@ -371,7 +371,7 @@ export class SetupService {
       return this.autoSetupSilently();
     }
 
-    // mode === 'prompt' (default & Marketplace-safe)
+    // mode === 'prompt' 
     const needs = await needsSetup(wsPath, absPy);
     if (!needs) {
       await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
@@ -394,7 +394,6 @@ export class SetupService {
       vscode.window.showInformationMessage('Okay, I won’t prompt for Locust setup again in this workspace.');
       return;
     }
-    // 'Not now' -> do nothing.
   }
 
   private async finalizeWorkspace(wsPath: string, python: string) {
