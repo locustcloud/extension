@@ -154,11 +154,6 @@
           "default": true,
           "description": "On first run, quietly offer Copilot install (non-blocking)."
         },
-        "locust.local.url": {
-          "type": "string",
-          "default": "http://localhost:8089",
-          "description": "Default test URL."
-        },
         "locust.cloud.rootUrl": {
           "type": "string",
           "default": "https://auth.locust.cloud/load-test?dashboard=false",

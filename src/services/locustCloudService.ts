@@ -292,7 +292,7 @@ export class LocustCloudService {
    * Fallback to `locust --cloud --delete`
    */
   async deleteLocustCloud(): Promise<void> {
-    // Live child process, try graceful kill first.
+    // Try graceful kill first.
     if (this._cloudChild && !this._cloudChild.killed) {
       const child = this._cloudChild;
       const out = this.out();
