@@ -41,16 +41,27 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     // Desktop controls
     const desktopControls = `
       <div class="row actions">
-        <button id="btnRunLocal" title="locust -f locustfile.py">Run Test</button>
-        <button id="btnLocustCloud" title="locust -f locustfile.py --cloud">Run Cloud</button>
-        <button id="btnConvertHar" title="Convert a HAR file to a Locust test">HAR to Locust</button>
+        <button id="btnRunLocal"    title="locust -f locustfile.py">Local Test</button>
+        <button id="btnLocustCloud" title="locust -f locustfile.py --cloud">Cloud Test</button>
+      </div>
+      <div class="row">
+        <button id="btnConvertHar"  title="Convert a HAR file to a Locust test">HAR to Locust</button>
+      </div>
+      <div class="row">
+        <button id="btnStopAll" class="danger" title="Stop active Test">Stop Test</button>
       </div>`;
 
     // Cloud controls
     const cloudControls = `
+      <div class="row actions">
+        <button id="btnRunLocal"    title="Local run is desktop-only" disabled>Local Test</button>
+        <button id="btnRunUI"       title="locust -f locustfile.py --cloud">Cloud Test</button>
+      </div>
       <div class="row">
-        <button id="btnRunUI" title="locust -f locustfile.py --cloud">Run Test</button>
-        <button id="btnDeleteCloud" class="danger" title="Shut down current Test">Stop Test</button>
+        <button id="btnConvertHar"  title="Convert a HAR file to a Locust test">HAR to Locust</button>
+      </div>
+      <div class="row">
+        <button id="btnStopAll" class="danger" title="Stop active Test">Stop Test</button>
       </div>`;
 
     const supportBlock = this.isCloud ? '' : `<a href="mailto:support@locust.cloud">support@locust.cloud</a><br>`;
@@ -87,7 +98,6 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
       padding: 0;           
     }
 
-    /* View like Locust "card" */
     body{
       margin: 0;
       padding: 14px 16px;
@@ -122,7 +132,6 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     .row.stack{ flex-direction:column; gap:10px; }
     .row.actions{ gap:8px; }
 
-    /* Buttons Locust green */
     button{
       padding: 8px 14px;
       border: 1px solid #1f7a36;
@@ -141,8 +150,12 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
       box-shadow: 0 0 0 2px rgba(40,167,69,.25);
     }
     button:active{ transform: translateY(1px); }
+    button[disabled]{
+      opacity: .7;
+      cursor: default;
+      filter: grayscale(.1);
+    }
 
-    /* Danger button (for cloud stop) uses VS Code error palette */
     button.danger{
       background: var(--vscode-inputValidation-errorBackground);
       color: var(--vscode-editor-foreground);
@@ -155,23 +168,6 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
       box-shadow: none;
     }
 
-    label{ cursor: pointer; user-select: none; color: var(--text); }
-
-    /* HAR to Locust below run buttons */
-    .row.actions::before{
-      content:'';
-      flex-basis:100%;
-      order:1;
-    }
-    #btnConvertHar{
-      order:2;
-      flex: 0 0 auto;
-      width: max-content;
-      align-self: flex-start;
-      margin-top: 4px;
-    }
-
-    /* Links Locust green */
     a{
       color: var(--accent);
       text-decoration: none;
@@ -207,40 +203,65 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
       const vscode = acquireVsCodeApi();
       const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
 
+      // helpers to paint labels + disabled state
+      const setLocalVisual = (running) => {
+        const b = document.getElementById('btnRunLocal');
+        if (!b) return;
+        b.textContent = running ? 'Running…' : 'Local Test';
+        b.toggleAttribute('disabled', running);
+      };
+      const setCloudVisual = (running) => {
+        // Works for both desktop (btnLocustCloud) and cloud (btnRunUI)
+        const id = document.getElementById('btnLocustCloud') ? 'btnLocustCloud' : 'btnRunUI';
+        const b = document.getElementById(id);
+        if (!b) return;
+        b.textContent = running ? 'Running…' : 'Cloud Test';
+        b.toggleAttribute('disabled', running);
+      };
+
       const isCloud = document.body.getAttribute('data-cloud') === '1';
+      const localStarted = document.body.getAttribute('data-local-started') === '1';
+      const cloudStarted = document.body.getAttribute('data-cloud-started') === '1';
+
+      // initial paint
+      setLocalVisual(localStarted);
+      setCloudVisual(cloudStarted);
 
       if (isCloud) {
-        // Cloud buttons: Run / Stop separate
-        document.getElementById('btnRunUI')?.addEventListener('click', () => run('locust.openLocustCloud'));
-        document.getElementById('btnDeleteCloud')?.addEventListener('click', () => run('locust.stopLocustCloud'));
-      } else {
-        // Desktop: Cloud and Local toggles
-        const btnCloud = document.getElementById('btnLocustCloud');
-        const btnLocal = document.getElementById('btnRunLocal');
-        document.getElementById('btnConvertHar')?.addEventListener('click', () => run('locust.convertHar'));
-
-        // Cloud toggle
-        const cloudStarted = document.body.getAttribute('data-cloud-started') === '1';
-        const setCloudBtnLabel = (running) => { if (btnCloud) btnCloud.textContent = running ? 'Stop Cloud' : 'Run Cloud'; };
-        setCloudBtnLabel(cloudStarted);
-
-        btnCloud?.addEventListener('click', () => {
-          run('locust.toggleCloudSimple');
-          const willRun = (btnCloud.textContent?.trim() !== 'Stop Cloud');
-          setCloudBtnLabel(willRun);
+        // Cloud: only cloud test
+        const btnRunCloud = document.getElementById('btnRunUI');
+        btnRunCloud?.addEventListener('click', () => {
+          if (cloudStarted) return;            // do nothing if already running
+          run('locust.toggleCloudSimple');     // starts
+          setCloudVisual(true);                // optimistic
         });
-
-        // Local toggle
-        const localStarted = document.body.getAttribute('data-local-started') === '1';
-        const setLocalBtnLabel = (running) => { if (btnLocal) btnLocal.textContent = running ? 'Stop Test' : 'Run Test'; };
-        setLocalBtnLabel(localStarted);
+      } else {
+        // Desktop: both buttons actionable
+        const btnLocal  = document.getElementById('btnRunLocal');
+        const btnCloud  = document.getElementById('btnLocustCloud');
+        const btnHar    = document.getElementById('btnConvertHar');
 
         btnLocal?.addEventListener('click', () => {
-          run('locust.toggleLocalSimple');
-          const willRun = (btnLocal.textContent?.trim() !== 'Stop Test');
-          setLocalBtnLabel(willRun);
+          if (localStarted) return;            // Stop button handles stopping
+          run('locust.toggleLocalSimple');     // starts
+          setLocalVisual(true);                // optimistic
         });
+
+        btnCloud?.addEventListener('click', () => {
+          if (cloudStarted) return;
+          run('locust.toggleCloudSimple');     // starts
+          setCloudVisual(true);                // optimistic
+        });
+
+        btnHar?.addEventListener('click', () => run('locust.convertHar'));
       }
+
+      // Unified Stop Test
+      document.getElementById('btnStopAll')?.addEventListener('click', () => {
+        run('locust.stopLocalThenCloudIfAny');
+        setLocalVisual(false);
+        setCloudVisual(false);
+      });
 
       // Beginner guide
       document.getElementById('linkGuide')?.addEventListener('click', (e) => {
@@ -248,18 +269,12 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
         run('locust.startBeginnerTour');
       });
 
-      // Extension state sync
+      // State sync from extension
       window.addEventListener('message', (ev) => {
         const msg = ev.data || {};
         if (msg.type === 'state') {
-          const btnCloud = document.getElementById('btnLocustCloud');
-          const btnLocal = document.getElementById('btnRunLocal');
-          if (typeof msg.cloudStarted === 'boolean' && btnCloud) {
-            btnCloud.textContent = msg.cloudStarted ? 'Stop Cloud' : 'Run Cloud';
-          }
-          if (typeof msg.localStarted === 'boolean' && btnLocal) {
-            btnLocal.textContent = msg.localStarted ? 'Stop Test' : 'Run Test';
-          }
+          if (typeof msg.cloudStarted === 'boolean') setCloudVisual(msg.cloudStarted);
+          if (typeof msg.localStarted === 'boolean') setLocalVisual(msg.localStarted);
         }
       });
     })();
@@ -385,21 +400,15 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
   if (!isCloud) {
     await setup.checkAndOfferSetup(); //  Prompt/always/never + trust
-    // Re-run after trust is granted (desktop)
     ctx.subscriptions.push(
       vscode.workspace.onDidGrantWorkspaceTrust(() => {
         setup.checkAndOfferSetup().catch(() => {});
       })
     );
-
-    // Re-run setup on workspace changes (DESKTOP ONLY)
     ctx.subscriptions.push(
       vscode.workspace.onDidChangeWorkspaceFolders(() => setup.checkAndOfferSetup())
     );
   }
-
-  // Scaffold if needed
-  await ensureLocustfileOrScaffold();
 }
 
 export function deactivate() { /* noop */ }
