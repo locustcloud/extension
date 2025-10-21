@@ -156,9 +156,7 @@ export class LocustRunner {
     setTimeout(() => {
       if (!opened) {
         opened = true;
-        const fallback = this.localFallbackUrl;
-        out.appendLine(`[local-ui] no UI URL detected — opening fallback: ${fallback}`);
-        this.openUrlSplit(fallback, 0.45).catch(() => {});
+        this.openUrlSplit(this.localFallbackUrl, 0.45).catch(() => {});
       }
     }, 60000);
   }
