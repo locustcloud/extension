@@ -19,7 +19,7 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
   private watchers: vscode.FileSystemWatcher[] = [];
   private refreshTimer?: NodeJS.Timeout;
 
-  // NEW: cache of currently known files as URIs
+  // Cache of currently known files as URIs
   private _knownFiles: vscode.Uri[] = [];
   getKnownFiles(): vscode.Uri[] { return this._knownFiles.slice(); }
   isKnown(fsPath: string): boolean {
@@ -59,7 +59,6 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
 
     if (!element) {
       // Root: known files
-      // NOTE: remove stray space after .locust_env in your original glob
       const exclude = '**/{.venv,.locust_env,.tour,.git,__pycache__,node_modules,site-packages,dist,build}/**';
       const explicit = await vscode.workspace.findFiles('**/locustfile*.py', exclude);
 
@@ -77,7 +76,7 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
 
       const files = [...explicit, ...inferred].sort((a, b) => a.fsPath.localeCompare(b.fsPath));
 
-      // NEW: cache known files for pickers/runners
+      // Cache known files for pickers/runners
       this._knownFiles = files;
 
       return files.map((f) => ({
@@ -190,7 +189,7 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
         }
       }
     } catch {
-      // dir may not exist; caller will create it
+      // dir may not exist; caller create it
     }
     const next = Math.max(1, maxIndex + 1);
     const nextName = `locustfile_${String(next).padStart(3, '0')}.py`;
@@ -259,12 +258,12 @@ class MyUser(FastHttpUser):
     const dest = await this.nextLocustfileUri(dir);
     await vscode.workspace.fs.writeFile(dest, Buffer.from(content, 'utf8'));
 
-    // 5) Open & refresh tree
+    // Open & refresh tree
     if (open) {
       const doc = await vscode.workspace.openTextDocument(dest);
       await vscode.window.showTextDocument(doc, { preview: false });
     }
-    this.refresh(); // update known files cache when getChildren runs again
+    this.refresh(); 
 
     vscode.window.showInformationMessage(`Created ${vscode.workspace.asRelativePath(dest)}.`);
     return dest;
@@ -278,13 +277,32 @@ class MyUser(FastHttpUser):
       return;
     }
 
-    // Accept active
+    // Default: active editor if Python file similar to Locust test
     const active = vscode.window.activeTextEditor?.document;
-    if (active && /(?:^|[\/\\])locustfile.*\.py$/i.test(active.fileName) && this.isKnown(active.fileName)) {
-      return vscode.Uri.file(active.fileName);
+    if (active?.uri?.scheme === 'file' && active.languageId === 'python') {
+      const fsPath = active.uri.fsPath;
+
+      // locustfile*.py, accept immediately
+      if (/(?:^|[\\/])locustfile.*\.py$/i.test(fsPath)) {
+        return active.uri;
+      }
+
+      // In locustfile tree
+      if (this.isKnown(fsPath)) {
+        return active.uri;
+      }
+
+      // File imports locust
+      try {
+        if (await this.looksLikeLocustFile(active.uri)) {
+          return active.uri;
+        }
+      } catch {
+        // ignore, fall through to picker
+      }
     }
 
-    // QuickPick from known files
+    // QuickPick from  files
     if (this._knownFiles.length > 0) {
       if (this._knownFiles.length === 1) return this._knownFiles[0];
 
@@ -296,14 +314,14 @@ class MyUser(FastHttpUser):
       if (chosen?.uri) return chosen.uri;
     }
 
-    // User skip or None locustfile.py: Choose / Scaffold
+    // None / skipped → Choose or Scaffold
     const action = await vscode.window.showQuickPick(
       [
         { label: '$(file-code) Choose a Python file…', action: 'choose' },
         { label: '$(add) Scaffold a new locustfile', action: 'scaffold' },
         { label: '$(x) Cancel', action: 'cancel' },
       ],
-      { placeHolder: 'No locustfile found. Create a locustfile.py template?' }
+      { placeHolder: 'No locustfile found. What would you like to do?' }
     );
     if (!action || action.action === 'cancel') return;
 
