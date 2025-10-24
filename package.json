@@ -34,7 +34,6 @@
     "onCommand:locust.runUI",
     "onCommand:locust.runHeadless",
     "onCommand:locust.stopLastRun",
-    "onCommand:locust.installCopilot",
     "onCommand:locust.openLocustCloud",
     "onCommand:locust.deleteLocustCloud",
     "onCommand:locust.showScenarios",

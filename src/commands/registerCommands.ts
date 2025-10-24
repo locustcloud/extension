@@ -64,7 +64,6 @@ export function registerCommands(
 
   const { setup, runner, harRunner, tree } = deps;
 
-  ctx.workspaceState.update('locust.offerSetup', setup.checkAndOfferSetup());
 
   // Simple browser split-view opener
   ctx.subscriptions.push(

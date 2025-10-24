@@ -7,7 +7,7 @@ import { LocustRunner } from './runners/locustRunner';
 import { Har2LocustService } from './services/har2locustService';
 import { Har2LocustRunner } from './runners/har2locustRunner';
 import { LocustTreeProvider } from './tree/locustTree';
-// import { CopilotService } from './services/copilotService';
+import { CopilotService } from './services/copilotService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { LocustWelcomeViewProvider } from './welcome/welcomeView';
@@ -41,6 +41,12 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const mcp = new McpService(env);
   const setup = new SetupService(env, mcp, ctx);
 
+  // Copilot service
+  const copilot = new CopilotService(ctx);
+  await copilot.bootstrap();           
+  ctx.subscriptions.push(copilot);
+
+
   // Runners / Services
   const locustRunner = new LocustRunner(); 
   const harService = new Har2LocustService(env);
@@ -59,7 +65,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const welcomeReg = vscode.window.registerWebviewViewProvider('locust.welcome', welcomeProvider);
   ctx.subscriptions.push(welcomeReg);
 
-  
+
   ctx.subscriptions.push(
     vscode.commands.registerCommand('locust.setLocalStarted', async (value: boolean) => {
       try {
