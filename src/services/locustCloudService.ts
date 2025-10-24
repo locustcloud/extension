@@ -289,7 +289,7 @@ export class LocustCloudService {
 
     child.on("close", async (code) => {
       if (code !== 0) {
-        out.appendLine(`Stop/Clean-up exited with code ${code}`);
+        out.appendLine(`Stop/Clean-up:\n exit code ${code}`);
       }
       this._cloudChild = undefined;
       await this.setCloudStarted(false);
