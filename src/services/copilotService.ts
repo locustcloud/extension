@@ -21,16 +21,15 @@ export class CopilotService implements vscode.Disposable {
     await vscode.commands.executeCommand("workbench.extensions.installExtension", COPILOT_ID);
   }
 
-  /** Non-blocking bootstrap: set context now, optionally offer install once, and watch for changes. */
+  /** Non-blocking bootstrap: set context now.. */
   async bootstrap(): Promise<void> {
     await this.setContext(this.hasCopilot());
 
-    // Command is safe to register even if hidden by 'when'
     this.disposables.push(
       vscode.commands.registerCommand("locust.installCopilot", () => this.installCopilot())
     );
 
-    // One-time, silent offer (no modal), but only in trusted workspaces
+    // One-time, silent offer only in trusted workspaces
     const autoOffer = vscode.workspace.getConfiguration("locust").get<boolean>("copilot.autoOfferInstallOnce", true);
     const alreadyOffered = this.ctx.workspaceState.get<boolean>(OFFERED_KEY, false);
 
@@ -47,7 +46,7 @@ export class CopilotService implements vscode.Disposable {
       });
     }
 
-    // If Copilot gets installed later, flip the UI automatically
+    // If Copilot installed later, flip UI automatically
     this.disposables.push(
       vscode.extensions.onDidChange(async () => {
         await this.setContext(this.hasCopilot());
