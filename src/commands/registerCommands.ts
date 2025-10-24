@@ -29,7 +29,6 @@ export function registerLocustCloudCommands(ctx: vscode.ExtensionContext) {
       }
     }),
 
-
     vscode.commands.registerCommand("locust.deleteLocustCloud", async () => {
       try {
         await withProgress("Locust Cloud: stopping…", () => cloud.deleteLocustCloud());
@@ -64,6 +63,8 @@ export function registerCommands(
   registerLocustCloudCommands(ctx);
 
   const { setup, runner, harRunner, tree } = deps;
+
+  ctx.workspaceState.update('locust.offerSetup', setup.checkAndOfferSetup());
 
   // Simple browser split-view opener
   ctx.subscriptions.push(
@@ -102,19 +103,31 @@ export function registerCommands(
     })
   );
 
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand('locust.pickLocustfile', async () => {
+      const uri = await tree.pickLocustfileOrActive();
+      return uri; // callers can await executeCommand to get this Uri (or undefined)
+    })
+  );
 
   ctx.subscriptions.push(
     vscode.commands.registerCommand('locust.refreshTree', () => tree.refresh()),
 
+    // Expose the scaffold command id used by the picker
+    vscode.commands.registerCommand('locust.createLocustfile', async () => {
+      return tree.createLocustfileFromTemplate({ open: true });
+    }),
+
+    // (kept for existing UX label/entry point)
     vscode.commands.registerCommand('locust.createSimulation', async () => {
-      await runner.createLocustfile({ open: true });
+      await tree.createLocustfileFromTemplate({ open: true });
     }),
 
     vscode.commands.registerCommand(
       'locust.runFileUI',
       async (node?: { filePath?: string; resourceUri?: vscode.Uri }) => {
         try {
-          await runner.runFile(node?.filePath ?? node?.resourceUri?.fsPath, 'ui');
+          await runner.runLocustUI(node?.filePath ?? node?.resourceUri?.fsPath);
         } catch (e: any) {
           vscode.window.showErrorMessage(`Locust (UI): ${e?.message ?? 'failed to start UI run'}`);
         }
@@ -183,19 +196,10 @@ export function registerCommands(
 
     vscode.commands.registerCommand('locust.convertHar', () => harRunner.convertHar()),
 
-    // Run using active editor if it's a Python file, otherwise prompt
+    // Always go through unified picker flow
     vscode.commands.registerCommand('locust.runUI', async () => {
       try {
-        const doc = vscode.window.activeTextEditor?.document;
-        const activePy =
-          doc && doc.languageId === 'python' && doc.uri.scheme === 'file'
-            ? doc.uri.fsPath
-            : undefined;
-
-        if (activePy) {
-          return runner.runFile(activePy, 'ui');
-        }
-        return runner.runSelected('ui');
+        return runner.runFile(undefined, 'ui');
       } catch (e: any) {
         vscode.window.showErrorMessage(`Locust (UI): ${e?.message ?? 'failed to start'}`);
       }
@@ -203,21 +207,11 @@ export function registerCommands(
 
     vscode.commands.registerCommand('locust.runHeadless', async () => {
       try {
-        const doc = vscode.window.activeTextEditor?.document;
-        const activePy =
-          doc && doc.languageId === 'python' && doc.uri.scheme === 'file'
-            ? doc.uri.fsPath
-            : undefined;
-
-        if (activePy) {
-          return runner.runFile(activePy, 'headless');
-        }
-        return runner.runSelected('headless');
+        return runner.runFile(undefined, 'headless');
       } catch (e: any) {
         vscode.window.showErrorMessage(`Locust (headless): ${e?.message ?? 'failed to start'}`);
       }
-    }),
-
-    vscode.commands.registerCommand('locust.runByTag', () => runner.runByTag())
+    })
   );
+  vscode.commands.executeCommand('locust.welcome.refresh');
 }
