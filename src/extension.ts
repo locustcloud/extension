@@ -172,17 +172,3 @@ function detectCloudEnv(): boolean {
   const uiIsWeb = vscode.env.uiKind === vscode.UIKind.Web;
   return envFlag || uiIsWeb;
 }
-
-async function ensureLocustfileOrScaffold() {
-  const folders = vscode.workspace.workspaceFolders;
-  if (!folders?.length) return;
-
-  const root = folders[0].uri.fsPath;
-
-  try { await fs.access(path.join(root, 'locustfile.py')); return; } catch {}
-
-  const matches = await vscode.workspace.findFiles('**/locustfile_*.py', '**/node_modules/**', 1);
-  if (matches.length > 0) return;
-
-  void vscode.commands.executeCommand('locust.createSimulation');
-}
