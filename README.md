@@ -20,8 +20,10 @@ Please report any issues at [Github Issues](https://github.com/locustcloud/exten
 ## Features
 
 * **Automated setup**: Zero touch installation and environment setup
+* **Locust AI Copilot**: Regenerate locustfiles, run workflows through chatt
+* **Code Completion**: Code completion
 * **Run Test Locally**: Run Test in Integrated webUI
-* **Run Locust Cloud Test**: Run Locust Cloud Test in new browser window
+* **Run Locust Cloud Test**: Run Locust Cloud Test in default browser
 * **Stop Test**: Stop running test 
 * **Create**: Generate a basic locustfile
 * **Convert HAR**: Convert HAR file to locustfile
