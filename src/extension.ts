@@ -11,6 +11,7 @@ import { CopilotService } from './services/copilotService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { LocustWelcomeViewProvider } from './welcome/welcomeView';
+import { LocustWelcome } from './welcome/locustWelcome';  
 
 // Cloud toggle
 const CLOUD_FLAG_KEY = 'locust.cloudWasStarted';
@@ -36,6 +37,9 @@ export async function activate(ctx: vscode.ExtensionContext) {
   await vscode.commands.executeCommand('setContext', 'locust.isCloud', isCloud);
   await vscode.commands.executeCommand('setContext', 'locust.isDesktop', !isCloud);
 
+  LocustWelcome.register(ctx);
+  LocustWelcome.maybeShowOnActivate(ctx, isCloud);
+  
   // Core services
   const env = new EnvService();
   const mcp = new McpService(env);
