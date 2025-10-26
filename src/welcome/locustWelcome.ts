@@ -80,7 +80,7 @@ export class LocustWelcome {
 
       <div class="card">
         <h3>Start here</h3>
-        <p class="muted">New to Locust? Beginner tour here.</p>
+        <p class="muted">New to Locust? Tour here:</p>
         <div class="cta-row">
           <a class="btn primary" href="command:locust.startBeginnerTour">Beginner Tour</a>
         </div>
