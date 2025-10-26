@@ -11,6 +11,7 @@ import { CopilotService } from './services/copilotService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { LocustWelcomeViewProvider } from './welcome/welcomeView';
+import { LocustWelcome } from './welcome/locustWelcome';  
 
 // Cloud toggle
 const CLOUD_FLAG_KEY = 'locust.cloudWasStarted';
@@ -36,6 +37,9 @@ export async function activate(ctx: vscode.ExtensionContext) {
   await vscode.commands.executeCommand('setContext', 'locust.isCloud', isCloud);
   await vscode.commands.executeCommand('setContext', 'locust.isDesktop', !isCloud);
 
+  LocustWelcome.register(ctx);
+  LocustWelcome.maybeShowOnActivate(ctx, isCloud);
+  
   // Core services
   const env = new EnvService();
   const mcp = new McpService(env);
@@ -171,18 +175,4 @@ function detectCloudEnv(): boolean {
   const envFlag = byEnv === 'true' || byEnv === '1' || byEnv === 'yes';
   const uiIsWeb = vscode.env.uiKind === vscode.UIKind.Web;
   return envFlag || uiIsWeb;
-}
-
-async function ensureLocustfileOrScaffold() {
-  const folders = vscode.workspace.workspaceFolders;
-  if (!folders?.length) return;
-
-  const root = folders[0].uri.fsPath;
-
-  try { await fs.access(path.join(root, 'locustfile.py')); return; } catch {}
-
-  const matches = await vscode.workspace.findFiles('**/locustfile_*.py', '**/node_modules/**', 1);
-  if (matches.length > 0) return;
-
-  void vscode.commands.executeCommand('locust.createSimulation');
 }
