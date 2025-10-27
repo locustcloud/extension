@@ -10,27 +10,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Locust Menu</title>
   <style>
-    /* Locust theme */
-    :root{
-      --bg:#111315; --panel:#1a1d1f; --panel-border:#2a2f34;
-      --text:#e6e6e6; --muted:#9aa0a6; --accent:#28a745; --accent-hover:#23913d;
+    body { font-family: var(--vscode-font-family); padding: 12px; }
+    h1 { margin: 0 0 8px; font-size: 16px; }
+    p { margin: 6px 0 12px; color: var(--vscode-descriptionForeground); }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; }
+    .row.stack { flex-direction: column; gap: 10px; }
+    .row.actions { gap: 8px; }
+    button {
+      padding: 6px 10px; border: 1px solid var(--vscode-button-border, transparent);
+      border-radius: 6px; background: var(--vscode-button-background);
+      color: var(--vscode-button-foreground); cursor: pointer;
     }
-    body{font-family:var(--vscode-font-family); background:var(--bg); color:var(--text); margin:0; padding:14px 16px;
-         background:linear-gradient(0deg,rgba(0,0,0,.0),rgba(0,0,0,.0)),var(--panel);
-         border:1px solid var(--panel-border); border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,.35);}
-    h1{margin:0 0 8px; font-size:16px; font-weight:600; letter-spacing:.2px;}
-    h2{margin:16px 0 6px; font-size:15px; font-weight:600;}
-    p{margin:6px 0 12px; color:var(--muted);}
-    .row{display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 12px;}
-    .row.actions{gap:8px;}
-    button{padding:8px 14px; border:1px solid #1f7a36; border-radius:6px; background:var(--accent); color:#fff;
-           cursor:pointer; font-weight:600; letter-spacing:.1px; transition:background 120ms,box-shadow 120ms,transform 60ms;}
-    button:hover,button:focus-visible{background:var(--accent-hover); outline:none; box-shadow:0 0 0 2px rgba(40,167,69,.25);}
-    button:active{transform:translateY(1px);}
-    button[disabled]{opacity:.7; cursor:default; filter:grayscale(.1);}
-    button.danger{background:var(--vscode-inputValidation-errorBackground); color:var(--vscode-editor-foreground); border-color:transparent;}
-    a{color:var(--accent); text-decoration:none; font-weight:500;}
-    a:hover,a:focus-visible{color:var(--accent-hover); text-decoration:underline; outline:none;}
+    button.danger { background: var(--vscode-inputValidation-errorBackground); color: var(--vscode-editor-foreground); }
+    label { cursor: pointer; user-select: none; }
   </style>
 </head>
 <body
@@ -73,16 +65,17 @@
       const localStarted = document.body.getAttribute('data-local-started') === '1';
       const cloudStarted = document.body.getAttribute('data-cloud-started') === '1';
 
-      // initial paint
+      // initial paint (reflects persisted state from extension)
       setLocalVisual(localStarted);
       setCloudVisual(cloudStarted);
 
       if (isCloud) {
+        // Cloud-hosted VS Code: still trigger the real CLI-backed cloud run via runner
         const btnRunCloud = document.getElementById('btnRunUI');
         btnRunCloud?.addEventListener('click', () => {
           if (cloudStarted) return;
-          run('locust.toggleCloudSimple');
-          setCloudVisual(true);
+          run('locust.runLocustCloudUI'); // <-- changed from openLocustCloud
+          // no optimistic UI toggle; wait for state message from extension
         });
       } else {
         const btnLocal = document.getElementById('btnRunLocal');
@@ -91,23 +84,23 @@
 
         btnLocal?.addEventListener('click', () => {
           if (localStarted) return;
-          run('locust.toggleLocalSimple');
-          setLocalVisual(true);
+          run('locust.runLocustUI');
+          // no optimistic toggle
         });
 
         btnCloud?.addEventListener('click', () => {
           if (cloudStarted) return;
-          run('locust.toggleCloudSimple');
-          setCloudVisual(true);
+          run('locust.runLocustCloudUI'); // <-- changed from openLocustCloud
+          // no optimistic toggle
         });
 
         btnHar?.addEventListener('click', () => run('locust.convertHar'));
       }
 
       document.getElementById('btnStopAll')?.addEventListener('click', () => {
-        run('locust.stopLocalThenCloudIfAny');
-        setLocalVisual(false);
-        setCloudVisual(false);
+        // Stop the locally spawned process (works for UI and --cloud UI)
+        run('locust.stopLastRun'); // <-- unify stop to local process
+        // don't force visual here; extension will post real state
       });
 
       document.getElementById('linkGuide')?.addEventListener('click', (e) => {
@@ -115,6 +108,7 @@
         run('locust.startBeginnerTour');
       });
 
+      // State updates from extension
       window.addEventListener('message', (ev) => {
         const msg = ev.data || {};
         if (msg.type === 'state') {

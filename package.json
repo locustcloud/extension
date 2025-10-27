@@ -31,14 +31,16 @@
     "onCommand:locust.hideWelcome",
     "onCommand:locust.createSimulation",
     "onCommand:locust.convertHar",
-    "onCommand:locust.runUI",
+    "onCommand:locust.runLocustUI",
+    "onCommand:locust.runUI", 
     "onCommand:locust.runHeadless",
     "onCommand:locust.stopLastRun",
     "onCommand:locust.openLocustCloud",
     "onCommand:locust.deleteLocustCloud",
     "onCommand:locust.showScenarios",
     "onCommand:locust.hideScenarios",
-     "onCommand:locust.openBeginnerTourPage"
+    "onCommand:locust.startBeginnerTour",
+    "onCommand:locust.openBeginnerTourPage"
   ],
   "main": "./out/extension.js",
     "contributes": {
@@ -105,8 +107,10 @@
     "commands": [
       { "command": "locust.interface", "title": "Menu overview" },
       { "command": "locust.createSimulation", "title": "Locust: Create Simulation (locustfile_###.py)", "icon": "$(new-file)" },
+      { "command": "locust.showAgentView", "title": "Show Locust Agent View" },
       { "command": "locust.runHeadless", "title": "Locust: Run Test (Headless)", "icon": "$(rocket)" },
       { "command": "locust.refreshTree", "title": "Locust: Refresh Tests", "icon": "$(refresh)" },
+      { "command": "locust.runLocustUI", "title": "Locust: Run Test (Web UI)" },
       { "command": "locust.runUI", "title": "Locust: Run Test (Web UI)" },
       { "command": "locust.runFileUI", "title": "Locust: Run File (Web UI)", "icon": "$(rocket)" },
       { "command": "locust.stopLastRun", "title": "Locust: Stop Last Run", "icon": "$(debug-stop)" },

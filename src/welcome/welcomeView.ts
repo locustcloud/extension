@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { TourRunner } from '../runners/tourRunner';
+
 
 // Persisted flags
 const CLOUD_FLAG_KEY = 'locust.cloudWasStarted';
@@ -58,10 +60,10 @@ export class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
         <button id="btnLocustCloud" title="locust -f locustfile.py --cloud">Cloud Test</button>
       </div>
       <div class="row">
-        <button id="btnConvertHar"  title="Convert a HAR file to a Locust test">HAR to Locust</button>
-      </div>
-      <div class="row">
         <button id="btnStopAll" class="danger" title="Stop active Test">Stop Test</button>
+      </div><br>
+      <div class="row"><br>
+        <button id="btnConvertHar"  title="Convert a HAR file to a Locust test">HAR to Locust</button>
       </div>`;
 
     const cloudControls = `
@@ -102,6 +104,11 @@ export class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
           if (msg.command === 'locust.hideWelcome') {
             await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', true);
             await vscode.commands.executeCommand('locust.scenarios.focus');
+            return;
+          }
+          if (msg.command === 'locust.startBeginnerTour') {
+            const tr = new TourRunner(this.ctx);
+            await tr.runBeginnerTour();
             return;
           }
           await vscode.commands.executeCommand(msg.command);

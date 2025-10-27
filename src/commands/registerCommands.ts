@@ -4,9 +4,9 @@ import { EnvService } from '../services/envService';
 import { McpService } from '../services/mcpService';
 import { LocustRunner } from '../runners/locustRunner';
 import { Har2LocustRunner } from '../runners/har2locustRunner';
-import { TourRunner } from '../runners/tourRunner';
 import { LocustTreeProvider } from '../tree/locustTree';
 import { LocustCloudService } from '../services/locustCloudService';
+import { TourRunner } from '../runners/tourRunner';
 
 // Locust Cloud command registrar
 export function registerLocustCloudCommands(ctx: vscode.ExtensionContext) {
@@ -21,8 +21,6 @@ export function registerLocustCloudCommands(ctx: vscode.ExtensionContext) {
   ctx.subscriptions.push(
     vscode.commands.registerCommand("locust.openLocustCloud", async () => {
       try {
-        // On web/code-server: Simple Browser; on desktop: system browser
-        const preferSimple = vscode.env.uiKind === vscode.UIKind.Web;
         await cloud.openLocustCloudLanding();
       } catch (e: any) {
         vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? "unexpected error"}`);
@@ -64,7 +62,6 @@ export function registerCommands(
 
   const { setup, runner, harRunner, tree } = deps;
 
-
   // Simple browser split-view opener
   ctx.subscriptions.push(
     vscode.commands.registerCommand('locust.openUrlInSplit', async (url: string, ratio = 0.45) => {
@@ -73,28 +70,26 @@ export function registerCommands(
       const r = Math.min(0.8, Math.max(0.2, ratio));
 
       if (vscode.window.tabGroups.all.length < 2) {
-        // Avoid duplicating editor
         await vscode.commands.executeCommand('workbench.action.newGroupBelow').then(undefined, () => {});
       }
 
       const ok = await vscode.commands
         .executeCommand('simpleBrowser.show', url, {
-          viewColumn: vscode.ViewColumn.Two, // second (bottom) group
+          viewColumn: vscode.ViewColumn.Two,
           preserveFocus: true,
           preview: true,
         })
         .then(() => true, () => false);
 
       if (!ok) {
-        // No external fallback 
         vscode.window.showErrorMessage('Could not open Simple Browser.');
         return;
       }
 
       if (vscode.window.tabGroups.all.length === 2) {
         await vscode.commands.executeCommand('vscode.setEditorLayout', {
-          orientation: 0, // horizontal rows (top/bottom)
-          groups: [{ size: 1 - r }, { size: r }], // top then bottom
+          orientation: 0,
+          groups: [{ size: 1 - r }, { size: r }],
         }).then(undefined, () => {});
       }
 
@@ -105,19 +100,17 @@ export function registerCommands(
   ctx.subscriptions.push(
     vscode.commands.registerCommand('locust.pickLocustfile', async () => {
       const uri = await tree.pickLocustfileOrActive();
-      return uri; // callers can await executeCommand to get this Uri (or undefined)
+      return uri;
     })
   );
 
   ctx.subscriptions.push(
     vscode.commands.registerCommand('locust.refreshTree', () => tree.refresh()),
 
-    // Expose the scaffold command id used by the picker
     vscode.commands.registerCommand('locust.createLocustfile', async () => {
       return tree.createLocustfileFromTemplate({ open: true });
     }),
 
-    // (kept for existing UX label/entry point)
     vscode.commands.registerCommand('locust.createSimulation', async () => {
       await tree.createLocustfileFromTemplate({ open: true });
     }),
@@ -144,7 +137,6 @@ export function registerCommands(
       }
     ),
 
-    // Stop Locust run
     vscode.commands.registerCommand('locust.stopLastRun', async () => {
       try {
         await runner.stopLastRun();
@@ -153,7 +145,6 @@ export function registerCommands(
       }
     }),
 
-    // Future inline task actions
     vscode.commands.registerCommand('locust.runTaskUI', (node) => runner.runTaskUI(node)),
     vscode.commands.registerCommand('locust.runTaskHeadless', (node) => runner.runTaskHeadless(node)),
 
@@ -161,7 +152,6 @@ export function registerCommands(
       setup.checkAndOfferSetup({ forcePrompt: true })
     ),
 
-    // Show/hide welcome view
     vscode.commands.registerCommand('locust.showWelcome', async () => {
       await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', false);
       await vscode.commands.executeCommand('locust.welcome.focus');
@@ -172,7 +162,6 @@ export function registerCommands(
       await vscode.commands.executeCommand('locust.scenarios.focus');
     }),
 
-    // Copilot walkthrough
     vscode.commands.registerCommand('locust.openCopilotWalkthrough', () =>
       vscode.commands.executeCommand(
         'workbench.action.openWalkthrough',
@@ -180,37 +169,44 @@ export function registerCommands(
       )
     ),
 
-    // Start beginner tour
     vscode.commands.registerCommand('locust.startBeginnerTour', async () => {
-      const tr = new TourRunner(ctx);
-      await tr.runBeginnerTour();
+      try {
+        const tr = new TourRunner(ctx);
+        await tr.runBeginnerTour();
+      } catch (e: any) {
+        vscode.window.showErrorMessage(e?.message ?? 'Failed to start beginner tour.');
+      }
     }),
 
-    // Dev utility
     vscode.commands.registerCommand('locust.mcp.rewriteAndReload', async () => {
       const envService = new EnvService();
       const mcp = new McpService(envService);
       await mcp.writeMcpConfig('python');
     }),
 
-    vscode.commands.registerCommand('locust.convertHar', () => harRunner.convertHar()),
+    vscode.commands.registerCommand('locust.convertHar', () => deps.harRunner.convertHar()),
 
-    // Always go through unified picker flow
-    vscode.commands.registerCommand('locust.runUI', async () => {
+    // Unified picker flow
+    vscode.commands.registerCommand('locust.runLocustUI', async () => {
       try {
-        return runner.runFile(undefined, 'ui');
+        // ✅ set running state now; runner will clear on exit/error
+        await vscode.commands.executeCommand('locust.setLocalStarted', true);
+        return deps.runner.runFile(undefined, 'ui');
       } catch (e: any) {
+        // ensure not stuck in "running"
+        await vscode.commands.executeCommand('locust.setLocalStarted', false);
         vscode.window.showErrorMessage(`Locust (UI): ${e?.message ?? 'failed to start'}`);
       }
     }),
 
     vscode.commands.registerCommand('locust.runHeadless', async () => {
       try {
-        return runner.runFile(undefined, 'headless');
+        return deps.runner.runFile(undefined, 'headless');
       } catch (e: any) {
         vscode.window.showErrorMessage(`Locust (headless): ${e?.message ?? 'failed to start'}`);
       }
     })
   );
+
   vscode.commands.executeCommand('locust.welcome.refresh');
 }
