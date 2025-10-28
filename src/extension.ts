@@ -222,6 +222,8 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const mcp = new McpService(env);
   const setup = new SetupService(env, mcp, ctx);
 
+
+
   // Runners / Services
   const locustRunner = new LocustRunner(); // headless interface removed
   const harService = new Har2LocustService(env);
