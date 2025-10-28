@@ -46,8 +46,11 @@ export class LocustRunner {
   private _lastCmd?: string;
   private _lastCwd?: string;
 
-  //Spawned child tracking (for UI)
+  // Spawned child tracking (for UI)
   private _uiChild?: ChildProcessWithoutNullStreams;
+
+  // 🔹 Track last opened UI URL so we can close the Simple Browser tab on stop
+  private _lastUiUrl?: string;
 
   private findLocustTerminal(): vscode.Terminal | undefined {
     return vscode.window.terminals.find(t => t.name === 'Locust');
@@ -83,7 +86,27 @@ export class LocustRunner {
     }
   }
 
-  
+  // 🔹 Find and close the Simple Browser tab showing a given URL
+  private async closeSimpleBrowserForUrl(url: string | undefined): Promise<void> {
+    if (!url) return;
+    try {
+      const groups = vscode.window.tabGroups.all;
+      for (const g of groups) {
+        for (const t of g.tabs) {
+          // Simple Browser tab label is usually the full URL or page title including URL.
+          // Be permissive: close if label equals or contains the URL.
+          const label = (t.label || '').toString();
+          if (!label) continue;
+          if (label === url || label.includes(url)) {
+            await vscode.window.tabGroups.close(t, true);
+            return;
+          }
+        }
+      }
+    } catch {
+      // best-effort; ignore
+    }
+  }
 
   private async runLocustUI(locustfileAbs: string) {
     const out = vscode.window.createOutputChannel("Locust");
@@ -112,6 +135,7 @@ export class LocustRunner {
       const url = extractLocustUrl(text, { addDashboardFalse: false });
       if (url && !opened) {
         opened = true;
+        this._lastUiUrl = url; // 🔹 remember last UI URL
         out.appendLine(`[local-ui] web UI: ${url}`);
         await this.openUrlSplit(url, 0.45);
         vscode.window.setStatusBarMessage("Locust (local): web UI opened in split view.", 60000);
@@ -158,6 +182,7 @@ export class LocustRunner {
       if (!opened) {
         opened = true;
         const fallback = this.localFallbackUrl;
+        this._lastUiUrl = fallback; // 🔹 remember fallback URL too
         out.appendLine(`[local-ui] no UI URL detected — opening fallback: ${fallback}`);
         this.openUrlSplit(fallback, 0.45).catch(() => {});
       }
@@ -444,6 +469,8 @@ class MyUser(FastHttpUser):
       try {
         this._uiChild.kill();
         this._uiChild = undefined;
+        // Close the Simple Browser tab
+        await this.closeSimpleBrowserForUrl(this._lastUiUrl);
         vscode.window.setStatusBarMessage('Locust: stopped local UI run.', 3000);
         return;
       } catch {
@@ -454,15 +481,20 @@ class MyUser(FastHttpUser):
     // Stop terminal run
     const term = this._lastTerminal ?? this.findLocustTerminal();
     if (!term) {
+      // Try closing the UI tab
+      await this.closeSimpleBrowserForUrl(this._lastUiUrl);
       vscode.window.showInformationMessage('No running Locust session to stop.');
       return;
     }
 
     try {
       await vscode.commands.executeCommand('workbench.action.terminal.sendSequence', { text: '\x03' });
+      // Close the Simple Browser after  Ctrl+C
+      await this.closeSimpleBrowserForUrl(this._lastUiUrl);
       vscode.window.setStatusBarMessage('Locust: sent Ctrl+C to stop the run.', 3000);
     } catch {
       term.dispose();
+      await this.closeSimpleBrowserForUrl(this._lastUiUrl);
       vscode.window.setStatusBarMessage('Locust: terminal disposed to stop the run.', 3000);
     }
   }

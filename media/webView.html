@@ -3,50 +3,49 @@
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none';
-                 img-src {{cspSource}} https:;
-                 script-src 'nonce-{{nonce}}';
-                 style-src {{cspSource}} 'unsafe-inline';">
+        content="default-src 'none'; img-src ${webview.cspSource} https:;
+                 script-src 'nonce-${nonce}'; style-src ${webview.cspSource} 'unsafe-inline';">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Locust Menu</title>
-  <style>
-    body { font-family: var(--vscode-font-family); padding: 12px; }
-    h1 { margin: 0 0 8px; font-size: 16px; }
-    p { margin: 6px 0 12px; color: var(--vscode-descriptionForeground); }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; }
-    .row.stack { flex-direction: column; gap: 10px; }
-    .row.actions { gap: 8px; }
-    button {
-      padding: 6px 10px; border: 1px solid var(--vscode-button-border, transparent);
-      border-radius: 6px; background: var(--vscode-button-background);
-      color: var(--vscode-button-foreground); cursor: pointer;
-    }
-    button.danger { background: var(--vscode-inputValidation-errorBackground); color: var(--vscode-editor-foreground); }
-    label { cursor: pointer; user-select: none; }
-  </style>
+    <style>
+      body { font-family: var(--vscode-font-family); padding: 12px; }
+      h1 { margin: 0 0 8px; font-size: 16px; }
+      p { margin: 6px 0 12px; color: var(--vscode-descriptionForeground); }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; }
+      .row.stack { flex-direction: column; gap: 10px; }
+      .row.actions { gap: 8px; }
+      button {
+        padding: 6px 10px; border: 1px solid var(--vscode-button-border, transparent);
+        border-radius: 6px; background: var(--vscode-button-background);
+        color: var(--vscode-button-foreground); cursor: pointer;
+      }
+      button.danger { background: var(--vscode-inputValidation-errorBackground); color: var(--vscode-editor-foreground); }
+      label { cursor: pointer; user-select: none; }
+    </style>
 </head>
 <body
-  data-cloud="{{isCloud}}"
-  data-cloud-started="{{cloudStarted}}"
-  data-local-started="{{localStarted}}">
-  <h1>Locust {{titleSuffix}}</h1>
-  <p>{{subtitle}}</p>
+  data-cloud="${this.isCloud ? '1' : '0'}"
+  data-cloud-started="${cloudStartedFlag}"
+  data-local-started="${localStartedFlag}">
+  <h1>Locust ${this.isCloud ? 'Cloud' : 'Local'}</h1>
+  <p>${this.isCloud ? 'Manage runs in Locust Cloud.' : 'Run Locust locally or open Locust Cloud.'}</p>
 
-  {{controls}}
-
+  ${this.isCloud ? cloudControls : desktopControls}
   <br>
+
   <h2>Get Help</h2>
   <p>
     <a href="#" id="linkGuide">Beginner Guide</a><br>
     <a href="https://docs.locust.io/en/stable/" target="_blank">Locust Docs</a><br>
-    {{supportBlock}}
+    ${supportBlock}
   </p>
 
-  <script nonce="{{nonce}}">
+  <script nonce="${nonce}">
     (function () {
       const vscode = acquireVsCodeApi();
       const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
 
+      // helpers to paint labels + disabled state
       const setLocalVisual = (running) => {
         const b = document.getElementById('btnRunLocal');
         if (!b) return;
@@ -54,6 +53,7 @@
         b.toggleAttribute('disabled', running);
       };
       const setCloudVisual = (running) => {
+        // Works for both desktop (btnLocustCloud) and cloud (btnRunUI)
         const id = document.getElementById('btnLocustCloud') ? 'btnLocustCloud' : 'btnRunUI';
         const b = document.getElementById(id);
         if (!b) return;
@@ -70,43 +70,48 @@
       setCloudVisual(cloudStarted);
 
       if (isCloud) {
+        // Cloud: only cloud test
         const btnRunCloud = document.getElementById('btnRunUI');
         btnRunCloud?.addEventListener('click', () => {
-          if (cloudStarted) return;
-          run('runCloud'); 
-          setCloudVisual(true);
+          if (cloudStarted) return;            // do nothing if already running
+          run('locust.toggleCloudSimple');     // starts
+          setCloudVisual(true);                // optimistic
         });
       } else {
-        const btnLocal = document.getElementById('btnRunLocal');
-        const btnCloud = document.getElementById('btnLocustCloud');
-        const btnHar   = document.getElementById('btnConvertHar');
+        // Desktop: both buttons actionable
+        const btnLocal  = document.getElementById('btnRunLocal');
+        const btnCloud  = document.getElementById('btnLocustCloud');
+        const btnHar    = document.getElementById('btnConvertHar');
 
         btnLocal?.addEventListener('click', () => {
-          if (localStarted) return;
-          run('runLocal');      
-          setLocalVisual(true);
+          if (localStarted) return;            // Stop button handles stopping
+          run('locust.toggleLocalSimple');     // starts
+          setLocalVisual(true);                // optimistic
         });
 
         btnCloud?.addEventListener('click', () => {
           if (cloudStarted) return;
-          run('runCloud');        
-          setCloudVisual(true);
+          run('locust.toggleCloudSimple');     // starts
+          setCloudVisual(true);                // optimistic
         });
 
-        btnHar?.addEventListener('click', () => run('convertHar'));
+        btnHar?.addEventListener('click', () => run('locust.convertHar'));
       }
 
+      // Unified Stop Test
       document.getElementById('btnStopAll')?.addEventListener('click', () => {
-        run('stopAll');               
+        run('locust.stopLocalThenCloudIfAny');
         setLocalVisual(false);
         setCloudVisual(false);
       });
 
+      // Beginner guide
       document.getElementById('linkGuide')?.addEventListener('click', (e) => {
         e.preventDefault();
-        run('beginnerTour');        
+        run('locust.startBeginnerTour');
       });
 
+      // State sync from extension
       window.addEventListener('message', (ev) => {
         const msg = ev.data || {};
         if (msg.type === 'state') {

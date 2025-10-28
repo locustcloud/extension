@@ -45,11 +45,12 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
         <button id="btnLocustCloud" title="locust -f locustfile.py --cloud">Cloud Test</button>
       </div>
       <div class="row">
+        <button id="btnStopAll" class="danger" title="Stop active Test">Stop Test</button>
+      </div><br>
+      <div class="row"><br>
         <button id="btnConvertHar"  title="Convert a HAR file to a Locust test">HAR to Locust</button>
       </div>
-      <div class="row">
-        <button id="btnStopAll" class="danger" title="Stop active Test">Stop Test</button>
-      </div>`;
+      `;
 
     // Cloud controls
     const cloudControls = `
