@@ -31,11 +31,10 @@ async function setLocalStarted(ctx: vscode.ExtensionContext, v: boolean) {
   await ctx.workspaceState.update('locust.localStarted', v);
 }
 
-// Persistent Welcome panel: quick actions.
 class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   constructor(private ctx: vscode.ExtensionContext, private readonly isCloud: boolean) {}
 
-  resolveWebviewView(webviewView: vscode.WebviewView) {
+  async resolveWebviewView(webviewView: vscode.WebviewView) { 
     const { webview } = webviewView;
     webview.options = { enableScripts: true, localResourceRoots: [this.ctx.extensionUri] };
 
@@ -53,7 +52,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
       <div class="row"><br>
         <button id="btnConvertHar"  title="Convert a HAR file to a Locust test">HAR to Locust</button>
       </div>
-      `;
+    `;
 
     // Cloud controls
     const cloudControls = `
@@ -62,140 +61,33 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
       </div>
       <div class="row">
         <button id="btnStopAll" class="danger" title="Stop active Test">Stop Test</button>
-      </div>`;
+      </div>
+    `;
 
     const supportBlock = this.isCloud ? '' : `<a href="mailto:support@locust.cloud">support@locust.cloud</a><br>`;
 
     const cloudStartedFlag = getCloudStarted(this.ctx) ? '1' : '0';
     const localStartedFlag = !this.isCloud && getLocalStarted(this.ctx) ? '1' : '0';
 
-    webview.html = `
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; img-src ${webview.cspSource} https:;
-                 script-src 'nonce-${nonce}'; style-src ${webview.cspSource} 'unsafe-inline';">
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Locust Menu</title>
-    <style>
-      body { font-family: var(--vscode-font-family); padding: 12px; }
-      h1 { margin: 0 0 8px; font-size: 16px; }
-      p { margin: 6px 0 12px; color: var(--vscode-descriptionForeground); }
-      .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; }
-      .row.stack { flex-direction: column; gap: 10px; }
-      .row.actions { gap: 8px; }
-      button {
-        padding: 6px 10px; border: 1px solid var(--vscode-button-border, transparent);
-        border-radius: 6px; background: var(--vscode-button-background);
-        color: var(--vscode-button-foreground); cursor: pointer;
-      }
-      button.danger { background: var(--vscode-inputValidation-errorBackground); color: var(--vscode-editor-foreground); }
-      label { cursor: pointer; user-select: none; }
-    </style>
-</head>
-<body
-  data-cloud="${this.isCloud ? '1' : '0'}"
-  data-cloud-started="${cloudStartedFlag}"
-  data-local-started="${localStartedFlag}">
-  <h1>Locust ${this.isCloud ? 'Cloud' : 'Local'}</h1>
-  <p>${this.isCloud ? 'Manage runs in Locust Cloud.' : 'Run Locust locally or open Locust Cloud.'}</p>
+    // Load HTML template
+    const htmlUri = vscode.Uri.file(path.join(this.ctx.extensionUri.fsPath, 'media', 'webView.html'));
+    let html = await fs.readFile(htmlUri.fsPath, 'utf8');
 
-  ${this.isCloud ? cloudControls : desktopControls}
-  <br>
+    
+    html = html
+      // standard placeholders
+      .replace(/\$\{webview\.cspSource\}/g, webview.cspSource)
+      .replace(/\$\{nonce\}/g, nonce)
+      .replace(/\$\{cloudStartedFlag\}/g, cloudStartedFlag)
+      .replace(/\$\{localStartedFlag\}/g, localStartedFlag)
+      .replace(/\$\{supportBlock\}/g, supportBlock)
+      .replace(/\$\{cloudControls\}/g, cloudControls)
+      .replace(/\$\{desktopControls\}/g, desktopControls)
+      .replace(/\$\{this\.isCloud \? '1' : '0'\}/g, this.isCloud ? '1' : '0')
+      .replace(/\$\{this\.isCloud \? 'Cloud' : 'Local'\}/g, this.isCloud ? 'Cloud' : 'Local')
+      .replace(/\$\{this\.isCloud \? cloudControls : desktopControls\}/g, this.isCloud ? cloudControls : desktopControls);
 
-  <h2>Get Help</h2>
-  <p>
-    <a href="#" id="linkGuide">Beginner Guide</a><br>
-    <a href="https://docs.locust.io/en/stable/" target="_blank">Locust Docs</a><br>
-    ${supportBlock}
-  </p>
-
-  <script nonce="${nonce}">
-    (function () {
-      const vscode = acquireVsCodeApi();
-      const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
-
-      // helpers to paint labels + disabled state
-      const setLocalVisual = (running) => {
-        const b = document.getElementById('btnRunLocal');
-        if (!b) return;
-        b.textContent = running ? 'Running…' : 'Local Test';
-        b.toggleAttribute('disabled', running);
-      };
-      const setCloudVisual = (running) => {
-        // Works for both desktop (btnLocustCloud) and cloud (btnRunUI)
-        const id = document.getElementById('btnLocustCloud') ? 'btnLocustCloud' : 'btnRunUI';
-        const b = document.getElementById(id);
-        if (!b) return;
-        b.textContent = running ? 'Running…' : 'Cloud Test';
-        b.toggleAttribute('disabled', running);
-      };
-
-      const isCloud = document.body.getAttribute('data-cloud') === '1';
-      const localStarted = document.body.getAttribute('data-local-started') === '1';
-      const cloudStarted = document.body.getAttribute('data-cloud-started') === '1';
-
-      // initial paint
-      setLocalVisual(localStarted);
-      setCloudVisual(cloudStarted);
-
-      if (isCloud) {
-        // Cloud: only cloud test
-        const btnRunCloud = document.getElementById('btnRunUI');
-        btnRunCloud?.addEventListener('click', () => {
-          if (cloudStarted) return;            // do nothing if already running
-          run('locust.toggleCloudSimple');     // starts
-          setCloudVisual(true);                // optimistic
-        });
-      } else {
-        // Desktop: both buttons actionable
-        const btnLocal  = document.getElementById('btnRunLocal');
-        const btnCloud  = document.getElementById('btnLocustCloud');
-        const btnHar    = document.getElementById('btnConvertHar');
-
-        btnLocal?.addEventListener('click', () => {
-          if (localStarted) return;            // Stop button handles stopping
-          run('locust.toggleLocalSimple');     // starts
-          setLocalVisual(true);                // optimistic
-        });
-
-        btnCloud?.addEventListener('click', () => {
-          if (cloudStarted) return;
-          run('locust.toggleCloudSimple');     // starts
-          setCloudVisual(true);                // optimistic
-        });
-
-        btnHar?.addEventListener('click', () => run('locust.convertHar'));
-      }
-
-      // Unified Stop Test
-      document.getElementById('btnStopAll')?.addEventListener('click', () => {
-        run('locust.stopLocalThenCloudIfAny');
-        setLocalVisual(false);
-        setCloudVisual(false);
-      });
-
-      // Beginner guide
-      document.getElementById('linkGuide')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        run('locust.startBeginnerTour');
-      });
-
-      // State sync from extension
-      window.addEventListener('message', (ev) => {
-        const msg = ev.data || {};
-        if (msg.type === 'state') {
-          if (typeof msg.cloudStarted === 'boolean') setCloudVisual(msg.cloudStarted);
-          if (typeof msg.localStarted === 'boolean') setLocalVisual(msg.localStarted);
-        }
-      });
-    })();
-  </script>
-</body>
-</html>
-`;
+    webview.html = html;
 
     webview.onDidReceiveMessage(async (msg) => {
       try {
@@ -229,7 +121,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
 
   // Runners / Services
-  const locustRunner = new LocustRunner(); // headless interface removed
+  const locustRunner = new LocustRunner(); 
   const harService = new Har2LocustService(env);
   const harRunner = new Har2LocustRunner(env, harService);
 

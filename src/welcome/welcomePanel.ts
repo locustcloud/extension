@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs/promises'; // 🔹 NEW
 
 const WELCOME_STATE_KEY = 'locust.welcome.showOnStartup';
 const CMD_SHOW = 'locust.showWelcomePanel';
@@ -11,10 +12,10 @@ async function setShowOnStartup(ctx: vscode.ExtensionContext, v: boolean) {
   await ctx.globalState.update(WELCOME_STATE_KEY, !!v);
 }
 
-function openWelcomePanel(ctx: vscode.ExtensionContext) {
+async function openWelcomePanel(ctx: vscode.ExtensionContext) { // 🔹 made async
   const panel = vscode.window.createWebviewPanel(
     'locust.welcome.panel',
-    'Locust — Welcome',
+    'Locust Welcome',
     { viewColumn: vscode.ViewColumn.One, preserveFocus: false },
     {
       enableScripts: true,
@@ -26,7 +27,25 @@ function openWelcomePanel(ctx: vscode.ExtensionContext) {
   const csp = panel.webview.cspSource;
   const nonce = Math.random().toString(36).slice(2);
 
-  const promptsMd = vscode.Uri.file(path.join(ctx.extensionUri.fsPath, 'media/copilot_tutorial', '01-copilot.md'));
+  // 🔹 Build Commands list from package.json (filter to locust.*)
+  const pkgPath = path.join(ctx.extensionUri.fsPath, 'package.json');
+  let commandButtons = '';
+  try {
+    const raw = await fs.readFile(pkgPath, 'utf8');
+    const pkg = JSON.parse(raw);
+    const cmds: Array<{ command: string; title?: string; category?: string }> =
+      (pkg?.contributes?.commands ?? []) as any[];
+
+    const locustCmds = cmds.filter(c => typeof c?.command === 'string' && c.command.startsWith('locust.'));
+    commandButtons = locustCmds.map(c => {
+      const title = c.title || c.command;
+      const category = c.category ? `${c.category}: ` : '';
+      return `<button class="btn" data-cmd="${c.command}" title="${c.command}">${category}${title}</button>`;
+    }).join('\n');
+  } catch {
+    // best effort; show a fallback
+    commandButtons = `<span class="muted">No commands found.</span>`;
+  }
 
   panel.webview.html = `
 <!doctype html>
@@ -75,20 +94,11 @@ function openWelcomePanel(ctx: vscode.ExtensionContext) {
     <p class="sub">Get Started.</p>
 
     <div class="grid">
-
       <div class="card">
-        <h3>Start here</h3>
-        <p class="muted">New to Locust? Tour here:</p>
-        <div class="cta-row">
-          <a class="btn primary" href="command:locust.startBeginnerTour">Beginner Tour</a>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>Locust AI Code Partner</h3>
-        <p class="muted">Example prompts</p>
-        <div class="row">
-          <button class="btn primary" id="openTutorial">Show Prompts</button>
+        <h3>Commands</h3>
+        <p class="muted">Run extension commands</p>
+        <div class="cta-row" id="commandsRow">
+          ${commandButtons}
         </div>
       </div>
 
@@ -99,7 +109,6 @@ function openWelcomePanel(ctx: vscode.ExtensionContext) {
         <input id="showOnStartup" type="checkbox" checked>
         <label for="showOnStartup" class="muted">Show welcome page on startup</label>
       </div>
-      <a class="link" href="command:${CMD_SHOW}">Open this page later</a>
     </div>
   </div>
 
@@ -108,11 +117,15 @@ function openWelcomePanel(ctx: vscode.ExtensionContext) {
     const box = document.getElementById('showOnStartup');
     box.addEventListener('change', () => vscode.postMessage({ type: 'toggle', value: box.checked }));
 
-    const openBtn = document.getElementById('openTutorial');
-    openBtn.addEventListener('click', () => vscode.postMessage({ type: 'openTutorial' }));
+    document.querySelectorAll('[data-cmd]').forEach(el => {
+      el.addEventListener('click', () => {
+        const cmd = el.getAttribute('data-cmd');
+        if (cmd) vscode.postMessage({ type: 'run', command: cmd });
+      });
+    });
 
     window.addEventListener('message', e => {
-      const { type, value } = e.data || {};
+      const { type, value } = (e.data || {});
       if (type === 'init') box.checked = !!value;
     });
   </script>
@@ -125,12 +138,11 @@ function openWelcomePanel(ctx: vscode.ExtensionContext) {
       await setShowOnStartup(ctx, !!msg.value);
       return;
     }
-    if (msg.type === 'openTutorial') {
+    if (msg.type === 'run' && typeof msg.command === 'string') {
       try {
-        const doc = await vscode.workspace.openTextDocument(promptsMd);
-        await vscode.window.showTextDocument(doc, { preview: false });
+        await vscode.commands.executeCommand(msg.command);
       } catch (e:any) {
-        vscode.window.showErrorMessage(e?.message ?? 'Failed to open prompts.md');
+        vscode.window.showErrorMessage(e?.message ?? `Failed to run ${msg.command}`);
       }
       return;
     }
@@ -144,11 +156,11 @@ export function registerWelcomePanel(ctx: vscode.ExtensionContext, opts?: { auto
 
   // command to open later
   ctx.subscriptions.push(
-    vscode.commands.registerCommand(CMD_SHOW, () => openWelcomePanel(ctx))
+    vscode.commands.registerCommand(CMD_SHOW, () => void openWelcomePanel(ctx)) // safe if async
   );
 
   // auto-open on desktop if enabled
   if (autoOpen && vscode.env.uiKind !== vscode.UIKind.Web && getShowOnStartup(ctx)) {
-    openWelcomePanel(ctx);
+    void openWelcomePanel(ctx);
   }
 }

@@ -27,8 +27,6 @@
   data-cloud="${this.isCloud ? '1' : '0'}"
   data-cloud-started="${cloudStartedFlag}"
   data-local-started="${localStartedFlag}">
-  <h1>Locust ${this.isCloud ? 'Cloud' : 'Local'}</h1>
-  <p>${this.isCloud ? 'Manage runs in Locust Cloud.' : 'Run Locust locally or open Locust Cloud.'}</p>
 
   ${this.isCloud ? cloudControls : desktopControls}
   <br>
