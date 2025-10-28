@@ -1,0 +1,38 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "Locustfile",
+  "description": "Build your first locustfile step by step.",
+  "isPrimary": true,
+  "steps": [
+    {
+      "title": "Imports",
+      "description": "Bring in stdlib **time** and the Locust APIs: **HttpUser** (base class), **@task** (mark tasks), and **between** (random wait helper).",
+      "file": ".tours/locustfile_tour.py",
+      "line": 2
+    },
+    {
+      "title": "User class + wait time",
+      "description": "Define the simulated user. Locust creates one instance per virtual user. **wait_time = between(1, 5)** pauses 1–5s between tasks (randomized).",
+      "file": ".tours/locustfile_tour.py",
+      "line": 5
+    },
+    {
+      "title": "Task: hello_world",
+      "description": "Mark **hello_world** with **@task** so Locust schedules it. Inside, two sequential GETs (**/hello**, **/world**) via session-aware **self.client**.",
+      "file": ".tours/locustfile_tour.py",
+      "line": 10
+    },
+    {
+      "title": "Weighted task: view_items",
+      "description": "`@task(3)` gives this task 3× the weight of default tasks. Loop 10 items, request **/item?id={item_id}** but set **name=\"/item\"** for aggregated stats. **time.sleep(1)** simulates think time.",
+      "file": ".tours/locustfile_tour.py",
+      "line": 16
+    },
+    {
+      "title": "on_start (login once)",
+      "description": "**on_start** runs once per simulated user before tasks. POST to **/login** with JSON; auth is kept on **self.client** for later requests.",
+      "file": ".tours/locustfile_tour.py",
+      "line": 19
+    }
+  ]
+}

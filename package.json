@@ -119,7 +119,8 @@
       { "command": "locust.openLocustCloud", "title": "Open Locust Cloud", "icon": "$(cloud)" },
       { "command": "locust.deleteLocustCloud", "title": "Locust Cloud Shut Down", "icon": "$(trash)" },
       { "command": "locust.showScenarios", "title": "Locust: Show Tests", "icon": "$(list-selection)" },
-      { "command": "locust.hideScenarios", "title": "Locust: Hide Tests", "icon": "$(eye-closed)" }
+      { "command": "locust.hideScenarios", "title": "Locust: Hide Tests", "icon": "$(eye-closed)" },
+      { "command": "locust.showWelcomePanel", "title": "Locust: Show Welcome Page" }
     ],
     "configuration": {
       "title": "Locust",

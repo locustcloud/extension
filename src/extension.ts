@@ -7,9 +7,12 @@ import { LocustRunner } from './runners/locustRunner';
 import { Har2LocustService } from './services/har2locustService';
 import { Har2LocustRunner } from './runners/har2locustRunner';
 import { LocustTreeProvider } from './tree/locustTree';
+import { registerWelcomePanel } from './welcome/welcomePanel';
 import { CopilotService } from './services/copilotService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+
+
 
 // Cloud toggle
 const CLOUD_FLAG_KEY = 'locust.cloudWasStarted';
@@ -238,6 +241,9 @@ export async function activate(ctx: vscode.ExtensionContext) {
   // Gating context key
   await vscode.commands.executeCommand('setContext', 'locust.showScenarios', false);
 
+  // desktop auto-open
+  registerWelcomePanel(ctx); 
+
   // Welcome view
   const welcomeReg = vscode.window.registerWebviewViewProvider(
     'locust.welcome',
@@ -258,6 +264,8 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
   // Centralized command registration
   registerCommands(ctx, { setup, runner: locustRunner, harRunner, tree });
+
+
 
   // Cloud toggle behavior
   ctx.subscriptions.push(
