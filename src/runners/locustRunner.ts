@@ -53,6 +53,9 @@ export class LocustRunner {
   // 🔹 Track last opened UI URL so we can close the Simple Browser tab on stop
   private _lastUiUrl?: string;
 
+  // 🔹 NEW: Track the Simple Browser tab we opened
+  private _uiTab?: vscode.Tab;
+
   private findLocustTerminal(): vscode.Terminal | undefined {
     return vscode.window.terminals.find(t => t.name === 'Locust');
   }
@@ -76,15 +79,38 @@ export class LocustRunner {
     return env;
   }
 
+  // 🔹 NEW: Collect all Simple Browser tabs
+  private collectSimpleBrowserTabs(): vscode.Tab[] {
+    const out: vscode.Tab[] = [];
+    for (const g of vscode.window.tabGroups.all) {
+      for (const t of g.tabs) {
+        const input = (t as any).input;
+        if (input && typeof input.viewType === 'string' && input.viewType.toLowerCase().includes('simplebrowser')) {
+          out.push(t);
+        }
+      }
+    }
+    return out;
+  }
+
   /** Wrapper: "open in bottom split" */
   private async openUrlSplit(url: string, ratio = 0.45) {
+    // 🔹 NEW: snapshot before opening
+    const before = this.collectSimpleBrowserTabs();
+
     const tryCmd = async (id: string) =>
       vscode.commands.executeCommand(id, url, ratio).then(() => true, () => false);
 
     const ok = await tryCmd("locust.openUrlInSplit") || await tryCmd("locust.openUrlSplit");
     if (!ok) {
       await vscode.env.openExternal(vscode.Uri.parse(url));
+      return;
     }
+
+    // 🔹 NEW: detect the newly opened Simple Browser tab and remember it
+    const after = this.collectSimpleBrowserTabs();
+    const newlyOpened = after.find(t => !before.includes(t));
+    if (newlyOpened) this._uiTab = newlyOpened;
   }
 
   // 🔹 Find and close the Simple Browser tab showing a given URL
@@ -173,9 +199,17 @@ export class LocustRunner {
       );
     });
 
-    child.on("close", (code) => {
+    child.on("close", async (code) => {
       out.appendLine(`exited with code ${code}`);
       this._uiChild = undefined;
+
+      // 🔹 NEW: Close the tracked Simple Browser tab if we opened one
+      if (this._uiTab) {
+        try {
+          await vscode.window.tabGroups.close([this._uiTab], true);
+        } catch { /* ignore */ }
+        this._uiTab = undefined;
+      }
     });
 
     // Fallback: open configured localhost URL if no URL detected
@@ -486,7 +520,16 @@ class MyUser(FastHttpUser):
       try {
         this._uiChild.kill();
         this._uiChild = undefined;
-        // Close the Simple Browser tab
+
+        // 🔹 NEW: Close the tracked Simple Browser tab if present
+        if (this._uiTab) {
+          try {
+            await vscode.window.tabGroups.close([this._uiTab], true);
+          } catch { /* ignore */ }
+          this._uiTab = undefined;
+        }
+
+        // Close by URL fallback as well
         await this.closeSimpleBrowserForUrl(this._lastUiUrl);
         vscode.window.setStatusBarMessage('Locust: stopped local UI run.', 3000);
         return;
@@ -498,7 +541,13 @@ class MyUser(FastHttpUser):
     // Stop terminal run
     const term = this._lastTerminal ?? this.findLocustTerminal();
     if (!term) {
-      // Try closing the UI tab
+      // 🔹 NEW: Close tracked tab (if any) and try URL-based close
+      if (this._uiTab) {
+        try {
+          await vscode.window.tabGroups.close([this._uiTab], true);
+        } catch { /* ignore */ }
+        this._uiTab = undefined;
+      }
       await this.closeSimpleBrowserForUrl(this._lastUiUrl);
       vscode.window.showInformationMessage('No running Locust session to stop.');
       return;
@@ -506,12 +555,28 @@ class MyUser(FastHttpUser):
 
     try {
       await vscode.commands.executeCommand('workbench.action.terminal.sendSequence', { text: '\x03' });
-      // Close the Simple Browser after  Ctrl+C
+
+      // 🔹 NEW: Close tracked tab (if any) and URL-based tab
+      if (this._uiTab) {
+        try {
+          await vscode.window.tabGroups.close([this._uiTab], true);
+        } catch { /* ignore */ }
+        this._uiTab = undefined;
+      }
       await this.closeSimpleBrowserForUrl(this._lastUiUrl);
+
       vscode.window.setStatusBarMessage('Locust: sent Ctrl+C to stop the run.', 3000);
     } catch {
       term.dispose();
+
+      if (this._uiTab) {
+        try {
+          await vscode.window.tabGroups.close([this._uiTab], true);
+        } catch { /* ignore */ }
+        this._uiTab = undefined;
+      }
       await this.closeSimpleBrowserForUrl(this._lastUiUrl);
+
       vscode.window.setStatusBarMessage('Locust: terminal disposed to stop the run.', 3000);
     }
   }
