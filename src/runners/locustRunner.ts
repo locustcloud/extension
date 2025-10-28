@@ -83,6 +83,7 @@ export class LocustRunner {
     }
   }
 
+  
 
   private async runLocustUI(locustfileAbs: string) {
     const out = vscode.window.createOutputChannel("Locust");

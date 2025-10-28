@@ -7,7 +7,7 @@ import { LocustRunner } from './runners/locustRunner';
 import { Har2LocustService } from './services/har2locustService';
 import { Har2LocustRunner } from './runners/har2locustRunner';
 import { LocustTreeProvider } from './tree/locustTree';
-// import { CopilotService } from './services/copilotService';
+import { CopilotService } from './services/copilotService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -75,107 +75,21 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
                  script-src 'nonce-${nonce}'; style-src ${webview.cspSource} 'unsafe-inline';">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Locust Menu</title>
-  <style>
-    /* Locust theme */
-    :root{
-      --bg:            #111315;   /* page */
-      --panel:         #1a1d1f;   /* card/panel */
-      --panel-border:  #2a2f34;
-      --text:          #e6e6e6;   /* main text */
-      --muted:         #9aa0a6;   /* secondary text */
-      --accent:        #28a745;   /* Locust green */
-      --accent-hover:  #23913d;
-    }
-
-    body{
-      font-family: var(--vscode-font-family);
-      background: var(--bg);
-      color: var(--text);
-      padding: 0;           
-    }
-
-    body{
-      margin: 0;
-      padding: 14px 16px;
-      background:
-        linear-gradient(0deg, rgba(0,0,0,.0), rgba(0,0,0,.0)),
-        var(--panel);
-      border: 1px solid var(--panel-border);
-      border-radius: 8px;
-      box-shadow: 0 2px 12px rgba(0,0,0,.35);
-    }
-
-    h1{
-      margin: 0 0 8px;
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text);
-      letter-spacing: .2px;
-    }
-    h2{
-      margin: 16px 0 6px;
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    p{
-      margin: 6px 0 12px;
-      color: var(--muted);
-    }
-
-    .row{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 12px; }
-    .row.stack{ flex-direction:column; gap:10px; }
-    .row.actions{ gap:8px; }
-
-    button{
-      padding: 8px 14px;
-      border: 1px solid #1f7a36;
-      border-radius: 6px;
-      background: var(--accent);
-      color: #ffffff;
-      cursor: pointer;
-      font-weight: 600;
-      letter-spacing: .1px;
-      transition: background 120ms ease, box-shadow 120ms ease, transform 60ms ease;
-    }
-    button:hover,
-    button:focus-visible{
-      background: var(--accent-hover);
-      outline: none;
-      box-shadow: 0 0 0 2px rgba(40,167,69,.25);
-    }
-    button:active{ transform: translateY(1px); }
-    button[disabled]{
-      opacity: .7;
-      cursor: default;
-      filter: grayscale(.1);
-    }
-
-    button.danger{
-      background: var(--vscode-inputValidation-errorBackground);
-      color: var(--vscode-editor-foreground);
-      border-color: transparent;
-      font-weight: 600;
-    }
-    button.danger:hover,
-    button.danger:focus-visible{
-      filter: brightness(1.05);
-      box-shadow: none;
-    }
-
-    a{
-      color: var(--accent);
-      text-decoration: none;
-      font-weight: 500;
-    }
-    a:hover,
-    a:focus-visible{
-      color: var(--accent-hover);
-      text-decoration: underline;
-      outline: none;
-    }
-  </style>
+    <style>
+      body { font-family: var(--vscode-font-family); padding: 12px; }
+      h1 { margin: 0 0 8px; font-size: 16px; }
+      p { margin: 6px 0 12px; color: var(--vscode-descriptionForeground); }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 12px; }
+      .row.stack { flex-direction: column; gap: 10px; }
+      .row.actions { gap: 8px; }
+      button {
+        padding: 6px 10px; border: 1px solid var(--vscode-button-border, transparent);
+        border-radius: 6px; background: var(--vscode-button-background);
+        color: var(--vscode-button-foreground); cursor: pointer;
+      }
+      button.danger { background: var(--vscode-inputValidation-errorBackground); color: var(--vscode-editor-foreground); }
+      label { cursor: pointer; user-select: none; }
+    </style>
 </head>
 <body
   data-cloud="${this.isCloud ? '1' : '0'}"
