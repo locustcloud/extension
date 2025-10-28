@@ -198,7 +198,7 @@ export class LocustCloudService {
       fileDir
     );
     out.appendLine(
-      `[cloud-ui] launching: ${launch.cmd} ${launch.args.join(" ")} (cwd=${launch.cwd})`
+      `Launching: ${launch.cmd} ${launch.args.join(" ")}`
     );
 
     const child = spawn(launch.cmd, launch.args, {
@@ -218,7 +218,7 @@ export class LocustCloudService {
       const url = extractLocustUrl(text, { addDashboardFalse: true });
       if (url && !opened) {
         opened = true;
-        out.appendLine(`[cloud-ui] web UI: ${url}`);
+        out.appendLine(`Opening Browser...`);
         if (this.isWeb) {
           await this.openUrlSplit(url, 0.45);
           vscode.window.setStatusBarMessage(
@@ -252,7 +252,7 @@ export class LocustCloudService {
 
     child.stderr.on("data", async (b) => {
       const s = b.toString();
-      out.append(`[stderr] ${s}`); 
+      out.append(`${s}`); 
       bufErr += s;
       await flushLines(bufErr);
       bufErr = bufErr.slice(bufErr.lastIndexOf("\n") + 1);
@@ -266,7 +266,7 @@ export class LocustCloudService {
     });
 
     child.on("error", async (e: any) => {
-      out.appendLine(`[error] ${e?.message ?? e}`);
+      out.appendLine(`${e?.message ?? e}`);
       vscode.window.showErrorMessage(
         `Failed to run "${launch.cmd}". Ensure Locust is installed (in your venv or PATH) or set "locust.path" in settings.`
       );
@@ -275,7 +275,7 @@ export class LocustCloudService {
     });
 
     child.on("close", async (code) => {
-      out.appendLine(`\n[cloud-ui] exited with code ${code ?? "null"}`);
+      out.appendLine(`\nExit code: \n ${code ?? "null"}`);
       this._cloudChild = undefined;
       await this.setCloudStarted(false);
     });
@@ -285,7 +285,7 @@ export class LocustCloudService {
       if (!opened) {
         opened = true;
         const fallback = this.cloudFallbackUrl;
-        out.appendLine(`[cloud-ui] no UI URL detected — opening fallback: ${fallback}`);
+        out.appendLine(`No UI URL detected, opening fallback...`);
         if (this.isWeb) {
           await this.openUrlSplit(fallback, 0.45);
         } else {
@@ -306,7 +306,7 @@ export class LocustCloudService {
       const out = this.out();
       out.show(true);
 
-      out.appendLine(`[cloud-ui] stopping attached cloud process (PID ${child.pid})`);
+      out.appendLine(`Stopping cloud`);
 
       const trySignal = (sig: NodeJS.Signals) =>
         new Promise<void>((resolve) => {
@@ -338,7 +338,7 @@ export class LocustCloudService {
 
     const launch = await this.resolveLocustLaunch(["--cloud", "--delete"], ws);
     out.appendLine(
-      `[cloud-ui] deleting: ${launch.cmd} ${launch.args.join(" ")} (cwd=${ws})`
+      `Shutting Down...`
     );
 
     const del = spawn(launch.cmd, launch.args, {
@@ -349,15 +349,15 @@ export class LocustCloudService {
     });
 
     del.stdout.on("data", (b) => out.append(b.toString()));
-    del.stderr.on("data", (b) => out.append(`[stderr] ${b.toString()}`));
+    del.stderr.on("data", (b) => out.append(`${b.toString()}`));
     del.on("error", (e: any) => {
-      out.appendLine(`[error] ${e?.message ?? e}`);
+      out.appendLine(`${e?.message ?? e}`);
       vscode.window.showErrorMessage(
         `Failed to run "${launch.cmd}". Ensure Locust is installed (in your venv or PATH) or set "locust.path" in settings.`
       );
     });
     del.on("close", async (code) => {
-      out.appendLine(`[cloud-ui] delete exited with code ${code}`);
+      out.appendLine(`Shut down:\n ${code}`);
       await this.setCloudStarted(false);
     });
   }

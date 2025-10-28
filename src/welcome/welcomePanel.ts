@@ -91,6 +91,7 @@ function openWelcomePanel(ctx: vscode.ExtensionContext) {
           <button class="btn primary" id="openTutorial">Show Prompts</button>
         </div>
       </div>
+
     </div>
 
     <div class="row" style="margin-top:22px;">
