@@ -24,6 +24,9 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
   private watchers: vscode.FileSystemWatcher[] = [];
   private refreshTimer?: NodeJS.Timeout;
 
+  // ► NEW: keep a central list of known locustfiles for the picker
+  private _knownFiles: vscode.Uri[] = [];
+
   constructor() {
     // Refresh when workspace changes
     vscode.workspace.onDidChangeWorkspaceFolders(() => this.refresh());
@@ -82,6 +85,9 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
       }
 
       const files = [...explicit, ...inferred];
+
+      // ► NEW: keep this list for the picker
+      this._knownFiles = files;
 
       return files.map((f) => ({
         kind: 'file',
@@ -178,5 +184,100 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     } catch {
       return false;
     }
+  }
+
+  // Helper picker to check if file is from known list
+  private isKnown(fsPath: string): boolean {
+    return this._knownFiles.some(u => u.fsPath === fsPath);
+  }
+
+  /**
+   * Centralized picker used by both local & cloud runs.
+   * Logic:
+   *  1) If active editor is a locustfile (name matches, known in tree, or imports locust) → use it.
+   *  2) Else, if we have known locustfiles, QuickPick them.
+   *  3) Else, let user choose a Python file or scaffold a new one.
+   *
+   * @param scaffoldCmdId command id that returns a vscode.Uri (e.g. 'locust.createLocustfile')
+   */
+  async pickLocustfileOrActive(scaffoldCmdId = 'locust.createLocustfile'): Promise<vscode.Uri | undefined> {
+    const ws = vscode.workspace.workspaceFolders?.[0];
+    if (!ws) {
+      vscode.window.showWarningMessage('Open a folder first.');
+      return;
+    }
+
+    // Prefer the active editor if it looks like a locustfile
+    const active = vscode.window.activeTextEditor?.document;
+    if (active?.uri?.scheme === 'file' && active.languageId === 'python') {
+      const fsPath = active.uri.fsPath;
+
+      // Match canonical filenames: locustfile*.py
+      if (/(?:^|[\\/])locustfile.*\.py$/i.test(fsPath)) {
+        return active.uri;
+      }
+
+      // If it's already in our tree list
+      if (this.isKnown(fsPath)) {
+        return active.uri;
+      }
+
+      // If it imports locust near the top
+      try {
+        if (await this.looksLikeLocustFile(active.uri)) {
+          return active.uri;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // If files discovered by the tree, offer them
+    if (this._knownFiles.length > 0) {
+      if (this._knownFiles.length === 1) return this._knownFiles[0];
+
+      const picks = this._knownFiles.map(u => ({
+        label: vscode.workspace.asRelativePath(u),
+        description: path.basename(u.fsPath),
+        uri: u
+      }));
+      const chosen = await vscode.window.showQuickPick(picks, {
+        placeHolder: 'Choose a locustfile to run',
+        matchOnDescription: true,
+      });
+      if (chosen?.uri) return chosen.uri;
+    }
+
+    // Otherwise: Choose or Scaffold
+    const action = await vscode.window.showQuickPick(
+      [
+        { label: '$(file-code) Choose a Python file…', action: 'choose' as const },
+        { label: '$(add) Scaffold a new locustfile', action: 'scaffold' as const },
+        { label: '$(x) Cancel', action: 'cancel' as const },
+      ],
+      { placeHolder: 'No locustfile found. What would you like to do?' }
+    );
+    if (!action || action.action === 'cancel') return;
+
+    if (action.action === 'choose') {
+      const picked = await vscode.window.showOpenDialog({
+        canSelectFiles: true,
+        canSelectFolders: false,
+        canSelectMany: false,
+        filters: { Python: ['py'] },
+        title: 'Select locustfile.py',
+        defaultUri: ws.uri,
+      });
+      return picked?.[0];
+    }
+
+    if (action.action === 'scaffold') {
+      const dest = await vscode.commands.executeCommand(scaffoldCmdId);
+      if (dest && typeof dest === 'object' && 'fsPath' in dest) {
+        return dest as vscode.Uri;
+      }
+    }
+
+    return undefined;
   }
 }

@@ -91,17 +91,6 @@ function openWelcomePanel(ctx: vscode.ExtensionContext) {
           <button class="btn primary" id="openTutorial">Show Prompts</button>
         </div>
       </div>
-
-      <div class="card">
-        <h3>Docs & Support</h3>
-        <p class="muted">Locust Cloud, Documentation, and Support.</p>
-        <ul>
-          <li><a class="link" href="https://www.locust.cloud/">Locust Cloud</a></li>
-          <li><a class="link" href="https://docs.locust.io/en/stable/">Locust Documentation</a></li>
-          <li><a class="link" href="mailto:support@locust.cloud">support@locust.cloud</a></li>
-        </ul>
-      </div>
-
     </div>
 
     <div class="row" style="margin-top:22px;">

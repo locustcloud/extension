@@ -4,6 +4,7 @@ import { EnvService } from '../services/envService';
 import { extractLocustUrl } from '../core/utils/locustUrl';
 import path from 'path';
 import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
+import { LocustTreeProvider } from '../tree/locustTree';
 
 /**
  * Locust run functions.
@@ -119,7 +120,7 @@ export class LocustRunner {
     const fileDir = path.dirname(locustfileAbs);
     const relFile = path.basename(locustfileAbs);
 
-    out.appendLine(`[local-ui] launching: ${cmd} -f "${relFile}"`);
+    out.appendLine(`Launching: ${cmd} -f "${relFile}"`);
     const child = spawn(cmd, ["-f", relFile], {
       cwd: fileDir,
       env,
@@ -136,7 +137,7 @@ export class LocustRunner {
       if (url && !opened) {
         opened = true;
         this._lastUiUrl = url; // 🔹 remember last UI URL
-        out.appendLine(`[local-ui] web UI: ${url}`);
+        out.appendLine(`UI Activated`);
         await this.openUrlSplit(url, 0.45);
         vscode.window.setStatusBarMessage("Locust (local): web UI opened in split view.", 60000);
       }
@@ -159,21 +160,21 @@ export class LocustRunner {
 
     child.stderr.on("data", async (b) => {
       const s = b.toString();
-      out.append(`[stderr] ${s}`);
+      out.append(` ${s}`);
       bufErr += s;
       await flushLines(bufErr);
       bufErr = bufErr.slice(bufErr.lastIndexOf("\n") + 1);
     });
 
     child.on("error", (e: any) => {
-      out.appendLine(`[error] ${e?.message ?? e}`);
+      out.appendLine(`${e?.message ?? e}`);
       vscode.window.showErrorMessage(
         `Failed to run "${cmd}". Ensure Locust is installed (in your venv or PATH) or set "locust.path" in settings.`
       );
     });
 
     child.on("close", (code) => {
-      out.appendLine(`[local-ui] exited with code ${code}`);
+      out.appendLine(`exited with code ${code}`);
       this._uiChild = undefined;
     });
 
@@ -183,7 +184,7 @@ export class LocustRunner {
         opened = true;
         const fallback = this.localFallbackUrl;
         this._lastUiUrl = fallback; // 🔹 remember fallback URL too
-        out.appendLine(`[local-ui] no UI URL detected — opening fallback: ${fallback}`);
+        out.appendLine(`No UI URL detected opening fallback...`);
         this.openUrlSplit(fallback, 0.45).catch(() => {});
       }
     }, 60000);
@@ -401,6 +402,22 @@ class MyUser(FastHttpUser):
   }
 
   private async pickLocustfile(): Promise<vscode.Uri | undefined> {
+    // Try centralized picker from the TreeProvider if available.
+    try {
+      const tree = new LocustTreeProvider();
+      const maybePick = (tree as any).pickLocustfileOrActive;
+      if (typeof maybePick === 'function') {
+        const uri: vscode.Uri | undefined = await maybePick.call(tree, 'locust.createLocustfile');
+        tree.dispose();
+        if (uri) return uri;
+      } else {
+        tree.dispose();
+      }
+    } catch {
+      // ignore and fall back
+    }
+
+    // Fallback to previous self-contained behavior 
     const ws = vscode.workspace.workspaceFolders?.[0];
     if (!ws) {
       vscode.window.showWarningMessage('Open a folder first.');

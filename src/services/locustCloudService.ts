@@ -118,6 +118,14 @@ export class LocustCloudService {
   private async pickLocustfile(): Promise<string | undefined> {
     const tree = new LocustTreeProvider();
     try {
+    
+      const maybePick = (tree as any).pickLocustfileOrActive;
+      if (typeof maybePick === "function") {
+        const uri: vscode.Uri | undefined = await maybePick.call(tree, "locust.createLocustfile");
+        if (uri) return uri.fsPath;
+      }
+
+      
       const roots = await tree.getChildren();
       const files = roots.filter(
         (n) => (n as any).kind === "file"
