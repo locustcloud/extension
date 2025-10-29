@@ -31,6 +31,117 @@ async function setLocalStarted(ctx: vscode.ExtensionContext, v: boolean) {
   await ctx.workspaceState.update('locust.localStarted', v);
 }
 
+class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
+  constructor(private ctx: vscode.ExtensionContext, private readonly isCloud: boolean) {}
+
+  async resolveWebviewView(webviewView: vscode.WebviewView) { 
+    const { webview } = webviewView;
+    webview.options = { enableScripts: true, localResourceRoots: [this.ctx.extensionUri] };
+
+    const nonce = String(Math.random()).slice(2);
+
+    // Desktop controls
+    const desktopControls = `
+      <div class="row actions">
+        <button id="btnRunLocal"    title="locust -f locustfile.py">Local Test</button>
+        <button id="btnLocustCloud" title="locust -f locustfile.py --cloud">Cloud Test</button>
+      </div>
+      <div class="row">
+        <button id="btnStopAll" class="danger" title="Stop active Test">Stop Test</button>
+      </div><br>
+      <div class="row"><br>
+        <button id="btnConvertHar"  title="Convert a HAR file to a Locust test">HAR to Locust</button>
+      </div>
+      <div class="row">
+        <button id="btnCopilotPrompts" title="Show Copilot prompt examples">Copilot Prompts</button>
+      </div>
+    `;
+
+    // Cloud controls
+    const cloudControls = `
+      <div class="row actions">
+        <button id="btnRunUI"       title="locust -f locustfile.py --cloud">Cloud Test</button>
+      </div>
+      <div class="row">
+        <button id="btnStopAll" class="danger" title="Stop active Test">Stop Test</button>
+      </div>
+    `;
+
+    const supportBlock = this.isCloud ? '' : `<a href="mailto:support@locust.cloud">support@locust.cloud</a><br>`;
+
+    const cloudStartedFlag = getCloudStarted(this.ctx) ? '1' : '0';
+    const localStartedFlag = !this.isCloud && getLocalStarted(this.ctx) ? '1' : '0';
+
+    // Load HTML template
+    const htmlUri = vscode.Uri.file(path.join(this.ctx.extensionUri.fsPath, 'media', 'webView.html'));
+    let html = await fs.readFile(htmlUri.fsPath, 'utf8');
+
+    
+    html = html
+      // standard placeholders
+      .replace(/\$\{webview\.cspSource\}/g, webview.cspSource)
+      .replace(/\$\{nonce\}/g, nonce)
+      .replace(/\$\{cloudStartedFlag\}/g, cloudStartedFlag)
+      .replace(/\$\{localStartedFlag\}/g, localStartedFlag)
+      .replace(/\$\{supportBlock\}/g, supportBlock)
+      .replace(/\$\{cloudControls\}/g, cloudControls)
+      .replace(/\$\{desktopControls\}/g, desktopControls)
+      .replace(/\$\{this\.isCloud \? '1' : '0'\}/g, this.isCloud ? '1' : '0')
+      .replace(/\$\{this\.isCloud \? 'Cloud' : 'Local'\}/g, this.isCloud ? 'Cloud' : 'Local')
+      .replace(/\$\{this\.isCloud \? cloudControls : desktopControls\}/g, this.isCloud ? cloudControls : desktopControls);
+
+    webview.html = html;
+
+    webview.onDidReceiveMessage(async (msg) => {
+      try {
+        if (msg?.type === 'run' && typeof msg.command === 'string') {
+          if (msg.command === 'locust.hideWelcome') {
+            await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', true);
+            await vscode.commands.executeCommand('locust.scenarios.focus');
+            return;
+          }
+          await vscode.commands.executeCommand(msg.command);
+          return;
+        }
+
+        if (msg?.type === 'getCopilotPrompts') {
+          try {
+            const mdPath = path.join(this.ctx.extensionUri.fsPath, 'media', 'copilot_tutorial', '01-copilot.md');
+            const md = await fs.readFile(mdPath, 'utf8');
+
+            // Extract blocks **Prompt:** or ***Prompt:***
+            const items: string[] = [];
+            const re = /(?:\*\*\*?Prompt:\*\*\*?\s*)([\s\S]*?)(?=\n\s*\*\*|$)/gi;
+            let m: RegExpExecArray | null;
+            while ((m = re.exec(md)) !== null) {
+              const block = (m[1] || '').trim();
+
+              // Prefer numbered lines (1. ..., 2. ...) if present
+              const numbered: string[] = [];
+              block.replace(/^\s*\d+\.\s*(.+)$/gm, (_a, p1) => { numbered.push(String(p1).trim()); return ''; });
+
+              if (numbered.length) {
+                items.push(...numbered);
+              } else {
+                // First non-empty line
+                const first = block.split(/\r?\n/).map(s => s.trim()).find(Boolean);
+                if (first) items.push(first);
+              }
+            }
+
+            await webview.postMessage({ type: 'copilotPrompts', items });
+          } catch (e: any) {
+            await webview.postMessage({ type: 'copilotPrompts', items: [], error: e?.message ?? 'Failed to read prompts' });
+          }
+          return;
+        }
+      } catch (e: any) {
+        vscode.window.showErrorMessage(e?.message ?? 'Failed to execute action.');
+      }
+    });
+  }
+}
+
 export async function activate(ctx: vscode.ExtensionContext) {
   // Detect environment and set context keys
   const isCloud = detectCloudEnv();
