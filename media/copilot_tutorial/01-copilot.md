@@ -6,26 +6,11 @@
 
     **Prompt:**
 
-    Convert samples/sample.har to a locustfile and save it as templates/sample\_locustfile.py
+    Convert your_file.har to a locustfile and save it in your_directory
 
     **What happens:**
     - Copilot calls the `har.to_locust` MCP tool.
-    - It creates `templates/sample_locustfile.py` with a runnable Locust test class.
-
-
-+ **Convert HAR to Locustfile**
-
-    
-    ***Prompt:***
-
-    
-    Convert sample.har to locustfile and save it as templates/sample\_locustfile.py
-
-    
-    **What happens:**
-
-    - Copilot calls the `har.to_locust` tool.
-    - It creates `templates/sample_locustfile.py` with a runnable Locust test class.
+    - It creates `your_directory/sample_locustfile.py` with a runnable Locust test class.
 
 
 + **Convert HAR to Locustfile Run Test**
@@ -34,7 +19,7 @@
     ***Prompt:***
 
     
-    could you convert the sample har file and run the result in the ui?
+    could you convert the filename har file and run result in test ui?
 
     
     **What happens:***
@@ -49,9 +34,9 @@
     ***Prompt:***
 
 
-    1. [Simple] Could you write me a locustfile containing one user and 3 tasks?
+    1. Could you write me a locustfile containing one user and 3 tasks?
 
-    2. [Advanced] Could you please regenerate a locustfile that loop through a list of URL:s using FastHttp user that do 3 different tasks authenticate (POST), inventory (GET), cart/add (POST)
+    2. Could you please regenerate a locustfile that loop through a list of URL:s using FastHttp user that do 3 different tasks authenticate (POST), inventory (GET), cart/add (POST)
 
 
     **What Happens:**

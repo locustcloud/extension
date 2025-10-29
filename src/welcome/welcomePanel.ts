@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs/promises';
 
 const WELCOME_STATE_KEY = 'locust.welcome.showOnStartup';
 const CMD_SHOW = 'locust.showWelcomePanel';
@@ -27,44 +26,6 @@ async function openWelcomePanel(ctx: vscode.ExtensionContext) {
 
   const csp = panel.webview.cspSource;
   const nonce = Math.random().toString(36).slice(2);
-
-  // Build Command Palette list from package.json -> "commandPalette"
-  const pkgPath = path.join(ctx.extensionUri.fsPath, 'package.json');
-  let commandListItems = '';
-  try {
-    const raw = await fs.readFile(pkgPath, 'utf8');
-    const pkg = JSON.parse(raw);
-
-    // "commandPalette": [ { "command": "locust.xyz", "when": "..." }, ... ]
-    const palette: Array<{ command: string; when?: string }> = Array.isArray(pkg?.commandPalette)
-      ? pkg.commandPalette
-      : [];
-
-    // Labels
-    const friendly: Record<string, string> = {
-      'locust.startBeginnerTour': 'Beginner tour',
-      'locust.runUI': 'Run local UI test',
-      'locust.runHeadless': 'Run local headless test',
-      'locust.openLocustCloud': 'Run Locust Cloud test',
-      'locust.stopLastRun': 'Stop test',
-      'locust.deleteLocustCloud': 'Shut down Locust Cloud',
-      'locust.showScenarios': 'Show locustfiles',
-      'locust.hideScenarios': 'Hide locustfiles',
-    };
-
-    // Keep command pallette order.
-    const items = palette
-      .filter(e => typeof e?.command === 'string' && e.command.startsWith('locust.'))
-      .map(e => {
-        const label = friendly[e.command] ?? e.command;
-        return `<li><span class="left">${label}</span><code class="right">${e.command}</code></li>`;
-      })
-      .join('\n');
-
-    commandListItems = items || `<li class="muted">No Locust commands found in commandPalette.</li>`;
-  } catch {
-    commandListItems = `<li class="muted">No commands found.</li>`;
-  }
 
   panel.webview.html = `
 <!doctype html>
@@ -96,27 +57,14 @@ async function openWelcomePanel(ctx: vscode.ExtensionContext) {
     .muted{color:var(--muted);}
     .title-accent{color:#28a745;}
 
-    /* list styling */
-    ul.cmds{list-style:none;margin:8px 0 0 0;padding:0;}
-    ul.cmds li{
-      margin:6px 0;
-      display:flex; align-items:center; justify-content:space-between; gap:12px;
-      border-bottom:1px dashed var(--border);
-      padding:6px 0;
-    }
-    ul.cmds li:last-child{border-bottom:none;}
-    ul.cmds .left{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-    ul.cmds .right{
-      opacity:.9;
-      background: transparent;
-      border:1px solid var(--border);
-      border-radius:6px;
-      padding:2px 6px;
-      font-family: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
-      font-size: 12px;
-    }
-
     .what p{margin:8px 0 0; line-height:1.5;}
+
+    /* features list */
+    ul.features{list-style:disc;margin:8px 0 0 20px;padding:0;}
+    ul.features li{margin:6px 0; line-height:1.45;}
+    ul.features b{font-weight:600;}
+    .controls{margin-top:12px;}
+    .controls label{display:flex;align-items:center;gap:8px;}
   </style>
 </head>
 <body>
@@ -133,15 +81,23 @@ async function openWelcomePanel(ctx: vscode.ExtensionContext) {
         <p>You can import regular Python libraries into your tests, and with Locust’s pluggable architecture it is infinitely expandable. Unlike when using most other tools, your test design will never be limited by a GUI or domain-specific language.</p>
       </div>
 
-      <!-- Right: Command Palette (from package.json commandPalette) -->
+      <!-- Right: Features -->
       <div class="card">
-        <h3>Command Palette</h3>
-        <p class="muted">Key commands exposed by this extension (from <code>package.json</code> → <code>commandPalette</code>).</p>
-        <ul class="cmds" id="commandsList">
-          ${commandListItems}
+        <h3>Features</h3>
+        <ul class="features">
+          <li><b>Automated setup</b>: Zero touch installation and environment setup</li>
+          <li><b>Run Test Locally</b>: Run Test in Integrated webUI</li>
+          <li><b>Run Locust Cloud Test</b>: Run Locust Cloud Test in new browser window</li>
+          <li><b>Stop Test</b>: Stop running test</li>
+          <li><b>Copilot</b>: Locust specialized</li>
+          <li><b>Create</b>: Generate a basic locustfile</li>
+          <li><b>Convert HAR</b>: Convert HAR file to locustfile</li>
+          <li><b>Run in Debugger</b>: Run single user in debugger</li>
+          <li><b>Beginner Guide</b>: Your first locustfile code walk</li>
         </ul>
-        <div style="margin-top:12px;">
-          <label class="muted" style="display:flex;align-items:center;gap:8px;">
+
+        <div class="controls">
+          <label class="muted">
             <input id="showOnStartup" type="checkbox" checked>
             Show welcome page on startup
           </label>
