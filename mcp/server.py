@@ -22,8 +22,10 @@ mcp = FastMCP("mcp-locust")
 WORKDIR = Path.cwd()
 _PROCESS_REGISTRY: Dict[int, Dict[str, Any]] = {}  # pid -> {cmd,url,locustfile,mode}
 
+
 def _is_locustfile(p: Path) -> bool:
     return p.is_file() and p.suffix.lower() == ".py" and "locustfile" in p.name.lower()
+
 
 def _under(base: Path, p: Path) -> bool:
     try:
@@ -32,14 +34,17 @@ def _under(base: Path, p: Path) -> bool:
     except Exception:
         return False
 
+
 def _find_first_locustfile(workdir: Path = WORKDIR) -> Optional[Path]:
     return next((p for p in workdir.rglob("*locustfile*.py") if _is_locustfile(p)), None)
+
 
 def _find_all_locustfiles(workdir: Path = WORKDIR) -> List[Path]:
     def depth(p: Path) -> int:
         return len(p.relative_to(workdir).parts)
     files = [p for p in workdir.rglob("*locustfile*.py") if _is_locustfile(p)]
     return sorted(files, key=lambda p: (depth(p), p.name.lower()))
+
 
 def _resolve_locustfile(preferred: Optional[str | Path] = None) -> Path:
     if preferred:
@@ -53,9 +58,11 @@ def _resolve_locustfile(preferred: Optional[str | Path] = None) -> Path:
         raise FileNotFoundError("No locustfile found under workspace.")
     return found
 
+
 def _default_locustfile_path() -> Path:
     # Soft convention fallback
     return (WORKDIR / "templates" / "locustfile.py").resolve()
+
 
 def _ensure_file(path: Optional[str], fallback: Optional[Path] = None) -> Path:
     if path:
@@ -68,6 +75,7 @@ def _ensure_file(path: Optional[str], fallback: Optional[Path] = None) -> Path:
         raise FileNotFoundError(f"File not found: {p}")
     return p
 
+
 def _run_har2locust(python_cmd: Optional[str], cwd: Path, har: Path, args: List[str]) -> str:
     interpreter = python_cmd or sys.executable
     cmd = [interpreter, "-m", "har2locust", *args, str(har)]
@@ -76,6 +84,7 @@ def _run_har2locust(python_cmd: Optional[str], cwd: Path, har: Path, args: List[
         return p.stdout
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"har2locust failed: {e.stderr or e.stdout or e}") from e
+
 
 def _parse_tasks_and_tags(source: str) -> Dict[str, Any]:
     tasks: List[str] = []
@@ -90,6 +99,7 @@ def _parse_tasks_and_tags(source: str) -> Dict[str, Any]:
                 tags.add(t[1].strip())
     return {"tasks": sorted(set(tasks)), "tags": sorted(tags)}
 
+
 def _free_tcp_port(start: int = 8089, max_tries: int = 50) -> int:
     port = start
     for _ in range(max_tries):
@@ -102,8 +112,10 @@ def _free_tcp_port(start: int = 8089, max_tries: int = 50) -> int:
                 port += 1
     raise RuntimeError("No free TCP port found for Locust UI.")
 
+
 def _record_process(pid: int, info: Dict[str, Any]) -> None:
     _PROCESS_REGISTRY[pid] = info
+
 
 # Tools: discovery & info
 @mcp.tool(name="locust.find", description="Find the active or first matching locustfile; also list all matches.")
@@ -122,6 +134,7 @@ def locust_find(preferred_path: Optional[str] = None) -> dict:
         best = ""
     return {"file": best, "all": all_matches}
 
+
 @mcp.tool(name="locust.env_info", description="Return interpreter and tool versions for diagnostics.")
 def locust_env_info(python_cmd: Optional[str] = None) -> dict:
     interpreter = python_cmd or sys.executable
@@ -138,6 +151,7 @@ def locust_env_info(python_cmd: Optional[str] = None) -> dict:
         "cwd": str(WORKDIR),
     }
 
+
 # Tools: parsing / generation
 @mcp.tool(name="locust.list_tasks", description="Parse a locustfile for @task names and @tag values.")
 def locust_list_tasks(locustfile_path: Optional[str] = None) -> dict:
@@ -145,6 +159,7 @@ def locust_list_tasks(locustfile_path: Optional[str] = None) -> dict:
     src = lf.read_text(encoding="utf-8")
     parsed = _parse_tasks_and_tags(src)
     return {"file": str(lf), **parsed}
+
 
 @mcp.tool(name="har.to_locust", description="Convert a HAR file into a Locust script (optionally write to disk).")
 def har_to_locust(
@@ -167,6 +182,7 @@ def har_to_locust(
     if not har.exists():
         raise ValueError(f"HAR file not found: {har_path}")
 
+
     args: List[str] = []
     if template:        args += ["--template", template]
     if plugins:         args += ["--plugins", plugins]
@@ -174,7 +190,9 @@ def har_to_locust(
     if resource_types:  args += ["--resource-types", resource_types]
     if loglevel:        args += ["--loglevel", loglevel]
 
+
     code = _run_har2locust(python_cmd, WORKDIR, har, args)
+
 
     if write_to:
         out = Path(write_to)
@@ -184,7 +202,9 @@ def har_to_locust(
         out.write_text(code, encoding="utf-8")
         return {"path": str(out), "code": code}
 
+
     return {"path": "", "code": code}
+
 
 # Tools: run/stop 
 @mcp.tool(name="locust.run_ui", description="Start Locust UI in the background; returns PID and URL.")
@@ -198,13 +218,16 @@ def locust_run_ui(
     port = web_port if isinstance(web_port, int) and web_port > 0 else _free_tcp_port(8089)
     url = f"http://localhost:{port}"
 
+
     cmd = [interpreter, "-m", "locust", "-f", str(lf), "--web-port", str(port)]
     if host:
         cmd += ["--host", host]
 
+
     proc = subprocess.Popen(cmd, cwd=str(WORKDIR), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     _record_process(proc.pid, {"mode": "ui", "url": url, "command": " ".join(cmd), "locustfile": str(lf)})
     return {"pid": proc.pid, "url": url, "command": " ".join(cmd)}
+
 
 @mcp.tool(name="locust.run_headless", description="Run Locust one-shot in headless mode; returns stdout/stderr.")
 def locust_run_headless(
@@ -235,6 +258,7 @@ def locust_run_headless(
         return {"ok": True, "command": " ".join(cmd), "stdout": p.stdout, "stderr": p.stderr}
     except subprocess.CalledProcessError as e:
         return {"ok": False, "command": " ".join(cmd), "stdout": e.stdout, "stderr": e.stderr or str(e)}
+
 
 @mcp.tool(name="locust.stop", description="Stop a running Locust process by PID.")
 def locust_stop(pid: int) -> dict:
@@ -268,6 +292,7 @@ def locust_ps() -> dict:
     name="workflow.har_to_ui",
     description="Convert HAR to locustfile, write it, then start Locust UI. Returns written path + UI URL."
 )
+
 def workflow_har_to_ui(
     har_path: str,
     write_to: Optional[str] = None,

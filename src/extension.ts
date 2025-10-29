@@ -11,6 +11,8 @@ import { registerWelcomePanel } from './welcome/welcomePanel';
 import { CopilotService } from './services/copilotService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { LocustWelcomeViewProvider } from './welcome/welcomeView';
+import { LocustWelcome } from './welcome/locustWelcome';  
 
 
 
@@ -19,6 +21,7 @@ const CLOUD_FLAG_KEY = 'locust.cloudWasStarted';
 function getCloudStarted(ctx: vscode.ExtensionContext): boolean {
   return !!ctx.globalState.get<boolean>(CLOUD_FLAG_KEY, false);
 }
+
 async function setCloudStarted(ctx: vscode.ExtensionContext, v: boolean) {
   await ctx.globalState.update(CLOUD_FLAG_KEY, v);
 }
@@ -113,6 +116,9 @@ export async function activate(ctx: vscode.ExtensionContext) {
   await vscode.commands.executeCommand('setContext', 'locust.isCloud', isCloud);
   await vscode.commands.executeCommand('setContext', 'locust.isDesktop', !isCloud);
 
+  LocustWelcome.register(ctx);
+  LocustWelcome.maybeShowOnActivate(ctx, isCloud);
+  
   // Core services
   const env = new EnvService();
   const mcp = new McpService(env);
@@ -137,11 +143,26 @@ export async function activate(ctx: vscode.ExtensionContext) {
   registerWelcomePanel(ctx); 
 
   // Welcome view
-  const welcomeReg = vscode.window.registerWebviewViewProvider(
-    'locust.welcome',
-    new LocustWelcomeViewProvider(ctx, isCloud)
-  );
+  const welcomeProvider = new LocustWelcomeViewProvider(ctx, isCloud);
+  const welcomeReg = vscode.window.registerWebviewViewProvider('locust.welcome', welcomeProvider);
   ctx.subscriptions.push(welcomeReg);
+
+
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand('locust.setLocalStarted', async (value: boolean) => {
+      try {
+        await ctx.workspaceState.update('locust.localStarted', !!value);
+        await vscode.commands.executeCommand('locust.welcome.refresh');
+      } catch (e: any) {
+        vscode.window.showErrorMessage(e?.message ?? 'Failed to set local started state.');
+      }
+    })
+  );
+
+  // Expose refresh
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand('locust.welcome.refresh', () => welcomeProvider.refresh())
+  );
 
   // Focus Welcome view on startup
   await vscode.commands.executeCommand('locust.welcome.focus');
@@ -173,6 +194,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
           await setCloudStarted(ctx, false);
           vscode.window.setStatusBarMessage('Locust Cloud: stopped.', 3000);
         }
+        await vscode.commands.executeCommand('locust.welcome.refresh');
       } catch (e: any) {
         vscode.window.showErrorMessage(e?.message ?? 'Failed to toggle Locust Cloud.');
       }
@@ -183,7 +205,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
       try {
         const started = getLocalStarted(ctx);
         if (!started) {
-          await vscode.commands.executeCommand('locust.runFileUI');
+          await vscode.commands.executeCommand('locust.runUI');
           await setLocalStarted(ctx, true);
           vscode.window.setStatusBarMessage('Locust: local test starting…', 3000);
         } else {
@@ -191,6 +213,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
           await setLocalStarted(ctx, false);
           vscode.window.setStatusBarMessage('Locust: local test stopped.', 3000);
         }
+        await vscode.commands.executeCommand('locust.welcome.refresh');
       } catch (e: any) {
         vscode.window.showErrorMessage(e?.message ?? 'Failed to toggle local run.');
       }
@@ -205,6 +228,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
           await setCloudStarted(ctx, false);
         }
         vscode.window.setStatusBarMessage('Locust: stopped local (and cloud if active).', 3000);
+        await vscode.commands.executeCommand('locust.welcome.refresh');
       } catch (e: any) {
         vscode.window.showErrorMessage(e?.message ?? 'Failed to stop runs.');
       }
@@ -231,18 +255,4 @@ function detectCloudEnv(): boolean {
   const envFlag = byEnv === 'true' || byEnv === '1' || byEnv === 'yes';
   const uiIsWeb = vscode.env.uiKind === vscode.UIKind.Web;
   return envFlag || uiIsWeb;
-}
-
-async function ensureLocustfileOrScaffold() {
-  const folders = vscode.workspace.workspaceFolders;
-  if (!folders?.length) return;
-
-  const root = folders[0].uri.fsPath;
-
-  try { await fs.access(path.join(root, 'locustfile.py')); return; } catch {}
-
-  const matches = await vscode.workspace.findFiles('**/locustfile_*.py', '**/node_modules/**', 1);
-  if (matches.length > 0) return;
-
-  void vscode.commands.executeCommand('locust.createSimulation');
 }

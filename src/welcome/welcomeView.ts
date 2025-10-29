@@ -16,7 +16,7 @@ const getLocalStarted = (ctx: vscode.ExtensionContext) =>
 const setLocalStarted = (ctx: vscode.ExtensionContext, v: boolean) =>
   ctx.workspaceState.update('locust.localStarted', v);
 
-// Very small template helper
+// Small template helper
 function render(tpl: string, values: Record<string, string>): string {
   return tpl.replace(/{{\s*([\w.-]+)\s*}}/g, (_, k) => values[k] ?? '');
 }
@@ -103,7 +103,7 @@ export class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
         if (msg?.type === 'run' && typeof msg.command === 'string') {
           switch (msg.command) {
             case 'runLocal': {
-              // reflect intent immediately; runner will clear on exit/error
+              // runner will clear on exit/error
               await vscode.commands.executeCommand('locust.setLocalStarted', true);
               await vscode.commands.executeCommand('locust.runUI');
               this.refresh();
@@ -141,7 +141,7 @@ export class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
               return;
             }
             default: {
-              // fallback for direct command ids if you keep any in the web script
+              // fallback for direct command ids
               await vscode.commands.executeCommand(msg.command);
               return;
             }
@@ -149,7 +149,7 @@ export class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
         }
       } catch (e: any) {
         vscode.window.showErrorMessage(e?.message ?? 'Failed to execute action.');
-        // make sure we don’t get stuck in a running state on failure
+        
         await vscode.commands.executeCommand('locust.setLocalStarted', false);
         await setCloudStarted(this.ctx, false);
         this.refresh();

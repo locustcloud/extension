@@ -22,14 +22,13 @@ function uriJoinPath(base: vscode.Uri, ...paths: string[]): vscode.Uri {
 export class LocustRunner {
   private readonly envSvc = new EnvService();
 
-  /** Fallback URL if the CLI never prints a UI URL. */
+  /** Fallback URL if CLI never prints UI URL. */
   private get localFallbackUrl(): string {
-    // NOTE: your package.json defines "locust.local.url"
     const cfg = vscode.workspace.getConfiguration("locust");
     return cfg.get<string>("local.url", "http://localhost:8089");
   }
 
-  /** Workspace env folder name (default: ".locust_env"). */
+  /** Workspace env directory name (default: ".locust_env"). */
   private get envFolder(): string {
     const cfg = vscode.workspace.getConfiguration("locust");
     return cfg.get<string>("envFolder", ".locust_env");
@@ -50,10 +49,10 @@ export class LocustRunner {
   // Spawned child tracking (for UI)
   private _uiChild?: ChildProcessWithoutNullStreams;
 
-  // 🔹 Track last opened UI URL so we can close the Simple Browser tab on stop
+  // Track last opened UI URL so we can close the Simple Browser tab on stop
   private _lastUiUrl?: string;
 
-  // 🔹 NEW: Track the Simple Browser tab we opened
+  // Track the Simple Browser tab we opened
   private _uiTab?: vscode.Tab;
 
   private findLocustTerminal(): vscode.Terminal | undefined {
@@ -66,7 +65,7 @@ export class LocustRunner {
     return t;
   }
 
-  /** Build env with venv bin/Scripts prepended so "locust" is found if installed in the venv. */
+  /** Build env with venv bin/Scripts prepended  "locust" found if installed in venv. */
   private buildEnv(): NodeJS.ProcessEnv {
     const env = { ...process.env };
     try {
@@ -79,7 +78,7 @@ export class LocustRunner {
     return env;
   }
 
-  // 🔹 NEW: Collect all Simple Browser tabs
+  // Collect all Simple Browser tabs
   private collectSimpleBrowserTabs(): vscode.Tab[] {
     const out: vscode.Tab[] = [];
     for (const g of vscode.window.tabGroups.all) {
@@ -95,7 +94,7 @@ export class LocustRunner {
 
   /** Wrapper: "open in bottom split" */
   private async openUrlSplit(url: string, ratio = 0.45) {
-    // 🔹 NEW: snapshot before opening
+    
     const before = this.collectSimpleBrowserTabs();
 
     const tryCmd = async (id: string) =>
@@ -107,13 +106,13 @@ export class LocustRunner {
       return;
     }
 
-    // 🔹 NEW: detect the newly opened Simple Browser tab and remember it
+    // Detect the newly opened Simple Browser tab and remember it
     const after = this.collectSimpleBrowserTabs();
     const newlyOpened = after.find(t => !before.includes(t));
     if (newlyOpened) this._uiTab = newlyOpened;
   }
 
-  // 🔹 Find and close the Simple Browser tab showing a given URL
+  // Find and close the Simple Browser tab showing a given URL
   private async closeSimpleBrowserForUrl(url: string | undefined): Promise<void> {
     if (!url) return;
     try {
@@ -135,12 +134,24 @@ export class LocustRunner {
     }
   }
 
-  private async runLocustUI(locustfileAbs: string) {
+  public async runLocustUI(locustfileAbs?: string) {
     const out = vscode.window.createOutputChannel("Locust");
     out.show(true);
 
+    let targetPath = locustfileAbs;
+    if (!targetPath) {
+      const uri = await vscode.commands.executeCommand('locust.pickLocustfile') as vscode.Uri | undefined;
+      targetPath = uri?.fsPath;
+    }
+    if (!targetPath) {
+      vscode.window.showWarningMessage('No locustfile selected.');
+      return;
+    }
+
     const env = this.buildEnv();
     const cmd = this.locustCmd;
+    const cwd = path.dirname(targetPath);
+    const rel = path.basename(targetPath);
 
     // Run from file directory and pass a relative -f 
     const fileDir = path.dirname(locustfileAbs);
@@ -158,14 +169,13 @@ export class LocustRunner {
     let bufErr = "";
 
     const tryExtractAndOpen = async (text: string) => {
-      // extractLocustUrl "Starting web interfac
       const url = extractLocustUrl(text, { addDashboardFalse: false });
       if (url && !opened) {
         opened = true;
-        this._lastUiUrl = url; // 🔹 remember last UI URL
+        this._lastUiUrl = url; // Remember last UI URL
         out.appendLine(`UI Activated`);
         await this.openUrlSplit(url, 0.45);
-        vscode.window.setStatusBarMessage("Locust (local): web UI opened in split view.", 60000);
+        vscode.window.setStatusBarMessage("Interface activated.", 60000);
       }
     };
 
@@ -203,7 +213,7 @@ export class LocustRunner {
       out.appendLine(`exited with code ${code}`);
       this._uiChild = undefined;
 
-      // 🔹 NEW: Close the tracked Simple Browser tab if we opened one
+      // Close the tracked Simple Browser tab if we opened one
       if (this._uiTab) {
         try {
           await vscode.window.tabGroups.close([this._uiTab], true);
@@ -212,12 +222,11 @@ export class LocustRunner {
       }
     });
 
-    // Fallback: open configured localhost URL if no URL detected
     setTimeout(() => {
       if (!opened) {
         opened = true;
         const fallback = this.localFallbackUrl;
-        this._lastUiUrl = fallback; // 🔹 remember fallback URL too
+        this._lastUiUrl = fallback; // Remember fallback URL too
         out.appendLine(`No UI URL detected opening fallback...`);
         this.openUrlSplit(fallback, 0.45).catch(() => {});
       }
@@ -249,24 +258,13 @@ export class LocustRunner {
     }
   }
 
-
   async runFile(filePath: string | undefined, mode: RunMode) {
     let targetPath = filePath;
 
-    // Active editor if locustfile
     if (!targetPath) {
-      const active = vscode.window.activeTextEditor?.document;
-      if (active && /(?:^|\/)locustfile.*\.py$/i.test(active.fileName)) {
-        targetPath = active.fileName;
-      }
+      const uri = await vscode.commands.executeCommand('locust.pickLocustfile') as vscode.Uri | undefined;
+      targetPath = uri?.fsPath;
     }
-
-    // Fallback: Pick a locustfile
-    if (!targetPath) {
-      const picked = await this.pickLocustfile();
-      if (picked) targetPath = picked.fsPath;
-    }
-
     if (!targetPath) {
       vscode.window.showWarningMessage('No locustfile selected.');
       return;
@@ -300,7 +298,7 @@ export class LocustRunner {
     await this.runTask(node, 'headless');
   }
   async runTaskUI(node: any) {
-    // Prefer using UI for the whole file; for tagged runs we keep headless.
+    // Prefer using UI for the whole file
     await this.runTask(node, 'headless');
   }
 
@@ -515,13 +513,13 @@ class MyUser(FastHttpUser):
 
   // Stop last run
   public async stopLastRun(): Promise<void> {
-    // First try to stop a spawned UI process
+    // First try to stop spawned UI process
     if (this._uiChild && !this._uiChild.killed) {
       try {
         this._uiChild.kill();
         this._uiChild = undefined;
 
-        // 🔹 NEW: Close the tracked Simple Browser tab if present
+        // Close the tracked Simple Browser tab if present
         if (this._uiTab) {
           try {
             await vscode.window.tabGroups.close([this._uiTab], true);
@@ -532,7 +530,6 @@ class MyUser(FastHttpUser):
         // Close by URL fallback as well
         await this.closeSimpleBrowserForUrl(this._lastUiUrl);
         vscode.window.setStatusBarMessage('Locust: stopped local UI run.', 3000);
-        return;
       } catch {
         // fall through to terminal stop
       }
@@ -541,7 +538,7 @@ class MyUser(FastHttpUser):
     // Stop terminal run
     const term = this._lastTerminal ?? this.findLocustTerminal();
     if (!term) {
-      // 🔹 NEW: Close tracked tab (if any) and try URL-based close
+      // Close tracked tab (if any) and try URL-based close
       if (this._uiTab) {
         try {
           await vscode.window.tabGroups.close([this._uiTab], true);
@@ -550,13 +547,17 @@ class MyUser(FastHttpUser):
       }
       await this.closeSimpleBrowserForUrl(this._lastUiUrl);
       vscode.window.showInformationMessage('No running Locust session to stop.');
+      if (this._uiTab) {
+        try { await vscode.window.tabGroups.close([this._uiTab], true); } catch {}
+        this._uiTab = undefined;
+      }
       return;
     }
 
     try {
       await vscode.commands.executeCommand('workbench.action.terminal.sendSequence', { text: '\x03' });
 
-      // 🔹 NEW: Close tracked tab (if any) and URL-based tab
+      // Close tracked tab 
       if (this._uiTab) {
         try {
           await vscode.window.tabGroups.close([this._uiTab], true);
@@ -578,6 +579,14 @@ class MyUser(FastHttpUser):
       await this.closeSimpleBrowserForUrl(this._lastUiUrl);
 
       vscode.window.setStatusBarMessage('Locust: terminal disposed to stop the run.', 3000);
+    }
+
+    // Close the Simple Browser tab
+    if (this._uiTab) {
+      try {
+        await vscode.window.tabGroups.close([this._uiTab], true);
+      } catch { /* ignore */ }
+      this._uiTab = undefined;
     }
   }
 }

@@ -24,11 +24,28 @@ async function cmdExists(cmd: string): Promise<boolean> {
 }
 
 export class EnvService {
-  /** Absolute path to the workspace venv's python. */
+  /** Absolute path workspace venv's python. */
   getEnvInterpreterPath(envFolder: string): string {
     const root = wsRoot() ?? '';
     const isWin = process.platform === 'win32';
     return path.join(root, envFolder, isWin ? 'Scripts' : 'bin', 'python');
+  }
+
+  /** Set VS Code's Python interpreter to absolute python path (workspace scope). */
+  async setWorkspaceInterpreter(absPythonPath: string): Promise<void> {
+    await vscode.workspace
+      .getConfiguration('python')
+      .update('defaultInterpreterPath', absPythonPath, vscode.ConfigurationTarget.Workspace);
+  }
+
+  /** Return env vars, activate venv for spawned processes. */
+  venvEnvFromAbsPython(absPythonPath: string): NodeJS.ProcessEnv {
+    const env = { ...process.env };
+    const venvDir = path.dirname(path.dirname(absPythonPath));
+    const binDir = path.join(venvDir, process.platform === 'win32' ? 'Scripts' : 'bin');
+    env.VIRTUAL_ENV = venvDir;
+    env.PATH = `${binDir}${path.delimiter}${env.PATH ?? ''}`;
+    return env;
   }
 
   /**
@@ -53,7 +70,7 @@ export class EnvService {
     throw new Error('No usable Python found. Create a venv (Locust: Initialize) or set python.defaultInterpreterPath.');
   }
 
-  /** Backwards-compatible alias. Prefer resolvePythonStrict() in new code. */
+  /** Backwards-compatible alias. Prefer resolvePythonStrict() */
   async resolvePython(envFolder: string): Promise<string> {
     try { return await this.resolvePythonStrict(envFolder); }
     catch { return 'python'; }

@@ -1,20 +1,15 @@
+// tree/locustTree.ts
 import * as vscode from 'vscode';
 import * as path from 'path';
 
-/**
- * Locustfile manipulation, refresh and discard changes
- * Tree data provider for Locust files, users, and tasks
- */
-
 type NodeKind = 'file' | 'user' | 'task';
-
 interface LocustNode {
   kind: NodeKind;
   label: string;
   fileUri: vscode.Uri;
   userName?: string;
   taskName?: string;
-  filePath?: string; // convenience for commands
+  filePath?: string;
 }
 
 export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, vscode.Disposable {
@@ -24,18 +19,15 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
   private watchers: vscode.FileSystemWatcher[] = [];
   private refreshTimer?: NodeJS.Timeout;
 
-  // ► NEW: keep a central list of known locustfiles for the picker
+  // Keep a central list of known locustfiles for the picker
   private _knownFiles: vscode.Uri[] = [];
 
   constructor() {
-    // Refresh when workspace changes
     vscode.workspace.onDidChangeWorkspaceFolders(() => this.refresh());
-
-    // Watch for relevant file changes
     if (vscode.workspace.workspaceFolders?.length) {
       this.watchers.push(
         vscode.workspace.createFileSystemWatcher('**/locustfile*.py'),
-        vscode.workspace.createFileSystemWatcher('**/*.py') // tasks may move between files
+        vscode.workspace.createFileSystemWatcher('**/*.py')
       );
       for (const w of this.watchers) {
         w.onDidCreate(() => this.refreshDebounced());
@@ -45,34 +37,27 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     }
   }
 
-  refresh(): void {
-    this.emitter.fire(undefined);
-  }
-
+  refresh(): void { this.emitter.fire(undefined); }
   private refreshDebounced(ms = 250) {
     clearTimeout(this.refreshTimer as any);
     this.refreshTimer = setTimeout(() => this.refresh(), ms);
   }
-
   dispose(): void {
     this.emitter.dispose();
     this.watchers.forEach(w => w.dispose());
     clearTimeout(this.refreshTimer as any);
   }
 
-  // Tree API
   async getChildren(element?: LocustNode): Promise<LocustNode[]> {
     const folders = vscode.workspace.workspaceFolders;
     if (!folders || folders.length === 0) return [];
 
     if (!element) {
-      // Root: list Locust files (canonical names + any *.py that import locust)
-      const exclude = '**/{.venv,.locust_env, .tour, .git,__pycache__,node_modules,site-packages,dist,build}/**';
-
-      // Canonical names
+      // Root: known files
+      const exclude = '**/{.venv,.locust_env,.tour,.git,__pycache__,node_modules,site-packages,dist,build}/**';
       const explicit = await vscode.workspace.findFiles('**/locustfile*.py', exclude);
 
-      // Inferred from imports
+      // Also infer based on import
       const candidates = await vscode.workspace.findFiles('**/*.py', exclude);
       const seen = new Set(explicit.map(u => u.fsPath));
       const inferred: vscode.Uri[] = [];
@@ -84,7 +69,10 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
         }
       }
 
-      const files = [...explicit, ...inferred];
+      const files = [...explicit, ...inferred].sort((a, b) => a.fsPath.localeCompare(b.fsPath));
+
+      // Cache known files for pickers/runners
+      this._knownFiles = files;
 
       // ► NEW: keep this list for the picker
       this._knownFiles = files;
@@ -100,7 +88,6 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     if (element.kind === 'file') {
       const text = await this.read(element.fileUri);
       const users: LocustNode[] = [];
-      // class MyUser(FastHttpUser|HttpUser|User):
       const userRegex = /class\s+([A-Za-z_]\w*)\s*\(\s*(FastHttpUser|HttpUser|User)\s*\)\s*:/g;
       let m: RegExpExecArray | null;
       while ((m = userRegex.exec(text)) !== null) {
@@ -117,13 +104,9 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
 
     if (element.kind === 'user' && element.userName) {
       const text = await this.read(element.fileUri);
-
-      // Narrow to the class body (simple heuristic)
       const start = text.indexOf(`class ${element.userName}`);
       const next = start >= 0 ? text.indexOf('\nclass ', start + 1) : -1;
       const body = start >= 0 ? (next > -1 ? text.slice(start, next) : text.slice(start)) : text;
-
-      // @task or @task(3) followed by def <name>(
       const taskRegex = /@task(?:\s*\([^)]*\))?\s*\r?\n\s*def\s+([A-Za-z_]\w*)\s*\(/g;
       const tasks: LocustNode[] = [];
       let m2: RegExpExecArray | null;
@@ -155,30 +138,20 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     if (element.kind !== 'file') {
       item.description = path.basename(element.fileUri.fsPath);
     }
-
-    // Optional double-click behavior
     if (element.kind === 'user' || element.kind === 'task') {
-      item.command = {
-        command: 'vscode.open',
-        title: 'Open locustfile',
-        arguments: [element.fileUri]
-      };
+      item.command = { command: 'vscode.open', title: 'Open locustfile', arguments: [element.fileUri] };
     }
-
     return item;
   }
- 
-  // Utils
+
   private async read(uri: vscode.Uri): Promise<string> {
     const bytes = await vscode.workspace.fs.readFile(uri);
     return Buffer.from(bytes).toString('utf8');
   }
 
-  // Heuristic: treat a *.py as a locust file if it imports locust
   private async looksLikeLocustFile(uri: vscode.Uri): Promise<boolean> {
     try {
       const bytes = await vscode.workspace.fs.readFile(uri);
-      // Read only the first ~16KB to keep it snappy; imports are usually near the top.
       const text = Buffer.from(bytes).toString('utf8', 0, Math.min(bytes.byteLength, 16 * 1024));
       return /(from\s+locust\s+import\s+|import\s+locust\b)/.test(text);
     } catch {

@@ -26,8 +26,6 @@ function envForVenvFromPython(absPython: string): NodeJS.ProcessEnv {
 export class Har2LocustService {
   constructor(private env: EnvService) {}
 
-  // ... convertHarInteractive unchanged ...
-
   /**
    * Core runner. Spawns `python -m har2locust`, captures stdout, writes file, opens it.
    */

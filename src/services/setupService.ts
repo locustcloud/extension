@@ -45,7 +45,7 @@ function envForVenv(absPy: string): NodeJS.ProcessEnv {
   return env;
 }
 
-// Only create settings.json if missing
+// Create settings.json if missing
 async function ensureWorkspaceSettingsIfMissing(workspacePath: string): Promise<boolean> {
   const vscodeDir = path.join(workspacePath, '.vscode');
   const settingsPath = path.join(vscodeDir, 'settings.json');
@@ -69,9 +69,9 @@ async function ensureWorkspaceSettingsIfMissing(workspacePath: string): Promise<
     ],
 
     // Disable all Copilot
-    "chat.sendElementsToChat.enabled": false,
-    "chat.sendElementsToChat.attachCSS": false,
-    "chat.sendElementsToChat.attachImages": false,
+    "chat.sendElementsToChat.enabled": true,
+    "chat.sendElementsToChat.attachCSS": true,
+    "chat.sendElementsToChat.attachImages": true,
 
     // Ruff fixes can be enabled by users later.
     "[python]": {
@@ -262,7 +262,7 @@ export class SetupService {
     return preferred && preferred.trim().length > 0 ? preferred : 'python';
   }
 
-  // AUTO setup (no prompt). Only call this when user explicitly consented OR setting is "always".
+  // AUTO setup (no prompt). Explicit user consented OR setting is "always".
   async autoSetupSilently() {
     try {
       if (!vscode.workspace.isTrusted) return;
@@ -281,9 +281,9 @@ export class SetupService {
           { location: vscode.ProgressLocation.Notification, title: 'Locust: preparing local Python environment…', cancellable: false },
           async () => {
             try {
-              await execFileAsync('python', ['-m', 'venv', envFolder], { cwd: wsPath });
+              await execFileAsync('python', ['-m', 'venv', '--upgrade-deps', envFolder], { cwd: wsPath });
             } catch {
-              await execFileAsync('python3', ['-m', 'venv', envFolder], { cwd: wsPath });
+              await execFileAsync('python3', ['-m', 'venv', '--upgrade-deps', envFolder], { cwd: wsPath });
             }
           }
         );
@@ -291,9 +291,23 @@ export class SetupService {
 
       const venvEnv = envForVenv(absPy);
 
-      // Ensure pip is up-to-date
-      await execFileAsync(absPy, ['-m', 'pip', 'install', '--upgrade', 'pip'], { cwd: wsPath, env: venvEnv });
-
+      
+      try {
+        // Try venv’s built-in upgrader.
+        await execFileAsync(absPy, ['-m', 'ensurepip', '--upgrade'], { cwd: wsPath, env: venvEnv });
+      } catch { /* ignore */ }
+      try {
+        await execFileAsync(
+          absPy,
+          ['-m', 'pip', 'install', '--disable-pip-version-check', '--upgrade', 'pip'],
+          { cwd: wsPath, env: venvEnv }
+        );
+      } catch (e: any) {
+        const ch = vscode.window.createOutputChannel('Locust Setup');
+        ch.appendLine('[auto-setup] pip upgrade failed; continuing anyway.');
+        ch.appendLine(String(e?.stderr || e?.stdout || e?.message || e));
+      }
+    
       // Install deps if missing OR first time
       const needsLocust = !(await canImport(absPy, 'locust', wsPath));
       const needsH2L   = !(await canImport(absPy, 'har2locust', wsPath));
@@ -311,6 +325,9 @@ export class SetupService {
           );
         }
       }
+
+      // Point VS Code at prepared interpreter
+      await this.env.setWorkspaceInterpreter(absPy);
 
       // Write MCP config
       await this.mcp.writeMcpConfig(absPy);
@@ -360,7 +377,7 @@ export class SetupService {
     const envFolder = (await readWorkspaceSetting<string>('locust', 'envFolder')) ?? '.locust_env';
     const absPy = await venvPythonPath(wsPath, envFolder);
 
-    // If everything is already set up, mark and exit quietly.
+    // If previous setup, exit quietly.
     const alreadyDone = this.ctx.workspaceState.get<boolean>(WS_SETUP_KEY, false);
     if (alreadyDone === true && !(await needsSetup(wsPath, absPy))) {
       return;
@@ -402,6 +419,7 @@ export class SetupService {
 
   private async finalizeWorkspace(wsPath: string, python: string) {
     await this.mcp.writeMcpConfig(python);
+    await this.env.setWorkspaceInterpreter(python);            // keep editor/linters/Copilot aligned
     const createdSettings = await ensureWorkspaceSettingsIfMissing(wsPath);
     await configureRuffIfNew(this.ctx, createdSettings);
     await ensurePythonActiveFileLaunch(wsPath, python);
