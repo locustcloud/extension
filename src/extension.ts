@@ -55,6 +55,9 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
       <div class="row"><br>
         <button id="btnConvertHar"  title="Convert a HAR file to a Locust test">HAR to Locust</button>
       </div>
+      <div class="row">
+        <button id="btnCopilotPrompts" title="Show Copilot prompt examples">Copilot Prompts</button>
+      </div>
     `;
 
     // Cloud controls
@@ -101,6 +104,38 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
             return;
           }
           await vscode.commands.executeCommand(msg.command);
+          return;
+        }
+
+        if (msg?.type === 'getCopilotPrompts') {
+          try {
+            const mdPath = path.join(this.ctx.extensionUri.fsPath, 'media', 'copilot_tutorial', '01-copilot.md');
+            const md = await fs.readFile(mdPath, 'utf8');
+
+            // Extract blocks **Prompt:** or ***Prompt:***
+            const items: string[] = [];
+            const re = /(?:\*\*\*?Prompt:\*\*\*?\s*)([\s\S]*?)(?=\n\s*\*\*|$)/gi;
+            let m: RegExpExecArray | null;
+            while ((m = re.exec(md)) !== null) {
+              const block = (m[1] || '').trim();
+
+              // Prefer numbered lines (1. ..., 2. ...) if present
+              const numbered: string[] = [];
+              block.replace(/^\s*\d+\.\s*(.+)$/gm, (_a, p1) => { numbered.push(String(p1).trim()); return ''; });
+
+              if (numbered.length) {
+                items.push(...numbered);
+              } else {
+                // First non-empty line
+                const first = block.split(/\r?\n/).map(s => s.trim()).find(Boolean);
+                if (first) items.push(first);
+              }
+            }
+
+            await webview.postMessage({ type: 'copilotPrompts', items });
+          } catch (e: any) {
+            await webview.postMessage({ type: 'copilotPrompts', items: [], error: e?.message ?? 'Failed to read prompts' });
+          }
           return;
         }
       } catch (e: any) {
