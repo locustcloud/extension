@@ -6,7 +6,7 @@ import { LocustTreeProvider } from "../tree/locustTree";
 import { EnvService } from "./envService";
 import { extractLocustUrl } from "../core/utils/locustUrl";
 
-// Keep this key consistent with your extension.ts usage
+
 const CLOUD_FLAG_KEY = "locust.cloudWasStarted";
 
 export class LocustCloudService {
@@ -35,9 +35,9 @@ export class LocustCloudService {
   private getCloudStarted(): boolean {
     return !!this.ctx.globalState.get<boolean>(CLOUD_FLAG_KEY, false);
   }
+  
   private async setCloudStarted(v: boolean) {
     await this.ctx.globalState.update(CLOUD_FLAG_KEY, v);
-    // Optional: tell the webview to refresh button labels
     await vscode.commands
       .executeCommand("locust.postStateToWebview", { cloudStarted: v })
       .then(
@@ -92,8 +92,8 @@ export class LocustCloudService {
 
   /**
    * Decide how to launch Locust in a venv-stable way.
-   * - If user configured an *absolute* binary path (locust.path), honor it directly.
-   * - Otherwise, prefer running "python -m locust" using the resolved interpreter from EnvService.
+   * - If user configured an *absolute* binary path (locust.path)..
+   * - Otherwise, prefer running "python -m locust" using resolved interpreter from EnvService.
    */
   private async resolveLocustLaunch(
     args: string[],
@@ -205,7 +205,7 @@ export class LocustCloudService {
       cwd: launch.cwd,
       env: launch.env,
       stdio: "pipe",
-      shell: process.platform === "win32", // helps on Windows if "locust" is a shim
+      shell: process.platform === "win32",
     });
     this._cloudChild = child;
     await this.setCloudStarted(true);
@@ -268,7 +268,7 @@ export class LocustCloudService {
     child.on("error", async (e: any) => {
       out.appendLine(`${e?.message ?? e}`);
       vscode.window.showErrorMessage(
-        `Failed to run "${launch.cmd}". Ensure Locust is installed (in your venv or PATH) or set "locust.path" in settings.`
+        `Failed to run "${launch.cmd}". Ensure Locust is installed.`
       );
       await this.setCloudStarted(false);
       this._cloudChild = undefined;
@@ -353,7 +353,7 @@ export class LocustCloudService {
     del.on("error", (e: any) => {
       out.appendLine(`${e?.message ?? e}`);
       vscode.window.showErrorMessage(
-        `Failed to run "${launch.cmd}". Ensure Locust is installed (in your venv or PATH) or set "locust.path" in settings.`
+        `Failed to run "${launch.cmd}".`
       );
     });
     del.on("close", async (code) => {
