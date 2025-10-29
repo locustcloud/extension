@@ -81,8 +81,8 @@ export class LocustCloudService {
 
   /**
    * Decide how to launch Locust in a venv-stable way.
-   * - If user configured an *absolute* binary path (locust.path), honor it directly.
-   * - Otherwise, prefer running "python -m locust" using the resolved interpreter from EnvService.
+   * - If user configured an *absolute* binary path (locust.path)..
+   * - Otherwise, prefer running "python -m locust" using resolved interpreter from EnvService.
    */
   private async resolveLocustLaunch(
     args: string[],
@@ -305,7 +305,7 @@ export class LocustCloudService {
     child.on("error", async (e: any) => {
       out.appendLine(`${e?.message ?? e}`);
       vscode.window.showErrorMessage(
-        `Failed to run "${launch.cmd}". Ensure Locust is installed (in your venv or PATH) or set "locust.path" in settings.`
+        `Failed to run "${launch.cmd}". Ensure Locust is installed.`
       );
       await this.setCloudStarted(false);
       this._cloudChild = undefined;
@@ -390,7 +390,7 @@ export class LocustCloudService {
     del.on("error", (e: any) => {
       out.appendLine(`${e?.message ?? e}`);
       vscode.window.showErrorMessage(
-        `Failed to run "${launch.cmd}". Ensure Locust is installed (in your venv or PATH) or set "locust.path" in settings.`
+        `Failed to run "${launch.cmd}".`
       );
     });
     del.on("close", async (code) => {

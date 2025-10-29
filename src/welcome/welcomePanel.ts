@@ -8,6 +8,7 @@ const CMD_SHOW = 'locust.showWelcomePanel';
 function getShowOnStartup(ctx: vscode.ExtensionContext) {
   return ctx.globalState.get<boolean>(WELCOME_STATE_KEY, true);
 }
+
 async function setShowOnStartup(ctx: vscode.ExtensionContext, v: boolean) {
   await ctx.globalState.update(WELCOME_STATE_KEY, !!v);
 }
@@ -27,47 +28,42 @@ async function openWelcomePanel(ctx: vscode.ExtensionContext) {
   const csp = panel.webview.cspSource;
   const nonce = Math.random().toString(36).slice(2);
 
-  // Build Commands list from package.json (filter to locust.*)
+  // Build Command Palette list from package.json -> "commandPalette"
   const pkgPath = path.join(ctx.extensionUri.fsPath, 'package.json');
   let commandListItems = '';
   try {
     const raw = await fs.readFile(pkgPath, 'utf8');
     const pkg = JSON.parse(raw);
-    const cmds: Array<{ command: string; title?: string; category?: string }> =
-      (pkg?.contributes?.commands ?? []) as any[];
 
-    const locustCmds = cmds
-      .filter(c => typeof c?.command === 'string' && c.command.startsWith('locust.'))
-      .sort((a,b) => (a.title || a.command).localeCompare(b.title || b.command));
+    // "commandPalette": [ { "command": "locust.xyz", "when": "..." }, ... ]
+    const palette: Array<{ command: string; when?: string }> = Array.isArray(pkg?.commandPalette)
+      ? pkg.commandPalette
+      : [];
 
-    commandListItems = locustCmds.map(c => {
-      const title = c.title || c.command;
-      const prefix = c.category ? `<span class="cmd-cat">${c.category}:</span> ` : '';
-      return `<li><a href="#" data-cmd="${c.command}" title="${c.command}">${prefix}${title}</a></li>`;
-    }).join('\n') || `<li class="muted">No Locust commands found.</li>`;
+    // Labels
+    const friendly: Record<string, string> = {
+      'locust.startBeginnerTour': 'Beginner tour',
+      'locust.runUI': 'Run local UI test',
+      'locust.runHeadless': 'Run local headless test',
+      'locust.openLocustCloud': 'Run Locust Cloud test',
+      'locust.stopLastRun': 'Stop test',
+      'locust.deleteLocustCloud': 'Shut down Locust Cloud',
+      'locust.showScenarios': 'Show locustfiles',
+      'locust.hideScenarios': 'Hide locustfiles',
+    };
+
+    // Keep command pallette order.
+    const items = palette
+      .filter(e => typeof e?.command === 'string' && e.command.startsWith('locust.'))
+      .map(e => {
+        const label = friendly[e.command] ?? e.command;
+        return `<li><span class="left">${label}</span><code class="right">${e.command}</code></li>`;
+      })
+      .join('\n');
+
+    commandListItems = items || `<li class="muted">No Locust commands found in commandPalette.</li>`;
   } catch {
     commandListItems = `<li class="muted">No commands found.</li>`;
-  }
-
-  // Build Copilot tutorial list from media/copilot_tutorial/01-copilot.md
-  const promptsMdFsPath = path.join(ctx.extensionUri.fsPath, 'media', 'copilot_tutorial', '01-copilot.md');
-  const promptsMdUri = vscode.Uri.file(promptsMdFsPath);
-  let tutorialListItems = '';
-  try {
-    const md = await fs.readFile(promptsMdFsPath, 'utf8');
-    const lines = md.split(/\r?\n/);
-    const titles: string[] = [];
-    const rx = /^\s*\+\s*\*\*(.+?)\*\*/; // matches: + **Title**
-    for (const line of lines) {
-      const m = rx.exec(line);
-      if (m && m[1]) titles.push(m[1].trim());
-    }
-    tutorialListItems = titles.map(t => `<li><a href="#" data-open="tutorial" title="${t}">${t}</a></li>`).join('\n');
-    if (!tutorialListItems) {
-      tutorialListItems = `<li class="muted">No prompt examples found.</li>`;
-    }
-  } catch {
-    tutorialListItems = `<li class="muted">Unable to read prompt examples.</li>`;
   }
 
   panel.webview.html = `
@@ -91,30 +87,36 @@ async function openWelcomePanel(ctx: vscode.ExtensionContext) {
     }
     body{margin:0;padding:32px;font-family:var(--vscode-font-family, ui-sans-serif);
          background:var(--bg);color:var(--text);}
-    .wrap{max-width:960px;margin:0 auto;}
+    .wrap{max-width:1100px;margin:0 auto;}
     h1{font-size:28px;margin:0 0 8px;}
     .sub{color:var(--muted);margin:0 0 24px;}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    @media (max-width: 900px){ .grid{grid-template-columns:1fr;} }
     .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;}
-    .cta-row{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 0;}
-    a.btn,button.btn{
-      appearance:none;border:1px solid var(--border);background:transparent;
-      color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer;text-decoration:none;
-    }
-    a.btn.primary,button.btn.primary{background:var(--accent);border-color:transparent;color:#fff;}
-    a.btn.primary:hover,button.btn.primary:hover{background:var(--accent-hover);}
-    a.link{color:var(--link);text-decoration:none;}
-    a.link:hover{text-decoration:underline;}
     .muted{color:var(--muted);}
-    .row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;}
-    .checkbox{display:flex;align-items:center;gap:8px;}
     .title-accent{color:#28a745;}
+
     /* list styling */
-    ul.cmds{list-style:disc;margin:8px 0 0 20px;padding:0;}
-    ul.cmds li{margin:4px 0;}
-    ul.cmds li a{color:var(--link); text-decoration:none;}
-    ul.cmds li a:hover{text-decoration:underline;}
-    .cmd-cat{opacity:.8}
+    ul.cmds{list-style:none;margin:8px 0 0 0;padding:0;}
+    ul.cmds li{
+      margin:6px 0;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      border-bottom:1px dashed var(--border);
+      padding:6px 0;
+    }
+    ul.cmds li:last-child{border-bottom:none;}
+    ul.cmds .left{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    ul.cmds .right{
+      opacity:.9;
+      background: transparent;
+      border:1px solid var(--border);
+      border-radius:6px;
+      padding:2px 6px;
+      font-family: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+      font-size: 12px;
+    }
+
+    .what p{margin:8px 0 0; line-height:1.5;}
   </style>
 </head>
 <body>
@@ -123,28 +125,27 @@ async function openWelcomePanel(ctx: vscode.ExtensionContext) {
     <p class="sub">Get Started.</p>
 
     <div class="grid">
+      <!-- Left: What is Locust? -->
+      <div class="card what">
+        <h3>What is Locust?</h3>
+        <p>Locust is an open source performance/load testing tool for HTTP and other protocols. Its developer-friendly approach lets you define your tests in regular Python code.</p>
+        <p>Locust tests can be run from command line or using its web-based UI. Throughput, response times and errors can be viewed in real time and/or exported for later analysis.</p>
+        <p>You can import regular Python libraries into your tests, and with Locust’s pluggable architecture it is infinitely expandable. Unlike when using most other tools, your test design will never be limited by a GUI or domain-specific language.</p>
+      </div>
 
+      <!-- Right: Command Palette (from package.json commandPalette) -->
       <div class="card">
-        <h3>Commands</h3>
-        <p class="muted">Run extension commands</p>
+        <h3>Command Palette</h3>
+        <p class="muted">Key commands exposed by this extension (from <code>package.json</code> → <code>commandPalette</code>).</p>
         <ul class="cmds" id="commandsList">
           ${commandListItems}
         </ul>
-      </div>
-
-      <div class="card">
-        <h3>Copilot Prompt Examples</h3>
-        <p class="muted">Click to open the full tutorial</p>
-        <ul class="cmds" id="promptsList">
-          ${tutorialListItems}
-        </ul>
-      </div>
-    </div>
-
-    <div class="row" style="margin-top:22px;">
-      <div class="checkbox">
-        <input id="showOnStartup" type="checkbox" checked>
-        <label for="showOnStartup" class="muted">Show welcome page on startup</label>
+        <div style="margin-top:12px;">
+          <label class="muted" style="display:flex;align-items:center;gap:8px;">
+            <input id="showOnStartup" type="checkbox" checked>
+            Show welcome page on startup
+          </label>
+        </div>
       </div>
     </div>
   </div>
@@ -153,23 +154,6 @@ async function openWelcomePanel(ctx: vscode.ExtensionContext) {
     const vscode = acquireVsCodeApi();
     const box = document.getElementById('showOnStartup');
     box.addEventListener('change', () => vscode.postMessage({ type: 'toggle', value: box.checked }));
-
-    // Run commands from list clicks
-    document.getElementById('commandsList')?.addEventListener('click', (e) => {
-      const a = e.target.closest('a[data-cmd]');
-      if (!a) return;
-      e.preventDefault();
-      const cmd = a.getAttribute('data-cmd');
-      if (cmd) vscode.postMessage({ type: 'run', command: cmd });
-    });
-
-    // Open tutorial from any prompt list click
-    document.getElementById('promptsList')?.addEventListener('click', (e) => {
-      const a = e.target.closest('a[data-open="tutorial"]');
-      if (!a) return;
-      e.preventDefault();
-      vscode.postMessage({ type: 'openTutorial' });
-    });
 
     window.addEventListener('message', e => {
       const { type, value } = (e.data || {});
@@ -183,23 +167,6 @@ async function openWelcomePanel(ctx: vscode.ExtensionContext) {
     if (!msg || typeof msg !== 'object') return;
     if (msg.type === 'toggle') {
       await setShowOnStartup(ctx, !!msg.value);
-      return;
-    }
-    if (msg.type === 'run' && typeof msg.command === 'string') {
-      try {
-        await vscode.commands.executeCommand(msg.command);
-      } catch (e:any) {
-        vscode.window.showErrorMessage(e?.message ?? `Failed to run ${msg.command}`);
-      }
-      return;
-    }
-    if (msg.type === 'openTutorial') {
-      try {
-        const doc = await vscode.workspace.openTextDocument(promptsMdUri);
-        await vscode.window.showTextDocument(doc, { preview: false });
-      } catch (e:any) {
-        vscode.window.showErrorMessage(e?.message ?? 'Failed to open prompt examples');
-      }
       return;
     }
   });

@@ -94,12 +94,12 @@
         { "command": "locust.runHeadless", "title": "Locust: Run Test (Headless)" }
       ],
       "commandPalette": [
+        { "command": "locust.startBeginnerTour", "when": "true" },
         { "command": "locust.runUI", "when": "locust.isCloud" },
         { "command": "locust.runHeadless", "when": "locust.isCloud" },
-        { "command": "locust.stopLastRun", "when": "true" },
         { "command": "locust.openLocustCloud", "when": "locust.isDesktop" },
+        { "command": "locust.stopLastRun", "when": "true" },
         { "command": "locust.deleteLocustCloud", "when": "locust.isDesktop" },
-        { "command": "locust.startBeginnerTour", "when": "true" },
         { "command": "locust.showScenarios", "when": "locust.scenariosVisible != true" },
         { "command": "locust.hideScenarios", "when": "locust.scenariosVisible == true" }
       ]
