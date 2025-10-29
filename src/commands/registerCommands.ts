@@ -112,15 +112,6 @@ export function registerCommands(
   ctx.subscriptions.push(
     vscode.commands.registerCommand('locust.refreshTree', () => tree.refresh()),
 
-    // Expose the scaffold command id used by the picker
-    vscode.commands.registerCommand('locust.createLocustfile', async () => {
-      return tree.createLocustfileFromTemplate({ open: true });
-    }),
-
-    // (kept for existing UX label/entry point)
-    vscode.commands.registerCommand('locust.createSimulation', async () => {
-      await tree.createLocustfileFromTemplate({ open: true });
-    }),
 
     vscode.commands.registerCommand(
       'locust.runFileUI',

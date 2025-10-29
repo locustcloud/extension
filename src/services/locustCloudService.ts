@@ -23,6 +23,36 @@ export class LocustCloudService {
 
   constructor(private readonly ctx: vscode.ExtensionContext) {}
 
+  /**
+   * Pick a locustfile: prefer active editor Python file, otherwise prompt the user to select one from the workspace.
+   */
+  async pickLocustfile(): Promise<string | undefined> {
+    // Prefer active editor if it's a Python file
+    const editor = vscode.window.activeTextEditor;
+    if (editor) {
+      const doc = editor.document;
+      const fsPath = doc.uri.fsPath;
+      if (fsPath && fsPath.endsWith(".py")) {
+        return fsPath;
+      }
+    }
+
+    // Fallback: prompt user to select a file from the workspace
+    const ws = this.getWorkspaceRoot();
+    if (!ws) return undefined;
+
+    const uris = await vscode.window.showOpenDialog({
+      canSelectFiles: true,
+      canSelectMany: false,
+      defaultUri: vscode.Uri.file(ws),
+      openLabel: "Select locustfile",
+      filters: { Python: ["py"] },
+    });
+
+    if (!uris || uris.length === 0) return undefined;
+    return uris[0].fsPath;
+  }
+
   private getWorkspaceRoot(): string | undefined {
     return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   }
@@ -96,48 +126,6 @@ export class LocustCloudService {
     // Run via venv's interpreter to guarantee correct site-packages
     const py = await this.envSvc.resolvePythonStrict(this.envFolder);
     return { cmd: py, args: ["-m", "locust", ...args], env: this.buildEnv(), cwd };
-  }
-
-  /**
-   * Find a locustfile path to run:
-   * 1) If the active editor is a locustfile*.py, use it.
-   * 2) Else ask the shared command 'locust.pickLocustfile'.
-   */
-  private async pickLocustfile(): Promise<string | undefined> {
-    const tree = new LocustTreeProvider();
-    try {
-    
-      const maybePick = (tree as any).pickLocustfileOrActive;
-      if (typeof maybePick === "function") {
-        const uri: vscode.Uri | undefined = await maybePick.call(tree, "locust.createLocustfile");
-        if (uri) return uri.fsPath;
-      }
-
-      
-      const roots = await tree.getChildren();
-      const files = roots.filter(
-        (n) => (n as any).kind === "file"
-      ) as Array<{ label: string; fileUri: vscode.Uri; filePath?: string }>;
-      if (files.length === 0) return undefined;
-
-      const active = vscode.window.activeTextEditor?.document;
-      if (active?.languageId === "python") {
-        const hit = files.find((f) => f.fileUri.fsPath === active.uri.fsPath);
-        if (hit) return hit.fileUri.fsPath;
-      }
-
-      if (files.length === 1) return files[0].fileUri.fsPath;
-
-      const pick = await vscode.window.showQuickPick(
-        files.map((f) => ({ label: f.label, description: f.fileUri.fsPath })),
-        { placeHolder: "Select a locustfile to run in the cloud" }
-      );
-      return pick?.description;
-    } finally {
-      tree.dispose();
-    }
-    const uri = await vscode.commands.executeCommand<vscode.Uri | undefined>("locust.pickLocustfile");
-    return uri?.fsPath;
   }
 
   /** Wrapper: "open in bottom split" command. */
@@ -233,7 +221,7 @@ export class LocustCloudService {
       return;
     }
 
-    const locustfile = await this.resolveLocustfilePath();
+    const locustfile = await this.pickLocustfile();
     if (!locustfile) {
       vscode.window.showErrorMessage("Locust Cloud: no locustfile selected.");
       return;
@@ -321,13 +309,7 @@ export class LocustCloudService {
     setTimeout(async () => {
       if (!opened) {
         opened = true;
-        const fallback = this.cloudFallbackUrl;
-        out.appendLine(`No UI URL detected, opening fallback...`);
-        if (this.isWeb) {
-          await this.openUrlSplit(fallback, 0.45);
-        } else {
-          await vscode.env.openExternal(vscode.Uri.parse(fallback));
-        }
+        out.appendLine(`Opening Browser (timeout)...`);
       }
     }, 60000);
   }

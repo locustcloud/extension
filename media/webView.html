@@ -33,12 +33,12 @@
 
   <h2>Get Help</h2>
   <p>
+    <a href="#" id="linkCopilotPrompts" aria-expanded="false">Copilot prompt examples</a><br>
     <a href="#" id="linkGuide">Beginner Guide</a><br>
     <a href="https://docs.locust.io/en/stable/" target="_blank">Locust Docs</a><br>
     ${supportBlock}
   </p>
 
-  
   <div id="copilotBox" style="display:none;">
     <h2>Copilot Prompt Examples</h2>
     <ul id="copilotList" style="margin:6px 0 0 18px; padding:0;"></ul>
@@ -87,6 +87,7 @@
         const btnLocal  = document.getElementById('btnRunLocal');
         const btnCloud  = document.getElementById('btnLocustCloud');
         const btnHar    = document.getElementById('btnConvertHar');
+        const btnCopilotChat = document.getElementById('btnCopilotChat');
 
         btnLocal?.addEventListener('click', () => {
           if (localStarted) return;            // Stop button
@@ -101,6 +102,11 @@
         });
 
         btnHar?.addEventListener('click', () => run('locust.convertHar'));
+
+        // Copilot Chat button -> open VS Code Chat view
+        btnCopilotChat?.addEventListener('click', () => {
+          run('workbench.action.chat.openInSidebar');
+        });
       }
 
       // Unified Stop Test
@@ -116,23 +122,23 @@
         run('locust.startBeginnerTour');
       });
 
-  
+      // Copilot prompts (toggle and lazy-load)
       let copilotOpen = false;
+      const linkPrompts = document.getElementById('linkCopilotPrompts');
       const boxEl = document.getElementById('copilotBox');
       const listEl = document.getElementById('copilotList');
       const statusEl = document.getElementById('copilotStatus');
 
-      // Toggle open/close and lazy-load on first open
-      document.getElementById('btnCopilotPrompts')?.addEventListener('click', () => {
+      linkPrompts?.addEventListener('click', (e) => {
+        e.preventDefault();
         if (!boxEl) return;
         copilotOpen = !copilotOpen;
         boxEl.style.display = copilotOpen ? 'block' : 'none';
+        linkPrompts.setAttribute('aria-expanded', copilotOpen ? 'true' : 'false');
 
-        if (copilotOpen) {
-          if (listEl && listEl.childElementCount === 0) {
-            if (statusEl) statusEl.textContent = 'Loading…';
-            vscode.postMessage({ type: 'getCopilotPrompts' });
-          }
+        if (copilotOpen && listEl && listEl.childElementCount === 0) {
+          if (statusEl) statusEl.textContent = 'Loading…';
+          vscode.postMessage({ type: 'getCopilotPrompts' });
         }
       });
 
