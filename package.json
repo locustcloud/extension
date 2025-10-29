@@ -27,6 +27,8 @@
     "onView:locust.welcome",
     "onView:locust.scenarios",
     "onCommand:locust.openCopilotWalkthrough",
+    "onCommand:locust.runLocustUI",
+    "onCommand:locust.openLocustCloud",
     "onCommand:locust.showWelcome",
     "onCommand:locust.hideWelcome",
     "onCommand:locust.createSimulation",
@@ -34,7 +36,7 @@
     "onCommand:locust.runUI",
     "onCommand:locust.runHeadless",
     "onCommand:locust.stopLastRun",
-    "onCommand:locust.openLocustCloud",
+    "onCommand:locust.installCopilot",
     "onCommand:locust.deleteLocustCloud",
     "onCommand:locust.showScenarios",
     "onCommand:locust.hideScenarios",
@@ -92,12 +94,12 @@
         { "command": "locust.runHeadless", "title": "Locust: Run Test (Headless)" }
       ],
       "commandPalette": [
+        { "command": "locust.startBeginnerTour", "when": "true" },
         { "command": "locust.runUI", "when": "locust.isCloud" },
         { "command": "locust.runHeadless", "when": "locust.isCloud" },
-        { "command": "locust.stopLastRun", "when": "true" },
         { "command": "locust.openLocustCloud", "when": "locust.isDesktop" },
+        { "command": "locust.stopLastRun", "when": "true" },
         { "command": "locust.deleteLocustCloud", "when": "locust.isDesktop" },
-        { "command": "locust.startBeginnerTour", "when": "true" },
         { "command": "locust.showScenarios", "when": "locust.scenariosVisible != true" },
         { "command": "locust.hideScenarios", "when": "locust.scenariosVisible == true" }
       ]
@@ -117,7 +119,8 @@
       { "command": "locust.openLocustCloud", "title": "Open Locust Cloud", "icon": "$(cloud)" },
       { "command": "locust.deleteLocustCloud", "title": "Locust Cloud Shut Down", "icon": "$(trash)" },
       { "command": "locust.showScenarios", "title": "Locust: Show Tests", "icon": "$(list-selection)" },
-      { "command": "locust.hideScenarios", "title": "Locust: Hide Tests", "icon": "$(eye-closed)" }
+      { "command": "locust.hideScenarios", "title": "Locust: Hide Tests", "icon": "$(eye-closed)" },
+      { "command": "locust.showWelcomePanel", "title": "Locust: Show Welcome Page" }
     ],
     "configuration": {
       "title": "Locust",

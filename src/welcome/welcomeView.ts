@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { TourRunner } from '../runners/tourRunner';
+
 
 // Persisted flags
 const CLOUD_FLAG_KEY = 'locust.cloudWasStarted';
@@ -14,7 +16,7 @@ const getLocalStarted = (ctx: vscode.ExtensionContext) =>
 const setLocalStarted = (ctx: vscode.ExtensionContext, v: boolean) =>
   ctx.workspaceState.update('locust.localStarted', v);
 
-// Very small template helper
+// Small template helper
 function render(tpl: string, values: Record<string, string>): string {
   return tpl.replace(/{{\s*([\w.-]+)\s*}}/g, (_, k) => values[k] ?? '');
 }
@@ -58,10 +60,10 @@ export class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
         <button id="btnLocustCloud" title="locust -f locustfile.py --cloud">Cloud Test</button>
       </div>
       <div class="row">
-        <button id="btnConvertHar"  title="Convert a HAR file to a Locust test">HAR to Locust</button>
-      </div>
-      <div class="row">
         <button id="btnStopAll" class="danger" title="Stop active Test">Stop Test</button>
+      </div><br>
+      <div class="row"><br>
+        <button id="btnConvertHar"  title="Convert a HAR file to a Locust test">HAR to Locust</button>
       </div>`;
 
     const cloudControls = `
@@ -99,15 +101,58 @@ export class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.onDidReceiveMessage(async (msg) => {
       try {
         if (msg?.type === 'run' && typeof msg.command === 'string') {
-          if (msg.command === 'locust.hideWelcome') {
-            await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', true);
-            await vscode.commands.executeCommand('locust.scenarios.focus');
-            return;
+          switch (msg.command) {
+            case 'runLocal': {
+              // runner will clear on exit/error
+              await vscode.commands.executeCommand('locust.setLocalStarted', true);
+              await vscode.commands.executeCommand('locust.runUI');
+              this.refresh();
+              return;
+            }
+            case 'runCloud': {
+              await vscode.commands.executeCommand('locust.openLocustCloud');
+              await setCloudStarted(this.ctx, true);
+              this.refresh();
+              return;
+            }
+            case 'stopAll': {
+              if (this.isCloud) {
+                await vscode.commands.executeCommand('locust.deleteLocustCloud').then(undefined, () => {});
+                await setCloudStarted(this.ctx, false);
+              } else {
+                await vscode.commands.executeCommand('locust.stopLastRun').then(undefined, () => {});
+                await vscode.commands.executeCommand('locust.setLocalStarted', false);
+              }
+              this.refresh();
+              return;
+            }
+            case 'convertHar': {
+              await vscode.commands.executeCommand('locust.convertHar');
+              return;
+            }
+            case 'hideWelcome': {
+              await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', true);
+              await vscode.commands.executeCommand('locust.scenarios.focus');
+              return;
+            }
+            case 'beginnerTour': {
+              const tr = new TourRunner(this.ctx);
+              await tr.runBeginnerTour();
+              return;
+            }
+            default: {
+              // fallback for direct command ids
+              await vscode.commands.executeCommand(msg.command);
+              return;
+            }
           }
-          await vscode.commands.executeCommand(msg.command);
         }
       } catch (e: any) {
         vscode.window.showErrorMessage(e?.message ?? 'Failed to execute action.');
+        
+        await vscode.commands.executeCommand('locust.setLocalStarted', false);
+        await setCloudStarted(this.ctx, false);
+        this.refresh();
       }
     });
   }

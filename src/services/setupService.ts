@@ -83,17 +83,18 @@ async function ensureWorkspaceSettingsIfMissing(workspacePath: string): Promise<
       "**/.locust_env": true,
       "**/.tours": true,
       "**/.ruff.toml": true,
-      "**/templates": true,
-      "**/mcp": true,
-      "**/media": true
+      "**/media": true,
+      "**/templates": true
     },
     "search.exclude": {
       "**/.locust_env/**": true,
-      "**/.tours/**": true
+      "**/.tours/**": true,
+      "**/media": true,
+      "**/templates": true
     },
     "files.watcherExclude": {
       "**/.locust_env/**": true,
-      "**/.tours/**": true
+      "**/.tours/**": true,
     }
   };
 
