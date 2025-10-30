@@ -154,8 +154,8 @@ export class LocustRunner {
     const rel = path.basename(targetPath);
 
     // Run from file directory and pass a relative -f 
-    const fileDir = path.dirname(locustfileAbs);
-    const relFile = path.basename(locustfileAbs);
+    const fileDir = path.dirname(targetPath);
+    const relFile = path.basename(targetPath);
 
     out.appendLine(`Launching: ${cmd} -f "${relFile}"`);
     const child = spawn(cmd, ["-f", relFile], {

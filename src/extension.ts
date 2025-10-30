@@ -11,8 +11,7 @@ import { registerWelcomePanel } from './welcome/welcomePanel';
 import { CopilotService } from './services/copilotService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { LocustWelcomeViewProvider } from './welcome/welcomeView';
-import { LocustWelcome } from './welcome/locustWelcome';  
+
 
 
 
@@ -46,24 +45,24 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     // Desktop controls
     const desktopControls = `
       <div class="row actions">
-        <button id="btnRunLocal"    title="locust -f locustfile.py">Local Test</button>
+        <button id="btnRunLocal" title="locust -f locustfile.py">Local Test</button>
         <button id="btnLocustCloud" title="locust -f locustfile.py --cloud">Cloud Test</button>
       </div>
       <div class="row">
         <button id="btnStopAll" class="danger" title="Stop active Test">Stop Test</button>
       </div><br>
-      <div class="row"><br>
-        <button id="btnConvertHar"  title="Convert a HAR file to a Locust test">HAR to Locust</button>
+      <div class="row">
+        <button id="btnCopilotChat" title="Open Copilot Chat">Copilot Chat</button>
       </div>
       <div class="row">
-        <button id="btnCopilotPrompts" title="Show Copilot prompt examples">Copilot Prompts</button>
-      </div>
+        <button id="btnConvertHar" title="Convert a HAR file to a Locust test">HAR to Locust</button>
+      </div>     
     `;
 
     // Cloud controls
     const cloudControls = `
       <div class="row actions">
-        <button id="btnRunUI"       title="locust -f locustfile.py --cloud">Cloud Test</button>
+        <button id="btnRunUI" title="locust -f locustfile.py --cloud">Cloud Test</button>
       </div>
       <div class="row">
         <button id="btnStopAll" class="danger" title="Stop active Test">Stop Test</button>
@@ -145,21 +144,17 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   }
 }
 
+
 export async function activate(ctx: vscode.ExtensionContext) {
   // Detect environment and set context keys
   const isCloud = detectCloudEnv();
   await vscode.commands.executeCommand('setContext', 'locust.isCloud', isCloud);
   await vscode.commands.executeCommand('setContext', 'locust.isDesktop', !isCloud);
-
-  LocustWelcome.register(ctx);
-  LocustWelcome.maybeShowOnActivate(ctx, isCloud);
   
   // Core services
   const env = new EnvService();
   const mcp = new McpService(env);
   const setup = new SetupService(env, mcp, ctx);
-
-
 
   // Runners / Services
   const locustRunner = new LocustRunner(); 
@@ -194,11 +189,6 @@ export async function activate(ctx: vscode.ExtensionContext) {
     })
   );
 
-  // Expose refresh
-  ctx.subscriptions.push(
-    vscode.commands.registerCommand('locust.welcome.refresh', () => welcomeProvider.refresh())
-  );
-
   // Focus Welcome view on startup
   await vscode.commands.executeCommand('locust.welcome.focus');
 
@@ -212,8 +202,6 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
   // Centralized command registration
   registerCommands(ctx, { setup, runner: locustRunner, harRunner, tree });
-
-
 
   // Cloud toggle behavior
   ctx.subscriptions.push(

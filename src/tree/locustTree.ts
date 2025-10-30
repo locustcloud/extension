@@ -180,45 +180,15 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
       return;
     }
 
-    // Prefer the active editor if it looks like a locustfile
+    // Prefer the active editor.
     const active = vscode.window.activeTextEditor?.document;
     if (active?.uri?.scheme === 'file' && active.languageId === 'python') {
       const fsPath = active.uri.fsPath;
-
-      // Match canonical filenames: locustfile*.py
-      if (/(?:^|[\\/])locustfile.*\.py$/i.test(fsPath)) {
+      const name = path.basename(fsPath).toLowerCase();
+      // If the active file looks like a locustfile by filename, is in the known list, or imports locust → use it.
+      if (name.startsWith('locustfile') || this.isKnown(fsPath) || await this.looksLikeLocustFile(active.uri)) {
         return active.uri;
       }
-
-      // If it's already in our tree list
-      if (this.isKnown(fsPath)) {
-        return active.uri;
-      }
-
-      // If it imports locust near the top
-      try {
-        if (await this.looksLikeLocustFile(active.uri)) {
-          return active.uri;
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    // If files discovered by the tree, offer them
-    if (this._knownFiles.length > 0) {
-      if (this._knownFiles.length === 1) return this._knownFiles[0];
-
-      const picks = this._knownFiles.map(u => ({
-        label: vscode.workspace.asRelativePath(u),
-        description: path.basename(u.fsPath),
-        uri: u
-      }));
-      const chosen = await vscode.window.showQuickPick(picks, {
-        placeHolder: 'Choose a locustfile to run',
-        matchOnDescription: true,
-      });
-      if (chosen?.uri) return chosen.uri;
     }
 
     // Otherwise: Choose or Scaffold
