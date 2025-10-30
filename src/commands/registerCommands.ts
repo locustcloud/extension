@@ -203,5 +203,4 @@ export function registerCommands(
       }
     })
   );
-  vscode.commands.executeCommand('locust.welcome.refresh');
 }

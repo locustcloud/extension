@@ -12,9 +12,7 @@ export class LocustCloudService {
   private _out?: vscode.OutputChannel;
 
   private out(): vscode.OutputChannel {
-    if (!this._out) {
-      this._out = vscode.window.createOutputChannel("Locust Cloud");
-    }
+    if (!this._out) this._out = vscode.window.createOutputChannel("Locust Cloud");
     return this._out;
   }
 
@@ -24,33 +22,14 @@ export class LocustCloudService {
   constructor(private readonly ctx: vscode.ExtensionContext) {}
 
   /**
-   * Pick a locustfile: prefer active editor Python file, otherwise prompt the user to select one from the workspace.
+   * Pick a locustfile
    */
   async pickLocustfile(): Promise<string | undefined> {
-    // Prefer active editor if it's a Python file
-    const editor = vscode.window.activeTextEditor;
-    if (editor) {
-      const doc = editor.document;
-      const fsPath = doc.uri.fsPath;
-      if (fsPath && fsPath.endsWith(".py")) {
-        return fsPath;
-      }
-    }
-
-    // Fallback: prompt user to select a file from the workspace
-    const ws = this.getWorkspaceRoot();
-    if (!ws) return undefined;
-
-    const uris = await vscode.window.showOpenDialog({
-      canSelectFiles: true,
-      canSelectMany: false,
-      defaultUri: vscode.Uri.file(ws),
-      openLabel: "Select locustfile",
-      filters: { Python: ["py"] },
-    });
-
-    if (!uris || uris.length === 0) return undefined;
-    return uris[0].fsPath;
+    try {
+      const uri = await vscode.commands.executeCommand('locust.pickLocustfile') as vscode.Uri | undefined;
+      if (uri?.fsPath) return uri.fsPath;
+    } catch { /* ignore */ }
+    return undefined;
   }
 
   private getWorkspaceRoot(): string | undefined {
@@ -67,11 +46,7 @@ export class LocustCloudService {
 
   private async setCloudStarted(v: boolean) {
     await this.ctx.globalState.update(CLOUD_FLAG_KEY, v);
-    // keep welcome view buttons in sync
-    await vscode.commands.executeCommand("locust.welcome.refresh").then(
-      () => {},
-      () => {}
-    );
+    await vscode.commands.executeCommand("locust.welcome.refresh").then(() => {}, () => {});
   }
 
   /** Workspace env folder name (default: ".locust_env"). */
@@ -86,170 +61,110 @@ export class LocustCloudService {
     return cfg.get<string>("path", "locust");
   }
 
-  /**
-   * Build env with venv bin/Scripts prepended so "locust" is found if installed in the venv.
-   * Only prepends if the bin/Scripts folder actually exists.
-   */
   private buildEnv(): NodeJS.ProcessEnv {
     const env = { ...process.env };
     try {
       const venvPy = this.envSvc.getEnvInterpreterPath(this.envFolder);
-      const venvDir = path.dirname(path.dirname(venvPy)); // .../.locust_env/{bin|Scripts}/python -> .../.locust_env
-      const binDir = path.join(
-        venvDir,
-        process.platform === "win32" ? "Scripts" : "bin"
-      );
+      const venvDir = path.dirname(path.dirname(venvPy));
+      const binDir = path.join(venvDir, process.platform === "win32" ? "Scripts" : "bin");
       if (fs.existsSync(binDir)) {
         env.VIRTUAL_ENV = venvDir;
         env.PATH = `${binDir}${path.delimiter}${env.PATH ?? ""}`;
       }
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
     return env;
   }
 
-  /**
-   * Decide how to launch Locust in a venv-stable way.
-   * - If user configured an *absolute* binary path (locust.path)..
-   * - Otherwise, prefer running "python -m locust" using resolved interpreter from EnvService.
-   */
   private async resolveLocustLaunch(
     args: string[],
     cwd: string
   ): Promise<{ cmd: string; args: string[]; env: NodeJS.ProcessEnv; cwd: string }> {
-    const cfgPath = this.locustCmd; // "locust" (default) or user setting
+    const cfgPath = this.locustCmd;
     if (path.isAbsolute(cfgPath)) {
-      // Respect explicit absolute binary
       return { cmd: cfgPath, args, env: this.buildEnv(), cwd };
     }
-    // Run via venv's interpreter to guarantee correct site-packages
     const py = await this.envSvc.resolvePythonStrict(this.envFolder);
     return { cmd: py, args: ["-m", "locust", ...args], env: this.buildEnv(), cwd };
   }
 
-  /** Wrapper: "open in bottom split" command. */
   private async openUrlSplit(url: string, ratio = 0.45) {
     const tryCmd = async (id: string) =>
-      vscode.commands.executeCommand(id, url, ratio).then(
-        () => true,
-        () => false
-      );
-
-    const ok =
-      (await tryCmd("locust.openUrlInSplit")) ||
-      (await tryCmd("locust.openUrlSplit"));
-    if (!ok) {
-      await vscode.env.openExternal(vscode.Uri.parse(url));
-    }
+      vscode.commands.executeCommand(id, url, ratio).then(() => true, () => false);
+    const ok = (await tryCmd("locust.openUrlInSplit")) || (await tryCmd("locust.openUrlSplit"));
+    if (!ok) await vscode.env.openExternal(vscode.Uri.parse(url));
   }
 
   private _ppWorkersReadyLogged = false;
 
-  /**
-   * Prettify Locust cloud output.
-   */
   private prettifyLine(line: string): string | null {
-    // Deploying (...)
     const mDep = line.match(/Deploying\s*\(([^)]+)\)/i);
     if (mDep) return `Deploying (${mDep[1]})`;
-
-    // Waiting for load generators...
-    if (/Waiting for load generators to be ready/i.test(line)) {
-      return "Waiting for load generators to be ready...";
-    }
-
-    // Workers connected => once
+    if (/Waiting for load generators to be ready/i.test(line)) return "Waiting for load generators to be ready...";
     const mWorkers = line.match(/(\d+)\s+workers connected\./i);
     if (mWorkers && !this._ppWorkersReadyLogged) {
       this._ppWorkersReadyLogged = true;
       return "Workers ready.";
     }
-
-    // All users spawned: ... (N total users)
     const mSpawn = line.match(/All users spawned:.*\((\d+)\s+total users\)/i);
     if (mSpawn) return `All users spawned: ${mSpawn[1]}`;
-
-    // Tearing down
-    if (/Tearing down Locust cloud/i.test(line)) {
-      return "Stopping Locust cloud...";
-    }
-
-    // Starting web interface <url>
+    if (/Tearing down Locust cloud/i.test(line)) return "Stopping Locust cloud...";
     const mWeb = line.match(/Starting web interface at\s+(https?:\/\/\S+)/i);
     if (mWeb) return `Starting Browser...`;
-
-    // Suppress "KeyboardInterrupt"
     if (/^KeyboardInterrupt$/i.test(line.trim())) return "";
-
-    // Default: no prettification
     return null;
-  }
+    }
 
-  private processChunk(
-    out: vscode.OutputChannel,
-    chunk: string,
-    onLine?: (line: string) => void
-  ) {
+  private processChunk(out: vscode.OutputChannel, chunk: string, onLine?: (line: string) => void) {
     const lines = chunk.split(/\r?\n/);
     for (const raw of lines) {
       if (!raw) continue;
       if (onLine) onLine(raw);
-
       const pretty = this.prettifyLine(raw);
-      if (pretty === "") {
-        // Suppressed KeyboardInterrupt
-        continue;
-      } else if (typeof pretty === "string") {
-        out.appendLine(pretty);
-      } else {
-        out.append(raw + "\n");
-      }
+      if (pretty === "") continue;
+      if (typeof pretty === "string") out.appendLine(pretty);
+      else out.append(raw + "\n");
     }
   }
 
   /**
-   * Run Locust in the cloud and mirror output to "Locust Cloud" output channel:
-   * - Launch via venv-stable runner (python -m locust or absolute binary)
-   * - Parse and open the printed web UI URL (split on web / default browser on desktop)
-   * - Pretty-print only a few noisy lines.
+   * Start a Locust Cloud run.
+   * Returns true if run started, false if cancelled or invalid.
    */
-  async openLocustCloudLanding(): Promise<void> {
+  async openLocustCloudLanding(locustfileAbs?: string): Promise<boolean> {
     const ws = this.getWorkspaceRoot();
     if (!ws) {
       vscode.window.showErrorMessage("Locust Cloud: open a workspace folder first.");
-      return;
+      await this.setCloudStarted(false);
+      return false;
     }
 
-    const locustfile = await this.pickLocustfile();
-    if (!locustfile) {
-      vscode.window.showErrorMessage("Locust Cloud: no locustfile selected.");
-      return;
+    let targetPath = locustfileAbs;
+    const picked = await this.pickLocustfile();
+    if (!picked) {
+      // cancelled
+      await this.setCloudStarted(false);
+      await vscode.commands.executeCommand('locust.refreshTree').then(() => {}, () => {});
+      return false;
     }
+    targetPath = picked;
 
     const out = this.out();
     out.show(true);
 
-    const fileDir = path.dirname(locustfile);
-    const relFile = path.basename(locustfile);
+    const fileDir = path.dirname(targetPath);
+    const relFile = path.basename(targetPath);
 
-    // Resolve command using the venv-stable strategy
-    const launch = await this.resolveLocustLaunch(
-      ["-f", relFile, "--cloud"],
-      fileDir
-    );
-    out.appendLine(
-      `Launching: ${launch.cmd} ${launch.args.join(" ")}`
-    );
+    const launch = await this.resolveLocustLaunch(["-f", relFile, "--cloud"], fileDir);
+    out.appendLine(`Launching: ${launch.cmd} ${launch.args.join(" ")}`);
 
     const child = spawn(launch.cmd, launch.args, {
       cwd: launch.cwd,
       env: launch.env,
       stdio: "pipe",
-      shell: process.platform === "win32", // windows shim help
+      shell: process.platform === "win32",
     });
     this._cloudChild = child;
-    await this.setCloudStarted(true);
+    await this.setCloudStarted(true); 
 
     let opened = false;
     let bufOut = "";
@@ -260,23 +175,14 @@ export class LocustCloudService {
       if (url && !opened) {
         opened = true;
         out.appendLine(`Opening Browser...`);
-        if (this.isWeb) {
-          await this.openUrlSplit(url, 0.45);
-        } else {
-          await vscode.env.openExternal(vscode.Uri.parse(url));
-        }
+        if (this.isWeb) await this.openUrlSplit(url, 0.45);
+        else await vscode.env.openExternal(vscode.Uri.parse(url));
       }
     };
 
     child.stdout.on("data", async (b) => {
       const s = b.toString();
-      // Pretty print
-      this.processChunk(out, s, (line) => {
-        // Maintain URL auto-open
-        void tryExtractAndOpen(line);
-      });
-
-      // Minimal buffer for incomplete line handling
+      this.processChunk(out, s, (line) => { void tryExtractAndOpen(line); });
       bufOut += s;
       const lastNL = bufOut.lastIndexOf("\n");
       if (lastNL >= 0) bufOut = bufOut.slice(lastNL + 1);
@@ -284,7 +190,7 @@ export class LocustCloudService {
 
     child.stderr.on("data", async (b) => {
       const s = b.toString();
-      out.append(`${s}`); 
+      out.append(`${s}`);
       bufErr += s;
       const lastNL = bufErr.lastIndexOf("\n");
       if (lastNL >= 0) bufErr = bufErr.slice(lastNL + 1);
@@ -292,9 +198,7 @@ export class LocustCloudService {
 
     child.on("error", async (e: any) => {
       out.appendLine(`${e?.message ?? e}`);
-      vscode.window.showErrorMessage(
-        `Failed to run "${launch.cmd}". Ensure Locust is installed.`
-      );
+      vscode.window.showErrorMessage(`Failed to run "${launch.cmd}". Ensure Locust is installed.`);
       await this.setCloudStarted(false);
       this._cloudChild = undefined;
     });
@@ -305,21 +209,17 @@ export class LocustCloudService {
       await this.setCloudStarted(false);
     });
 
-    // Fallback: 60 sec timeout to open landing if URL never appeared
     setTimeout(async () => {
       if (!opened) {
         opened = true;
         out.appendLine(`Opening Browser (timeout)...`);
       }
     }, 60000);
+
+    return true; // started
   }
 
-  /**
-   * Prefer stopping the attached cloud CLI process.
-   * Fallback `locust --cloud --delete`
-   */
   async deleteLocustCloud(): Promise<void> {
-    // Try graceful kill first.
     if (this._cloudChild && !this._cloudChild.killed) {
       const child = this._cloudChild;
       const out = this.out();
@@ -333,11 +233,9 @@ export class LocustCloudService {
           setTimeout(() => resolve(), 1200);
         });
 
-      await trySignal("SIGINT");    // Graceful
-      if (!child.killed) await trySignal("SIGTERM"); // Terminate
-      if (!child.killed) {
-        try { child.kill(); } catch { /* ignore */ } // Force
-      }
+      await trySignal("SIGINT");
+      if (!child.killed) await trySignal("SIGTERM");
+      if (!child.killed) { try { child.kill(); } catch { /* ignore */ } }
 
       this._cloudChild = undefined;
       await this.setCloudStarted(false);
@@ -345,7 +243,6 @@ export class LocustCloudService {
       return;
     }
 
-    // No child: run "--cloud --delete" 
     const ws = this.getWorkspaceRoot();
     if (!ws) {
       vscode.window.showErrorMessage("Locust Cloud: open a workspace folder first.");
@@ -356,9 +253,7 @@ export class LocustCloudService {
     out.show(true);
 
     const launch = await this.resolveLocustLaunch(["--cloud", "--delete"], ws);
-    out.appendLine(
-      `Shutting Down...`
-    );
+    out.appendLine(`Shutting Down...`);
 
     const del = spawn(launch.cmd, launch.args, {
       cwd: launch.cwd,
@@ -371,9 +266,7 @@ export class LocustCloudService {
     del.stderr.on("data", (b) => out.append(`${b.toString()}`));
     del.on("error", (e: any) => {
       out.appendLine(`${e?.message ?? e}`);
-      vscode.window.showErrorMessage(
-        `Failed to run "${launch.cmd}".`
-      );
+      vscode.window.showErrorMessage(`Failed to run "${launch.cmd}".`);
     });
     del.on("close", async (code) => {
       out.appendLine(`Shut down:\n ${code}`);
