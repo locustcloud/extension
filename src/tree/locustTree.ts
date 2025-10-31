@@ -53,11 +53,9 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     if (!folders || folders.length === 0) return [];
 
     if (!element) {
-      // Root: known files
       const exclude = '**/{.venv,.locust_env,.tour,.git,__pycache__,node_modules,site-packages,dist,build}/**';
       const explicit = await vscode.workspace.findFiles('**/locustfile*.py', exclude);
 
-      // Also infer based on import
       const candidates = await vscode.workspace.findFiles('**/*.py', exclude);
       const seen = new Set(explicit.map(u => u.fsPath));
       const inferred: vscode.Uri[] = [];
@@ -70,12 +68,7 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
       }
 
       const files = [...explicit, ...inferred].sort((a, b) => a.fsPath.localeCompare(b.fsPath));
-
-      // Cache known files for pickers/runners
-      this._knownFiles = files;
-
-      // ► NEW: keep this list for the picker
-      this._knownFiles = files;
+      this._knownFiles = files; // cache for picker
 
       return files.map((f) => ({
         kind: 'file',
@@ -159,39 +152,40 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     }
   }
 
-  // Helper picker to check if file is from known list
   private isKnown(fsPath: string): boolean {
     return this._knownFiles.some(u => u.fsPath === fsPath);
+  }
+
+  // Reset both buttons if pick is cancelled
+  private async resetRunButtons(): Promise<void> {
+    
+    await vscode.commands.executeCommand('locust.setLocalStarted', false).then(() => {}, () => {});
+    await vscode.commands.executeCommand('locust.setCloudStarted', false).then(() => {}, () => {});
   }
 
   /**
    * Centralized picker used by both local & cloud runs.
    * Logic:
    *  1) If active editor is a locustfile (name matches, known in tree, or imports locust) → use it.
-   *  2) Else, if we have known locustfiles, QuickPick them.
-   *  3) Else, let user choose a Python file or scaffold a new one.
-   *
-   * @param scaffoldCmdId command id that returns a vscode.Uri (e.g. 'locust.createLocustfile')
+   *  2) Else, let user choose a Python file or scaffold a new one.
    */
   async pickLocustfileOrActive(scaffoldCmdId = 'locust.createLocustfile'): Promise<vscode.Uri | undefined> {
     const ws = vscode.workspace.workspaceFolders?.[0];
     if (!ws) {
       vscode.window.showWarningMessage('Open a folder first.');
+      await this.resetRunButtons();                    
       return;
     }
 
-    // Prefer the active editor.
     const active = vscode.window.activeTextEditor?.document;
     if (active?.uri?.scheme === 'file' && active.languageId === 'python') {
       const fsPath = active.uri.fsPath;
       const name = path.basename(fsPath).toLowerCase();
-      // If the active file looks like a locustfile by filename, is in the known list, or imports locust → use it.
-      if (name.startsWith('locustfile') || this.isKnown(fsPath) || await this.looksLikeLocustFile(active.uri)) {
+      if (name.endsWith('py') || this.isKnown(fsPath) || await this.looksLikeLocustFile(active.uri)) {
         return active.uri;
       }
     }
 
-    // Otherwise: Choose or Scaffold
     const action = await vscode.window.showQuickPick(
       [
         { label: '$(file-code) Choose a Python file…', action: 'choose' as const },
@@ -200,7 +194,11 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
       ],
       { placeHolder: 'No locustfile found. What would you like to do?' }
     );
-    if (!action || action.action === 'cancel') return;
+
+    if (!action || action.action === 'cancel') {
+      await this.resetRunButtons();                    
+      return;
+    }
 
     if (action.action === 'choose') {
       const picked = await vscode.window.showOpenDialog({
@@ -211,16 +209,23 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
         title: 'Select locustfile.py',
         defaultUri: ws.uri,
       });
-      return picked?.[0];
+      if (!picked || picked.length === 0) {
+        await this.resetRunButtons();                  
+        return;
+      }
+      return picked[0];
     }
 
     if (action.action === 'scaffold') {
       const dest = await vscode.commands.executeCommand(scaffoldCmdId);
-      if (dest && typeof dest === 'object' && 'fsPath' in dest) {
-        return dest as vscode.Uri;
+      if (!dest || typeof dest !== 'object' || !('fsPath' in dest)) {
+        await this.resetRunButtons();                  
+        return;
       }
+      return dest as vscode.Uri;
     }
 
-    return undefined;
+    await this.resetRunButtons();
+    return;
   }
 }

@@ -95,6 +95,7 @@ async function ensureWorkspaceSettingsIfMissing(workspacePath: string): Promise<
     "files.watcherExclude": {
       "**/.locust_env/**": true,
       "**/.tours/**": true,
+      "**/templates": true
     }
   };
 

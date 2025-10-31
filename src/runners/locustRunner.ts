@@ -134,7 +134,7 @@ export class LocustRunner {
     }
   }
 
-  public async runLocustUI(locustfileAbs?: string) {
+  public async runLocustUI(locustfileAbs?: string): Promise<boolean> {
     const out = vscode.window.createOutputChannel("Locust");
     out.show(true);
 
@@ -145,25 +145,25 @@ export class LocustRunner {
     }
     if (!targetPath) {
       vscode.window.showWarningMessage('No locustfile selected.');
-      return;
+      vscode.commands.executeCommand('locust.stopLastRun');
+      vscode.commands.executeCommand('locust.refreshTree');
+      await vscode.commands.executeCommand('locust.setLocalStarted', false);
+      await vscode.commands.executeCommand('locust.welcome.refresh');
+      return false; // CANCELLED
     }
 
     const env = this.buildEnv();
     const cmd = this.locustCmd;
-    const cwd = path.dirname(targetPath);
-    const rel = path.basename(targetPath);
-
-    // Run from file directory and pass a relative -f 
     const fileDir = path.dirname(targetPath);
     const relFile = path.basename(targetPath);
 
     out.appendLine(`Launching: ${cmd} -f "${relFile}"`);
-    const child = spawn(cmd, ["-f", relFile], {
-      cwd: fileDir,
-      env,
-    });
+    const child = spawn(cmd, ["-f", relFile], { cwd: fileDir, env });
     this._uiChild = child;
 
+    await vscode.commands.executeCommand('locust.setLocalStarted', true);
+    await vscode.commands.executeCommand('locust.welcome.refresh');
+    
     let opened = false;
     let bufOut = "";
     let bufErr = "";
@@ -231,6 +231,8 @@ export class LocustRunner {
         this.openUrlSplit(fallback, 0.45).catch(() => {});
       }
     }, 60000);
+    
+    return true;
   }
 
   private async runLocustHeadless(locustfileAbs: string, extraArgs: string[] = []) {
@@ -304,17 +306,16 @@ export class LocustRunner {
 
   // Palette helpers.
   async runSelected(mode: RunMode) {
-    const file = await this.pickLocustfile();
-    if (!file) return;
-    if (mode === 'ui') {
-      await this.runLocustUI(file.fsPath);
-    } else {
-      await this.runLocustHeadless(file.fsPath);
-    }
+    const out = vscode.window.createOutputChannel("Locust");
+    out.show(true);
+    
+    const uri = await vscode.commands.executeCommand('locust.pickLocustfile') as vscode.Uri | undefined;
+    let targetPath = uri?.fsPath;
+    return this.runFile(targetPath, mode);
   }
 
   async runByTag() {
-    const file = await this.pickLocustfile();
+    const file = await vscode.commands.executeCommand('locust.pickLocustfile') as vscode.Uri | undefined;
     if (!file) return;
 
     const tag = await vscode.window.showInputBox({
@@ -433,84 +434,6 @@ class MyUser(FastHttpUser):
     return dest;
   }
 
-  private async pickLocustfile(): Promise<vscode.Uri | undefined> {
-    // Try centralized picker from the TreeProvider if available.
-    try {
-      const tree = new LocustTreeProvider();
-      const maybePick = (tree as any).pickLocustfileOrActive;
-      if (typeof maybePick === 'function') {
-        const uri: vscode.Uri | undefined = await maybePick.call(tree, 'locust.createLocustfile');
-        tree.dispose();
-        if (uri) return uri;
-      } else {
-        tree.dispose();
-      }
-    } catch {
-      // ignore and fall back
-    }
-
-    // Fallback to previous self-contained behavior 
-    const ws = vscode.workspace.workspaceFolders?.[0];
-    if (!ws) {
-      vscode.window.showWarningMessage('Open a folder first.');
-      return;
-    }
-
-    const { envFolder } = getConfig();
-    const ignoreDirs = new Set([envFolder, '.venv', '.git', '__pycache__', '.tour', 'node_modules']);
-    const ignoreList = Array.from(ignoreDirs).filter(Boolean);
-    const ignoreGlob = ignoreList.length ? `**/{${ignoreList.join(',')}}/**` : '';
-
-    // Fast path: conventional names first
-    const named = await vscode.workspace.findFiles('**/locustfile*.py', ignoreGlob, 200);
-    if (named.length === 1) return named[0];
-    if (named.length > 1) {
-      const picks = named
-        .sort((a, b) => a.fsPath.localeCompare(b.fsPath))
-        .map(u => ({ label: vscode.workspace.asRelativePath(u), uri: u }));
-      const chosen = await vscode.window.showQuickPick(picks, { placeHolder: 'Choose a locustfile to run' });
-      return chosen?.uri;
-    }
-
-    // Fallback: scan python files for a Locust import
-    const candidates = await vscode.workspace.findFiles('**/*.py', ignoreGlob, 2000);
-    const locustRegex = /\bfrom\s+locust\s+import\b|\bimport\s+locust\b/;
-
-    const checks = await Promise.allSettled(
-      candidates.map(async (uri) => {
-        try {
-          // Read only the first few KB for speed
-          const bytes = await vscode.workspace.fs.readFile(uri);
-          const head = Buffer.from(bytes).toString('utf8', 0, Math.min(bytes.length, 4096));
-          return locustRegex.test(head) ? uri : undefined;
-        } catch {
-          return undefined;
-        }
-      })
-    );
-
-    const locustFiles = checks
-      .map(r => (r.status === 'fulfilled' ? r.value : undefined))
-      .filter((u): u is vscode.Uri => !!u);
-
-    if (locustFiles.length === 1) return locustFiles[0];
-    if (locustFiles.length > 1) {
-      const picks = locustFiles
-        .sort((a, b) => a.fsPath.localeCompare(b.fsPath))
-        .map(u => ({ label: vscode.workspace.asRelativePath(u), uri: u }));
-      const chosen = await vscode.window.showQuickPick(picks, { placeHolder: 'Choose a locustfile to run' });
-      return chosen?.uri;
-    }
-
-    // Offer to create one.
-    if (!vscode.workspace.isTrusted) {
-      vscode.window.showWarningMessage('Trust this workspace to create files.');
-      return;
-    }
-    const created = await this.createLocustfile({ open: true });
-    return created;
-  }
-
   // Stop last run
   public async stopLastRun(): Promise<void> {
     // First try to stop spawned UI process
@@ -546,7 +469,6 @@ class MyUser(FastHttpUser):
         this._uiTab = undefined;
       }
       await this.closeSimpleBrowserForUrl(this._lastUiUrl);
-      vscode.window.showInformationMessage('No running Locust session to stop.');
       if (this._uiTab) {
         try { await vscode.window.tabGroups.close([this._uiTab], true); } catch {}
         this._uiTab = undefined;
