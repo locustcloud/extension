@@ -151,6 +151,10 @@ export class LocustCloudService {
     const out = this.out();
     out.show(true);
 
+    // Fallback URL
+    const cfg = vscode.workspace.getConfiguration('locust');
+    const fallbackUrl = cfg.get<string>('cloud.rootUrl', 'https://auth.locust.cloud/load-test?dashboard=false');
+
     const fileDir = path.dirname(targetPath);
     const relFile = path.basename(targetPath);
 
@@ -199,20 +203,36 @@ export class LocustCloudService {
     child.on("error", async (e: any) => {
       out.appendLine(`${e?.message ?? e}`);
       vscode.window.showErrorMessage(`Failed to run "${launch.cmd}". Ensure Locust is installed.`);
+      
+      if (!opened && fallbackUrl) {
+        opened = true;
+        out.appendLine(`Opening Browser (fallback)…`);
+        if (this.isWeb) await this.openUrlSplit(fallbackUrl, 0.45);
+        else await vscode.env.openExternal(vscode.Uri.parse(fallbackUrl));
+      }
       await this.setCloudStarted(false);
       this._cloudChild = undefined;
     });
 
     child.on("close", async (code) => {
       out.appendLine(`\nExit code: \n ${code ?? "null"}`);
+      
+      if (!opened && fallbackUrl) {
+        opened = true;
+        out.appendLine(`Opening Browser (fallback)…`);
+        if (this.isWeb) await this.openUrlSplit(fallbackUrl, 0.45);
+        else await vscode.env.openExternal(vscode.Uri.parse(fallbackUrl));
+      }
       this._cloudChild = undefined;
       await this.setCloudStarted(false);
     });
 
     setTimeout(async () => {
-      if (!opened) {
+      if (!opened && fallbackUrl) {
         opened = true;
-        out.appendLine(`Opening Browser (timeout)...`);
+        out.appendLine(`Opening Browser (timeout fallback)…`);
+        if (this.isWeb) await this.openUrlSplit(fallbackUrl, 0.45);
+        else await vscode.env.openExternal(vscode.Uri.parse(fallbackUrl));
       }
     }, 60000);
 

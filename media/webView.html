@@ -50,6 +50,11 @@
       const vscode = acquireVsCodeApi();
       const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
 
+      // Debounce to avoid immediate flip-back after start (UI-only smoothing)
+      let lastLocalStartAt = 0;
+      let lastCloudStartAt = 0;
+      const JUST_STARTED_MS = 1200;
+
       // Helpers to paint labels + disabled state
       const setLocalVisual = (running) => {
         const b = document.getElementById('btnRunLocal');
@@ -75,30 +80,33 @@
       setCloudVisual(cloudStarted);
 
       if (isCloud) {
-        // Cloud: only cloud test
+        // Cloud page: only cloud test button present
         const btnRunCloud = document.getElementById('btnRunUI');
         btnRunCloud?.addEventListener('click', () => {
-          if (cloudStarted) return;            // do nothing if running
-          run('locust.toggleCloudSimple');     // starts
-          setCloudVisual(true);                // optimistic
+          if (document.body.getAttribute('data-cloud-started') === '1') return;
+          lastCloudStartAt = Date.now();
+          run('locust.toggleCloudSimple');     // start via toggle
+          setCloudVisual(true);                // optimistic UI
         });
       } else {
-        // Desktop: both buttons actionable
+        // Desktop page: both buttons actionable
         const btnLocal  = document.getElementById('btnRunLocal');
         const btnCloud  = document.getElementById('btnLocustCloud');
         const btnHar    = document.getElementById('btnConvertHar');
         const btnCopilotChat = document.getElementById('btnCopilotChat');
 
         btnLocal?.addEventListener('click', () => {
-          if (localStarted) return;            // Stop button
-          run('locust.toggleLocalSimple');     // starts
-          setLocalVisual(true);                // optimistic
+          if (document.body.getAttribute('data-local-started') === '1') return;
+          lastLocalStartAt = Date.now();
+          run('locust.toggleLocalSimple');     // start via toggle
+          setLocalVisual(true);                // optimistic UI
         });
 
         btnCloud?.addEventListener('click', () => {
-          if (cloudStarted) return;
-          run('locust.toggleCloudSimple');     // starts
-          setCloudVisual(true);                // optimistic
+          if (document.body.getAttribute('data-cloud-started') === '1') return;
+          lastCloudStartAt = Date.now();
+          run('locust.toggleCloudSimple');     // start via toggle
+          setCloudVisual(true);                // optimistic UI
         });
 
         btnHar?.addEventListener('click', () => run('locust.convertHar'));
@@ -111,9 +119,12 @@
 
       // Unified Stop Test
       document.getElementById('btnStopAll')?.addEventListener('click', () => {
-        run('locust.stopLocalThenCloudIfAny');
+        run('locust.stopLocalThenCloudIfAny'); // unified stop (local then cloud)
         setLocalVisual(false);
         setCloudVisual(false);
+        // Reset "started" attributes so clicks work again immediately
+        document.body.setAttribute('data-local-started', '0');
+        document.body.setAttribute('data-cloud-started', '0');
       });
 
       // Beginner guide
@@ -146,8 +157,27 @@
       window.addEventListener('message', (ev) => {
         const msg = ev.data || {};
         if (msg.type === 'state') {
-          if (typeof msg.cloudStarted === 'boolean') setCloudVisual(msg.cloudStarted);
-          if (typeof msg.localStarted === 'boolean') setLocalVisual(msg.localStarted);
+          const now = Date.now();
+
+          if (typeof msg.cloudStarted === 'boolean') {
+            // Ignore a transient "false" right after a start click
+            if (msg.cloudStarted === false && (now - lastCloudStartAt) < JUST_STARTED_MS) {
+              // ignore transient false
+            } else {
+              document.body.setAttribute('data-cloud-started', msg.cloudStarted ? '1' : '0');
+              setCloudVisual(msg.cloudStarted);
+            }
+          }
+
+          if (typeof msg.localStarted === 'boolean') {
+            // Ignore a transient "false" right after a start click
+            if (msg.localStarted === false && (now - lastLocalStartAt) < JUST_STARTED_MS) {
+              // ignore transient false
+            } else {
+              document.body.setAttribute('data-local-started', msg.localStarted ? '1' : '0');
+              setLocalVisual(msg.localStarted);
+            }
+          }
         }
 
         if (msg.type === 'copilotPrompts') {

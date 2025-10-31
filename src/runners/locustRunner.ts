@@ -149,7 +149,7 @@ export class LocustRunner {
       vscode.commands.executeCommand('locust.refreshTree');
       await vscode.commands.executeCommand('locust.setLocalStarted', false);
       await vscode.commands.executeCommand('locust.welcome.refresh');
-      return false; // ← CANCELLED
+      return false; // CANCELLED
     }
 
     const env = this.buildEnv();
@@ -469,7 +469,6 @@ class MyUser(FastHttpUser):
         this._uiTab = undefined;
       }
       await this.closeSimpleBrowserForUrl(this._lastUiUrl);
-      vscode.window.showInformationMessage('No running Locust session to stop.');
       if (this._uiTab) {
         try { await vscode.window.tabGroups.close([this._uiTab], true); } catch {}
         this._uiTab = undefined;
