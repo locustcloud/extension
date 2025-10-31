@@ -202,11 +202,11 @@ export class LocustCloudService {
 
     child.on("error", async (e: any) => {
       out.appendLine(`${e?.message ?? e}`);
-      vscode.window.showErrorMessage(`Failed to run "${launch.cmd}". Ensure Locust is installed.`);
+      vscode.window.showErrorMessage(`Failed to run locust. Ensure Locust is installed.`);
       
       if (!opened && fallbackUrl) {
         opened = true;
-        out.appendLine(`Opening Browser (fallback)…`);
+        out.appendLine(`Opening Browser`);
         if (this.isWeb) await this.openUrlSplit(fallbackUrl, 0.45);
         else await vscode.env.openExternal(vscode.Uri.parse(fallbackUrl));
       }
@@ -219,7 +219,7 @@ export class LocustCloudService {
       
       if (!opened && fallbackUrl) {
         opened = true;
-        out.appendLine(`Opening Browser (fallback)…`);
+        out.appendLine(`Opening Browser`);
         if (this.isWeb) await this.openUrlSplit(fallbackUrl, 0.45);
         else await vscode.env.openExternal(vscode.Uri.parse(fallbackUrl));
       }
@@ -230,7 +230,7 @@ export class LocustCloudService {
     setTimeout(async () => {
       if (!opened && fallbackUrl) {
         opened = true;
-        out.appendLine(`Opening Browser (timeout fallback)…`);
+        out.appendLine(`Opening Browser…`);
         if (this.isWeb) await this.openUrlSplit(fallbackUrl, 0.45);
         else await vscode.env.openExternal(vscode.Uri.parse(fallbackUrl));
       }

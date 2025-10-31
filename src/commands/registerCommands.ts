@@ -132,8 +132,12 @@ export function registerCommands(
   ctx.subscriptions.push(
     vscode.commands.registerCommand('locust.runUI', async () => {
       try {
-        await runner.runFile(undefined, 'ui');
-        return true;
+        // Pick active or prompt; cancel -> return false
+        const uri = await tree.pickLocustfileOrActive();
+        if (!uri) return false;
+
+        await runner.runFile(uri.fsPath, 'ui');  // pass the explicit path
+        return true;                              // definite success
       } catch (e: any) {
         vscode.window.showErrorMessage(`Locust (UI): ${e?.message ?? 'failed to start'}`);
         return false;
