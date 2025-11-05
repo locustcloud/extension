@@ -90,7 +90,9 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
       .replace(/\$\{desktopControls\}/g, desktopControls)
       .replace(/\$\{this\.isCloud \? '1' : '0'\}/g, this.isCloud ? '1' : '0')
       .replace(/\$\{this\.isCloud \? 'Cloud' : 'Local'\}/g, this.isCloud ? 'Cloud' : 'Local')
-      .replace(/\$\{this\.isCloud \? cloudControls : desktopControls\}/g, this.isCloud ? cloudControls : desktopControls);
+      .replace(/\$\{this\.isCloud \? cloudControls : desktopControls\}/g, this.isCloud ? cloudControls : desktopControls)
+      .replace(/\$\{copilotPromptExamples\}/g, this.isCloud ? '' : '<a href="#" id="linkCopilotPrompts" aria-expanded="false">Copilot prompt examples</a><br>')
+
 
     webview.html = html;
 
