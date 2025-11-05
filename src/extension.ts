@@ -12,15 +12,11 @@ import { CopilotService } from './services/copilotService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-
-
-
 // Cloud toggle
 const CLOUD_FLAG_KEY = 'locust.cloudWasStarted';
 function getCloudStarted(ctx: vscode.ExtensionContext): boolean {
   return !!ctx.globalState.get<boolean>(CLOUD_FLAG_KEY, false);
 }
-
 async function setCloudStarted(ctx: vscode.ExtensionContext, v: boolean) {
   await ctx.globalState.update(CLOUD_FLAG_KEY, v);
 }
@@ -36,13 +32,19 @@ async function setLocalStarted(ctx: vscode.ExtensionContext, v: boolean) {
 class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   constructor(private ctx: vscode.ExtensionContext, private readonly isCloud: boolean) {}
 
+  
+  private _view?: vscode.WebviewView;
+
   async resolveWebviewView(webviewView: vscode.WebviewView) { 
+    
+    this._view = webviewView;
+
     const { webview } = webviewView;
     webview.options = { enableScripts: true, localResourceRoots: [this.ctx.extensionUri] };
 
     const nonce = String(Math.random()).slice(2);
 
-    // Desktop controls
+        // Desktop controls
     const desktopControls = `
       <div class="row actions">
         <button id="btnRunLocal" title="locust -f locustfile.py">Local Test</button>
@@ -78,7 +80,6 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     const htmlUri = vscode.Uri.file(path.join(this.ctx.extensionUri.fsPath, 'media', 'webView.html'));
     let html = await fs.readFile(htmlUri.fsPath, 'utf8');
 
-    
     html = html
       // standard placeholders
       .replace(/\$\{webview\.cspSource\}/g, webview.cspSource)
@@ -142,15 +143,22 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
       }
     });
   }
-}
 
+  
+  refresh() {
+    if (!this._view) return;
+    const cloudStarted = !!this.ctx.globalState.get<boolean>('locust.cloudWasStarted', false);
+    const localStarted = !this.isCloud && !!this.ctx.workspaceState.get<boolean>('locust.localStarted', false);
+    this._view.webview.postMessage({ type: 'state', cloudStarted, localStarted });
+  }
+}
 
 export async function activate(ctx: vscode.ExtensionContext) {
   // Detect environment and set context keys
   const isCloud = detectCloudEnv();
   await vscode.commands.executeCommand('setContext', 'locust.isCloud', isCloud);
   await vscode.commands.executeCommand('setContext', 'locust.isDesktop', !isCloud);
-  
+
   // Core services
   const env = new EnvService();
   const mcp = new McpService(env);
@@ -177,6 +185,12 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const welcomeReg = vscode.window.registerWebviewViewProvider('locust.welcome', welcomeProvider);
   ctx.subscriptions.push(welcomeReg);
 
+  
+  ctx.subscriptions.push(
+    vscode.commands.registerCommand('locust.welcome.refresh', () => {
+      try { welcomeProvider.refresh(); } catch { /* noop */ }
+    })
+  );
 
   ctx.subscriptions.push(
     vscode.commands.registerCommand('locust.setLocalStarted', async (value: boolean) => {
@@ -203,60 +217,6 @@ export async function activate(ctx: vscode.ExtensionContext) {
   // Centralized command registration
   registerCommands(ctx, { setup, runner: locustRunner, harRunner, tree });
 
-  // Cloud toggle behavior
-  ctx.subscriptions.push(
-    vscode.commands.registerCommand('locust.toggleCloudSimple', async () => {
-      try {
-        const started = getCloudStarted(ctx);
-        if (!started) {
-          await vscode.commands.executeCommand('locust.openLocustCloud');
-          await setCloudStarted(ctx, true);
-          vscode.window.setStatusBarMessage('Locust Cloud: starting…', 3000);
-        } else {
-          await vscode.commands.executeCommand('locust.deleteLocustCloud').then(undefined, () => {});
-          await setCloudStarted(ctx, false);
-          vscode.window.setStatusBarMessage('Locust Cloud: stopped.', 3000);
-        }
-        await vscode.commands.executeCommand('locust.welcome.refresh');
-      } catch (e: any) {
-        vscode.window.showErrorMessage(e?.message ?? 'Failed to toggle Locust Cloud.');
-      }
-    }),
-
-    // Local toggle behavior
-    vscode.commands.registerCommand('locust.toggleLocalSimple', async () => {
-      try {
-        const started = getLocalStarted(ctx);
-        if (!started) {
-          await vscode.commands.executeCommand('locust.runUI');
-          await setLocalStarted(ctx, true);
-          vscode.window.setStatusBarMessage('Locust: local test starting…', 3000);
-        } else {
-          await vscode.commands.executeCommand('locust.stopLastRun').then(undefined, () => {});
-          await setLocalStarted(ctx, false);
-          vscode.window.setStatusBarMessage('Locust: local test stopped.', 3000);
-        }
-        await vscode.commands.executeCommand('locust.welcome.refresh');
-      } catch (e: any) {
-        vscode.window.showErrorMessage(e?.message ?? 'Failed to toggle local run.');
-      }
-    }),
-
-    vscode.commands.registerCommand('locust.stopLocalThenCloudIfAny', async () => {
-      try {
-        await vscode.commands.executeCommand('locust.stopLastRun').then(undefined, () => {});
-        await setLocalStarted(ctx, false);
-        if (getCloudStarted(ctx)) {
-          await vscode.commands.executeCommand('locust.deleteLocustCloud').then(undefined, () => {});
-          await setCloudStarted(ctx, false);
-        }
-        vscode.window.setStatusBarMessage('Locust: stopped local (and cloud if active).', 3000);
-        await vscode.commands.executeCommand('locust.welcome.refresh');
-      } catch (e: any) {
-        vscode.window.showErrorMessage(e?.message ?? 'Failed to stop runs.');
-      }
-    }),
-  );
 
   if (!isCloud) {
     await setup.checkAndOfferSetup(); //  Prompt/always/never + trust
