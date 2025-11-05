@@ -64,7 +64,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     // Cloud controls
     const cloudControls = `
       <div class="row actions">
-        <button id="btnRunUI" title="locust -f locustfile.py --cloud">Cloud Test</button>
+        <button id="btnRunUI" title="locust -f locustfile.py --cloud">Launch</button>
       </div>
       <div class="row">
         <button id="btnStopAll" class="danger" title="Stop active Test">Stop Test</button>
@@ -91,7 +91,9 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
       .replace(/\$\{desktopControls\}/g, desktopControls)
       .replace(/\$\{this\.isCloud \? '1' : '0'\}/g, this.isCloud ? '1' : '0')
       .replace(/\$\{this\.isCloud \? 'Cloud' : 'Local'\}/g, this.isCloud ? 'Cloud' : 'Local')
-      .replace(/\$\{this\.isCloud \? cloudControls : desktopControls\}/g, this.isCloud ? cloudControls : desktopControls);
+      .replace(/\$\{this\.isCloud \? cloudControls : desktopControls\}/g, this.isCloud ? cloudControls : desktopControls)
+      .replace(/\$\{copilotPromptExamples\}/g, this.isCloud ? '' : '<a href="#" id="linkCopilotPrompts" aria-expanded="false">Copilot prompt examples</a><br>')
+
 
     webview.html = html;
 
