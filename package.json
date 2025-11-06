@@ -238,6 +238,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
+    "extension:install": "yarn vscode:prepublish && yarn package && code --install-extension locust-vscode-extension-0.0.1.vsix --force",
     "test": "yarn run compile && node ./out/test/runTest.js"
   },
   "devDependencies": {

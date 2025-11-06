@@ -48,7 +48,7 @@
   <script nonce="${nonce}">
     (function () {
       const vscode = acquireVsCodeApi();
-      const run = (cmd) => vscode.postMessage({ type: 'run', command: cmd });
+      const run = (cmd, { type } = { type: 'run' }) => vscode.postMessage({ type, command: cmd });
 
       // Debounce to avoid immediate flip-back after start (UI-only smoothing)
       let lastLocalStartAt = 0;
@@ -67,7 +67,8 @@
         const id = document.getElementById('btnLocustCloud') ? 'btnLocustCloud' : 'btnRunUI';
         const b = document.getElementById(id);
         if (!b) return;
-        b.textContent = running ? 'Running…' : 'Cloud Test';
+        const runCloudText = isCloud ? 'Launch' : 'Cloud Test'
+        b.textContent = running ? 'Running…' : runCloudText;
         b.toggleAttribute('disabled', running);
       };
 
@@ -85,7 +86,7 @@
         btnRunCloud?.addEventListener('click', () => {
           if (document.body.getAttribute('data-cloud-started') === '1') return;
           lastCloudStartAt = Date.now();
-          run('locust.toggleCloudSimple');     // start via toggle
+          run('locust --cloud', { type: 'terminal' });
           setCloudVisual(true);                // optimistic UI
         });
       } else {
@@ -98,14 +99,14 @@
         btnLocal?.addEventListener('click', () => {
           if (document.body.getAttribute('data-local-started') === '1') return;
           lastLocalStartAt = Date.now();
-          run('locust.toggleLocalSimple');     // start via toggle
+          run('locust', { type: 'terminal' });     // start via toggle
           setLocalVisual(true);                // optimistic UI
         });
 
         btnCloud?.addEventListener('click', () => {
           if (document.body.getAttribute('data-cloud-started') === '1') return;
           lastCloudStartAt = Date.now();
-          run('locust.toggleCloudSimple');     // start via toggle
+          run('locust --cloud', { type: 'terminal' });     // start via toggle
           setCloudVisual(true);                // optimistic UI
         });
 

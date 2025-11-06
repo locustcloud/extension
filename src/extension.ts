@@ -29,6 +29,12 @@ async function setLocalStarted(ctx: vscode.ExtensionContext, v: boolean) {
   await ctx.workspaceState.update('locust.localStarted', v);
 }
 
+const findLocustTerminal = (): vscode.Terminal | undefined =>
+  vscode.window.terminals.find((t) => t.name === "Locust");
+
+const getOrCreateLocustTerminal = () =>
+  findLocustTerminal() || vscode.window.createTerminal({ name: "Locust" });
+
 class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   constructor(private ctx: vscode.ExtensionContext, private readonly isCloud: boolean) {}
 
@@ -107,6 +113,12 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
           }
           await vscode.commands.executeCommand(msg.command);
           return;
+        }
+
+        if (msg.type === "terminal") {
+          const terminal = getOrCreateLocustTerminal();
+          terminal.show();
+          terminal.sendText(msg.command);
         }
 
         if (msg?.type === 'getCopilotPrompts') {
