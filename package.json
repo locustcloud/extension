@@ -35,9 +35,7 @@
     "onCommand:locust.convertHar",
     "onCommand:locust.runUI",
     "onCommand:locust.runHeadless",
-    "onCommand:locust.stopLastRun",
     "onCommand:locust.installCopilot",
-    "onCommand:locust.deleteLocustCloud",
     "onCommand:locust.showScenarios",
     "onCommand:locust.hideScenarios",
      "onCommand:locust.openBeginnerTourPage"
@@ -98,8 +96,7 @@
         { "command": "locust.runUI", "when": "locust.isCloud" },
         { "command": "locust.runHeadless", "when": "locust.isCloud" },
         { "command": "locust.openLocustCloud", "when": "locust.isDesktop" },
-        { "command": "locust.stopLastRun", "when": "true" },
-        { "command": "locust.deleteLocustCloud", "when": "locust.isDesktop" },
+        { "command": "locust.stopLocust", "when": "true" },
         { "command": "locust.showScenarios", "when": "locust.scenariosVisible != true" },
         { "command": "locust.hideScenarios", "when": "locust.scenariosVisible == true" }
       ]
@@ -111,13 +108,12 @@
       { "command": "locust.refreshTree", "title": "Locust: Refresh Tests", "icon": "$(refresh)" },
       { "command": "locust.runUI", "title": "Locust: Run Test (Web UI)" },
       { "command": "locust.runFileUI", "title": "Locust: Run File (Web UI)", "icon": "$(rocket)" },
-      { "command": "locust.stopLastRun", "title": "Locust: Stop Last Run", "icon": "$(debug-stop)" },
+      { "command": "locust.stopLocust", "title": "Locust: Stop", "icon": "$(debug-stop)" },
       { "command": "locust.convertHar", "title": "Locust: Convert HAR → Locustfile…" },
       { "command": "locust.showWelcome", "title": "Locust: Show Welcome", "icon": "$(home)" },
       { "command": "locust.hideWelcome", "title": "Locust: Hide Welcome", "icon": "$(close)" },
       { "command": "locust.startBeginnerTour", "title": "Locust: Start Beginner Tour", "icon": "$(book)" },
       { "command": "locust.openLocustCloud", "title": "Open Locust Cloud", "icon": "$(cloud)" },
-      { "command": "locust.deleteLocustCloud", "title": "Locust Cloud Shut Down", "icon": "$(trash)" },
       { "command": "locust.showScenarios", "title": "Locust: Show Tests", "icon": "$(list-selection)" },
       { "command": "locust.hideScenarios", "title": "Locust: Hide Tests", "icon": "$(eye-closed)" },
       { "command": "locust.showWelcomePanel", "title": "Locust: Show Welcome Page" }
@@ -238,6 +234,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
+    "extension:install": "yarn vscode:prepublish && yarn package && code --install-extension locust-vscode-extension-0.0.1.vsix --force",
     "test": "yarn run compile && node ./out/test/runTest.js"
   },
   "devDependencies": {

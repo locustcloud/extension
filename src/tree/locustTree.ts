@@ -156,11 +156,9 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     return this._knownFiles.some(u => u.fsPath === fsPath);
   }
 
-  // Reset both buttons if pick is cancelled
+  // If pick is cancelled
   private async resetRunButtons(): Promise<void> {
-    
-    await vscode.commands.executeCommand('locust.setLocalStarted', false).then(() => {}, () => {});
-    await vscode.commands.executeCommand('locust.setCloudStarted', false).then(() => {}, () => {});
+    await vscode.commands.executeCommand('locust.setCommandStarted', false);
   }
 
   /**
