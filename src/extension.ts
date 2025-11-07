@@ -18,12 +18,6 @@ async function setCommandStarted(ctx: vscode.ExtensionContext, v: boolean) {
   await ctx.globalState.update(RUNNING_COMMAND_FLAG_KEY, v);
 }
 
-const findLocustTerminal = (): vscode.Terminal | undefined =>
-  vscode.window.terminals.find((t) => t.name === "Locust");
-
-const getOrCreateLocustTerminal = () =>
-  findLocustTerminal() || vscode.window.createTerminal({ name: "Locust" });
-
 class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
   constructor(private ctx: vscode.ExtensionContext, private readonly isCloud: boolean) {}
 

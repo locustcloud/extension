@@ -8,6 +8,8 @@ const findLocustTerminal = (): vscode.Terminal | undefined =>
 const getOrCreateLocustTerminal = () =>
   findLocustTerminal() || vscode.window.createTerminal({ name: "Locust" });
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 /**
  * Locust run functions.
  * - UI: spawn locust, parse the UI URL from stdout, open Simple Browser split
@@ -16,14 +18,39 @@ const getOrCreateLocustTerminal = () =>
 type RunMode = 'ui' | 'headless';
 
 export class LocustCloudService {
-  private async setCommandStarted(v: boolean) {
-    await this.ctx.globalState.update(RUNNING_COMMAND_FLAG_KEY, v);
+  private async closeSimpleBrowser(): Promise<void> {
+    try {
+      const groups = vscode.window.tabGroups.all;
+
+      for (const g of groups) {
+        for (const t of g.tabs) {
+          const label = (t.label || '').toString();
+          if (!label) continue;
+
+          if (label == 'Simple Browser') {
+            await vscode.window.tabGroups.close(t, true);
+            return
+          }
+        }
+      }
+    } catch {
+      // best-effort; ignore
+    }
+  }
+
+  private async setCommandStarted(isCommandStarted: boolean) {
+    await this.ctx.globalState.update(RUNNING_COMMAND_FLAG_KEY, isCommandStarted);
     await vscode.commands.executeCommand("locust.welcome.refresh");
   }
 
   constructor(private readonly ctx: vscode.ExtensionContext) {
     vscode.window.onDidChangeTerminalState(async (terminal) => {
-      // await this.setCommandStarted((terminal.state as unknown as {shell: string}).shell === 'python');
+      const currentShell = (terminal.state as unknown as {shell: string}).shell
+      await this.setCommandStarted(currentShell === 'python');
+
+      if (currentShell !== 'python') {
+        this.closeSimpleBrowser()
+      }
     });
   }
 
@@ -70,12 +97,14 @@ export class LocustCloudService {
       return false;
     }
 
-    const locustUrl = 'http://localhost:8089'
+    const locustUrl = process.platform === 'win32' ? 'http://0.0.0.0:8089' : 'http://localhost:8089'
 
     const terminal = getOrCreateLocustTerminal();
     terminal.show();
     terminal.sendText(`locust -f ${locustfile}`); 
     
+    // allow time for process to start
+    await sleep(600)
     await this.openUrlSplit(locustUrl, 0.45);
 
     return true;
@@ -194,6 +223,8 @@ export class LocustCloudService {
     terminal.sendText(`locust -f ${locustfile} --cloud`); 
     
     if (this.isWeb) {
+      // allow time for process to start
+      await sleep(600)
       await this.openUrlSplit(cloudUrl, 0.45);
     } else {
       await vscode.env.openExternal(vscode.Uri.parse(cloudUrl));
@@ -207,5 +238,6 @@ export class LocustCloudService {
       'workbench.action.terminal.sendSequence',
       { text: '\x03' }
     );
+    await this.closeSimpleBrowser()
   }
 }
