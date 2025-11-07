@@ -3,30 +3,19 @@ import { registerCommands } from './commands/registerCommands';
 import { EnvService } from './services/envService';
 import { McpService } from './services/mcpService';
 import { SetupService } from './services/setupService';
-import { LocustRunner } from './runners/locustRunner';
 import { Har2LocustService } from './services/har2locustService';
 import { Har2LocustRunner } from './runners/har2locustRunner';
 import { LocustTreeProvider } from './tree/locustTree';
 import { registerWelcomePanel } from './welcome/welcomePanel';
-import { CopilotService } from './services/copilotService';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-// Cloud toggle
-const CLOUD_FLAG_KEY = 'locust.cloudWasStarted';
-function getCloudStarted(ctx: vscode.ExtensionContext): boolean {
-  return !!ctx.globalState.get<boolean>(CLOUD_FLAG_KEY, false);
+const RUNNING_COMMAND_FLAG_KEY = 'locust.commandWasStarted';
+function getCommandStarted(ctx: vscode.ExtensionContext): boolean {
+  return !!ctx.globalState.get<boolean>(RUNNING_COMMAND_FLAG_KEY, false);
 }
-async function setCloudStarted(ctx: vscode.ExtensionContext, v: boolean) {
-  await ctx.globalState.update(CLOUD_FLAG_KEY, v);
-}
-
-// Local toggle 
-function getLocalStarted(ctx: vscode.ExtensionContext): boolean {
-  return !!ctx.workspaceState.get<boolean>('locust.localStarted', false);
-}
-async function setLocalStarted(ctx: vscode.ExtensionContext, v: boolean) {
-  await ctx.workspaceState.update('locust.localStarted', v);
+async function setCommandStarted(ctx: vscode.ExtensionContext, v: boolean) {
+  await ctx.globalState.update(RUNNING_COMMAND_FLAG_KEY, v);
 }
 
 const findLocustTerminal = (): vscode.Terminal | undefined =>
@@ -79,8 +68,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 
     const supportBlock = this.isCloud ? '' : `<a href="mailto:support@locust.cloud">support@locust.cloud</a><br>`;
 
-    const cloudStartedFlag = getCloudStarted(this.ctx) ? '1' : '0';
-    const localStartedFlag = !this.isCloud && getLocalStarted(this.ctx) ? '1' : '0';
+    const commandStartedFlag = getCommandStarted(this.ctx) ? '1' : '0';
 
     // Load HTML template
     const htmlUri = vscode.Uri.file(path.join(this.ctx.extensionUri.fsPath, 'media', 'webView.html'));
@@ -90,8 +78,7 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
       // standard placeholders
       .replace(/\$\{webview\.cspSource\}/g, webview.cspSource)
       .replace(/\$\{nonce\}/g, nonce)
-      .replace(/\$\{cloudStartedFlag\}/g, cloudStartedFlag)
-      .replace(/\$\{localStartedFlag\}/g, localStartedFlag)
+      .replace(/\$\{commandStartedFlag\}/g, commandStartedFlag)
       .replace(/\$\{supportBlock\}/g, supportBlock)
       .replace(/\$\{cloudControls\}/g, cloudControls)
       .replace(/\$\{desktopControls\}/g, desktopControls)
@@ -113,12 +100,6 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
           }
           await vscode.commands.executeCommand(msg.command);
           return;
-        }
-
-        if (msg.type === "terminal") {
-          const terminal = getOrCreateLocustTerminal();
-          terminal.show();
-          terminal.sendText(msg.command);
         }
 
         if (msg?.type === 'getCopilotPrompts') {
@@ -158,12 +139,10 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  
   refresh() {
     if (!this._view) return;
-    const cloudStarted = !!this.ctx.globalState.get<boolean>('locust.cloudWasStarted', false);
-    const localStarted = !this.isCloud && !!this.ctx.workspaceState.get<boolean>('locust.localStarted', false);
-    this._view.webview.postMessage({ type: 'state', cloudStarted, localStarted });
+    const commandStarted = getCommandStarted(this.ctx)
+    this._view.webview.postMessage({ type: 'state', commandStarted });
   }
 }
 
@@ -178,8 +157,6 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const mcp = new McpService(env);
   const setup = new SetupService(env, mcp, ctx);
 
-  // Runners / Services
-  const locustRunner = new LocustRunner(); 
   const harService = new Har2LocustService(env);
   const harRunner = new Har2LocustRunner(env, harService);
 
@@ -199,17 +176,15 @@ export async function activate(ctx: vscode.ExtensionContext) {
   const welcomeReg = vscode.window.registerWebviewViewProvider('locust.welcome', welcomeProvider);
   ctx.subscriptions.push(welcomeReg);
 
-  
   ctx.subscriptions.push(
     vscode.commands.registerCommand('locust.welcome.refresh', () => {
       try { welcomeProvider.refresh(); } catch { /* noop */ }
     })
   );
-
   ctx.subscriptions.push(
-    vscode.commands.registerCommand('locust.setLocalStarted', async (value: boolean) => {
+    vscode.commands.registerCommand('locust.setCommandStarted', async (value: boolean) => {
       try {
-        await ctx.workspaceState.update('locust.localStarted', !!value);
+        await setCommandStarted(ctx, value)
         await vscode.commands.executeCommand('locust.welcome.refresh');
       } catch (e: any) {
         vscode.window.showErrorMessage(e?.message ?? 'Failed to set local started state.');
@@ -229,7 +204,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
   );
 
   // Centralized command registration
-  registerCommands(ctx, { setup, runner: locustRunner, harRunner, tree });
+  registerCommands(ctx, { setup, harRunner, tree });
 
 
   if (!isCloud) {
@@ -247,9 +222,4 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
 export function deactivate() { /* noop */ }
 
-function detectCloudEnv(): boolean {
-  const byEnv = (process.env.CODE_SERVER ?? '').toLowerCase();
-  const envFlag = byEnv === 'true' || byEnv === '1' || byEnv === 'yes';
-  const uiIsWeb = vscode.env.uiKind === vscode.UIKind.Web;
-  return envFlag || uiIsWeb;
-}
+const detectCloudEnv = (): boolean => process.env.CODE_SERVER === 'true'
