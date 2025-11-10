@@ -12,7 +12,7 @@
   "extensionKind": ["workspace"],
   "engines": {
     "node": ">=20",
-    "vscode": "^1.90.0"
+    "vscode": "^1.105.0"
   },
   "capabilities": {
     "untrustedWorkspaces": { "supported": false }
@@ -241,7 +241,7 @@
     "@types/chai": "^5.2.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.0.0",
-    "@types/vscode": "1.90.0",
+    "@types/vscode": "1.105.0",
     "@vscode/test-electron": "^2.5.2",
     "chai": "^6.0.1",
     "glob": "^11.0.3",
