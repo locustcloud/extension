@@ -16,14 +16,47 @@ const getOrCreateLocustTerminal = () =>
 type RunMode = 'ui' | 'headless';
 
 export class LocustCloudService {
-  private async setCommandStarted(v: boolean) {
-    await this.ctx.globalState.update(RUNNING_COMMAND_FLAG_KEY, v);
+  private async closeSimpleBrowser(): Promise<void> {
+    try {
+      const groups = vscode.window.tabGroups.all;
+
+      for (const g of groups) {
+        for (const t of g.tabs) {
+          const label = (t.label || '').toString();
+          if (!label) continue;
+
+          if (label == 'Simple Browser') {
+            await vscode.window.tabGroups.close(t, true);
+            return
+          }
+        }
+      }
+    } catch {
+      // best-effort; ignore
+    }
+  }
+
+  private async setCommandStarted(isCommandStarted: boolean) {
+    await this.ctx.globalState.update(RUNNING_COMMAND_FLAG_KEY, isCommandStarted);
     await vscode.commands.executeCommand("locust.welcome.refresh");
   }
 
   constructor(private readonly ctx: vscode.ExtensionContext) {
     vscode.window.onDidChangeTerminalState(async (terminal) => {
-      // await this.setCommandStarted((terminal.state as unknown as {shell: string}).shell === 'python');
+      const currentShell = (terminal.state as unknown as {shell: string}).shell
+      await this.setCommandStarted(currentShell === 'python');
+
+      if (currentShell !== 'python') {
+        this.closeSimpleBrowser()
+      }
+    });
+
+    vscode.window.onDidEndTerminalShellExecution(event => {
+      const { terminal, execution, exitCode } = event;
+
+      if (terminal.name === "Locust" && execution.commandLine.value.includes("locust") && exitCode !== 0) {
+        vscode.window.showErrorMessage("Failed to start locust command. Check the terminal for more details");
+      }
     });
   }
 
@@ -70,13 +103,19 @@ export class LocustCloudService {
       return false;
     }
 
-    const locustUrl = 'http://localhost:8089'
-
     const terminal = getOrCreateLocustTerminal();
     terminal.show();
-    terminal.sendText(`locust -f ${locustfile}`); 
-    
-    await this.openUrlSplit(locustUrl, 0.45);
+    const exec = terminal.shellIntegration?.executeCommand(`locust -f ${locustfile}`);
+
+    (async () => {
+      for await (const chunk of (exec as any).read()) {
+        const urlMatch = chunk.match(/Starting web interface at ([^,]+)/)
+
+        if (urlMatch) {
+           await this.openUrlSplit(urlMatch[1], 0.45)
+        }
+      }
+    })();
 
     return true;
   }
@@ -187,18 +226,25 @@ export class LocustCloudService {
       return false;
     }
 
-    const cloudUrl = this.isWeb ? 'https://auth.locust.cloud/load-test?dashboard=false' : 'https://auth.locust.cloud/load-test'
-
     const terminal = getOrCreateLocustTerminal();
     terminal.show();
-    terminal.sendText(`locust -f ${locustfile} --cloud`); 
-    
-    if (this.isWeb) {
-      await this.openUrlSplit(cloudUrl, 0.45);
-    } else {
-      await vscode.env.openExternal(vscode.Uri.parse(cloudUrl));
-    }
 
+    const exec = terminal.shellIntegration?.executeCommand(`locust -f ${locustfile}`);
+
+    (async () => {
+      for await (const chunk of (exec as any).read()) {
+        const urlMatch = chunk.match(/Starting web interface at ([^,]+)/)
+
+        if (urlMatch) {
+          if (this.isWeb) {
+            await this.openUrlSplit('https://auth.locust.cloud/load-test?dashboard=false', 0.45)
+          } else {
+            await vscode.env.openExternal(vscode.Uri.parse(urlMatch[1]));
+          }
+        }
+      }
+    })();
+    
     return true;
   }
 
@@ -207,5 +253,6 @@ export class LocustCloudService {
       'workbench.action.terminal.sendSequence',
       { text: '\x03' }
     );
+    await this.closeSimpleBrowser()
   }
 }
