@@ -5,8 +5,19 @@ const RUNNING_COMMAND_FLAG_KEY = 'locust.commandWasStarted';
 const findLocustTerminal = (): vscode.Terminal | undefined =>
   vscode.window.terminals.find((t) => t.name === "Locust");
 
-const getOrCreateLocustTerminal = () =>
-  findLocustTerminal() || vscode.window.createTerminal({ name: "Locust" });
+function createTerminal(): Promise<vscode.Terminal> {
+  const terminal = vscode.window.createTerminal({ name: "Locust" })
+
+  return new Promise<vscode.Terminal>((resolve) => {
+      const disposable = vscode.window.onDidChangeTerminalShellIntegration(() => {
+      resolve(terminal)
+      disposable.dispose()
+    });
+  });
+}
+
+const getOrCreateLocustTerminal = async () =>
+  findLocustTerminal() || await createTerminal();
 
 /**
  * Locust run functions.
@@ -103,7 +114,7 @@ export class LocustCloudService {
       return false;
     }
 
-    const terminal = getOrCreateLocustTerminal();
+    const terminal = await getOrCreateLocustTerminal();
     terminal.show();
     const exec = terminal.shellIntegration?.executeCommand(`locust -f ${locustfile}`);
 
@@ -147,7 +158,7 @@ export class LocustCloudService {
     }
 
 
-    const terminal = getOrCreateLocustTerminal();
+    const terminal = await getOrCreateLocustTerminal();
     terminal.show();
     terminal.sendText(`locust -f ${locustfile} --headless` + extraArgs.join(' ')); 
 
@@ -226,10 +237,10 @@ export class LocustCloudService {
       return false;
     }
 
-    const terminal = getOrCreateLocustTerminal();
+    const terminal = await getOrCreateLocustTerminal();
     terminal.show();
 
-    const exec = terminal.shellIntegration?.executeCommand(`locust -f ${locustfile}`);
+    const exec = terminal.shellIntegration?.executeCommand(`locust -f ${locustfile} --cloud`);
 
     (async () => {
       for await (const chunk of (exec as any).read()) {
