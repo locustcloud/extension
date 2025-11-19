@@ -9,17 +9,31 @@
     "color": "#0e1116",
     "theme": "dark"
   },
-  "extensionKind": ["workspace"],
+  "extensionKind": [
+    "workspace"
+  ],
   "engines": {
     "node": ">=20",
-    "vscode": "^1.105.0"
+    "vscode": "^1.100.0"
   },
   "capabilities": {
-    "untrustedWorkspaces": { "supported": false }
+    "untrustedWorkspaces": {
+      "supported": false
+    }
   },
-  "extensionDependencies": ["ms-python.python", "vsls-contrib.codetour"],
-  "categories": ["Testing"],
-  "keywords": ["locust", "load testing", "performance", "python"],
+  "extensionDependencies": [
+    "ms-python.python",
+    "vsls-contrib.codetour"
+  ],
+  "categories": [
+    "Testing"
+  ],
+  "keywords": [
+    "locust",
+    "load testing",
+    "performance",
+    "python"
+  ],
   "activationEvents": [
     "onStartupFinished",
     "workspaceContains:locustfile.py",
@@ -38,18 +52,19 @@
     "onCommand:locust.installCopilot",
     "onCommand:locust.showScenarios",
     "onCommand:locust.hideScenarios",
-     "onCommand:locust.openBeginnerTourPage"
+    "onCommand:locust.openBeginnerTourPage"
   ],
   "main": "./out/extension.js",
-    "contributes": {
-      "grammars": [
-        {
-          "scopeName": "locust.injection",
-          "path": "./syntaxes/locust-python-injection.tmLanguage.json",
-          "injectTo": ["source.python"]
-        }
-      ],
-
+  "contributes": {
+    "grammars": [
+      {
+        "scopeName": "locust.injection",
+        "path": "./syntaxes/locust-python-injection.tmLanguage.json",
+        "injectTo": [
+          "source.python"
+        ]
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
@@ -78,45 +93,160 @@
     },
     "menus": {
       "view/title": [
-        { "command": "locust.refreshTree", "when": "view == locust.scenarios", "group": "navigation" },
-        { "command": "locust.createSimulation", "when": "view == locust.scenarios", "group": "navigation@1" },
-        { "command": "locust.createSimulation", "when": "view == locust.welcome", "group": "navigation@1" },
-        { "command": "locust.showWelcome", "when": "view == locust.scenarios && locust.hideWelcome == true", "group": "navigation@9" },
-        { "command": "locust.hideWelcome", "when": "view == locust.welcome", "group": "navigation@9" }
+        {
+          "command": "locust.refreshTree",
+          "when": "view == locust.scenarios",
+          "group": "navigation"
+        },
+        {
+          "command": "locust.createSimulation",
+          "when": "view == locust.scenarios",
+          "group": "navigation@1"
+        },
+        {
+          "command": "locust.createSimulation",
+          "when": "view == locust.welcome",
+          "group": "navigation@1"
+        },
+        {
+          "command": "locust.showWelcome",
+          "when": "view == locust.scenarios && locust.hideWelcome == true",
+          "group": "navigation@9"
+        },
+        {
+          "command": "locust.hideWelcome",
+          "when": "view == locust.welcome",
+          "group": "navigation@9"
+        }
       ],
       "view/item/context": [
-        { "command": "locust.runFileUI", "when": "view == locust.scenarios && viewItem == locust.file", "group": "inline" },
-        { "command": "locust.runFileHeadless", "when": "view == locust.scenarios && viewItem == locust.file", "group": "inline" },
-        { "command": "locust.runUI", "title": "Locust: Run Test (Web UI)" },
-        { "command": "locust.openLocustCloud", "title": "Open Locust Cloud", "group": "inline" },
-        { "command": "locust.runHeadless", "title": "Locust: Run Test (Headless)" }
+        {
+          "command": "locust.runFileUI",
+          "when": "view == locust.scenarios && viewItem == locust.file",
+          "group": "inline"
+        },
+        {
+          "command": "locust.runFileHeadless",
+          "when": "view == locust.scenarios && viewItem == locust.file",
+          "group": "inline"
+        },
+        {
+          "command": "locust.runUI",
+          "title": "Locust: Run Test (Web UI)"
+        },
+        {
+          "command": "locust.openLocustCloud",
+          "title": "Open Locust Cloud",
+          "group": "inline"
+        },
+        {
+          "command": "locust.runHeadless",
+          "title": "Locust: Run Test (Headless)"
+        }
       ],
       "commandPalette": [
-        { "command": "locust.startBeginnerTour", "when": "true" },
-        { "command": "locust.runUI", "when": "locust.isCloud" },
-        { "command": "locust.runHeadless", "when": "locust.isCloud" },
-        { "command": "locust.openLocustCloud", "when": "locust.isDesktop" },
-        { "command": "locust.stopLocust", "when": "true" },
-        { "command": "locust.showScenarios", "when": "locust.scenariosVisible != true" },
-        { "command": "locust.hideScenarios", "when": "locust.scenariosVisible == true" }
+        {
+          "command": "locust.startBeginnerTour",
+          "when": "true"
+        },
+        {
+          "command": "locust.runUI",
+          "when": "locust.isCloud"
+        },
+        {
+          "command": "locust.runHeadless",
+          "when": "locust.isCloud"
+        },
+        {
+          "command": "locust.openLocustCloud",
+          "when": "locust.isDesktop"
+        },
+        {
+          "command": "locust.stopLocust",
+          "when": "true"
+        },
+        {
+          "command": "locust.showScenarios",
+          "when": "locust.scenariosVisible != true"
+        },
+        {
+          "command": "locust.hideScenarios",
+          "when": "locust.scenariosVisible == true"
+        }
       ]
     },
     "commands": [
-      { "command": "locust.interface", "title": "Menu overview" },
-      { "command": "locust.createSimulation", "title": "Locust: Create Simulation (locustfile_###.py)", "icon": "$(new-file)" },
-      { "command": "locust.runHeadless", "title": "Locust: Run Test (Headless)", "icon": "$(rocket)" },
-      { "command": "locust.refreshTree", "title": "Locust: Refresh Tests", "icon": "$(refresh)" },
-      { "command": "locust.runUI", "title": "Locust: Run Test (Web UI)" },
-      { "command": "locust.runFileUI", "title": "Locust: Run File (Web UI)", "icon": "$(rocket)" },
-      { "command": "locust.stopLocust", "title": "Locust: Stop", "icon": "$(debug-stop)" },
-      { "command": "locust.convertHar", "title": "Locust: Convert HAR → Locustfile…" },
-      { "command": "locust.showWelcome", "title": "Locust: Show Welcome", "icon": "$(home)" },
-      { "command": "locust.hideWelcome", "title": "Locust: Hide Welcome", "icon": "$(close)" },
-      { "command": "locust.startBeginnerTour", "title": "Locust: Start Beginner Tour", "icon": "$(book)" },
-      { "command": "locust.openLocustCloud", "title": "Open Locust Cloud", "icon": "$(cloud)" },
-      { "command": "locust.showScenarios", "title": "Locust: Show Tests", "icon": "$(list-selection)" },
-      { "command": "locust.hideScenarios", "title": "Locust: Hide Tests", "icon": "$(eye-closed)" },
-      { "command": "locust.showWelcomePanel", "title": "Locust: Show Welcome Page" }
+      {
+        "command": "locust.interface",
+        "title": "Menu overview"
+      },
+      {
+        "command": "locust.createSimulation",
+        "title": "Locust: Create Simulation (locustfile_###.py)",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "locust.runHeadless",
+        "title": "Locust: Run Test (Headless)",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "locust.refreshTree",
+        "title": "Locust: Refresh Tests",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "locust.runUI",
+        "title": "Locust: Run Test (Web UI)"
+      },
+      {
+        "command": "locust.runFileUI",
+        "title": "Locust: Run File (Web UI)",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "locust.stopLocust",
+        "title": "Locust: Stop",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "locust.convertHar",
+        "title": "Locust: Convert HAR → Locustfile…"
+      },
+      {
+        "command": "locust.showWelcome",
+        "title": "Locust: Show Welcome",
+        "icon": "$(home)"
+      },
+      {
+        "command": "locust.hideWelcome",
+        "title": "Locust: Hide Welcome",
+        "icon": "$(close)"
+      },
+      {
+        "command": "locust.startBeginnerTour",
+        "title": "Locust: Start Beginner Tour",
+        "icon": "$(book)"
+      },
+      {
+        "command": "locust.openLocustCloud",
+        "title": "Open Locust Cloud",
+        "icon": "$(cloud)"
+      },
+      {
+        "command": "locust.showScenarios",
+        "title": "Locust: Show Tests",
+        "icon": "$(list-selection)"
+      },
+      {
+        "command": "locust.hideScenarios",
+        "title": "Locust: Hide Tests",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "locust.showWelcomePanel",
+        "title": "Locust: Show Welcome Page"
+      }
     ],
     "configuration": {
       "title": "Locust",
@@ -136,9 +266,13 @@
           "default": "",
           "description": "Default host to target in generated locustfile.py."
         },
-       "locust.autoSetup": {
+        "locust.autoSetup": {
           "type": "string",
-          "enum": ["prompt", "always", "never"],
+          "enum": [
+            "prompt",
+            "always",
+            "never"
+          ],
           "default": "prompt",
           "description": "When the extension activates: prompt to set up the Locust environment, always set it up automatically, or never run setup."
         },
@@ -160,7 +294,10 @@
       }
     },
     "snippets": [
-      { "language": "python", "path": "./snippets/locust.json" }
+      {
+        "language": "python",
+        "path": "./snippets/locust.json"
+      }
     ],
     "walkthroughs": [
       {
@@ -172,43 +309,57 @@
             "id": "convertHar",
             "title": "Convert HAR → Locustfile",
             "description": "Ask Copilot to convert a HAR into a runnable Locustfile.",
-            "media": { "markdown": "media/copilot_tutorial/01-copilot.md" }
+            "media": {
+              "markdown": "media/copilot_tutorial/01-copilot.md"
+            }
           },
           {
             "id": "listTasks",
             "title": "List tasks and tags",
             "description": "Ask Copilot to list @task and @tag entries in a locustfile.",
-            "media": { "markdown": "media/copilot_tutorial/02-copilot.md" }
+            "media": {
+              "markdown": "media/copilot_tutorial/02-copilot.md"
+            }
           },
           {
             "id": "runUI",
             "title": "Run Locust in UI mode",
             "description": "Start Locust Web UI via Copilot.",
-            "media": { "markdown": "media/copilot_tutorial/03-copilot.md" }
+            "media": {
+              "markdown": "media/copilot_tutorial/03-copilot.md"
+            }
           },
           {
             "id": "stopProcess",
             "title": "Stop Locust",
             "description": "Stop a running Locust process from Copilot.",
-            "media": { "markdown": "media/copilot_tutorial/05-copilot.md" }
+            "media": {
+              "markdown": "media/copilot_tutorial/05-copilot.md"
+            }
           },
           {
             "id": "runHeadless",
             "title": "Run Locust headless",
             "description": "Run Locust without the UI via Copilot.",
-            "media": { "markdown": "media/copilot_tutorial/06-copilot.md" }
+            "media": {
+              "markdown": "media/copilot_tutorial/06-copilot.md"
+            }
           },
           {
             "id": "result",
             "title": "Tutorial Result",
             "description": "Tutorial step result.",
-            "media": { "markdown": "media/copilot_tutorial/07-copilot.md" }
+            "media": {
+              "markdown": "media/copilot_tutorial/07-copilot.md"
+            }
           },
           {
             "id": "workflow",
             "title": "Workflow Example Prompt",
             "description": "Prompt for full workflow.",
-            "media": { "markdown": "media/copilot_tutorial/08-copilot.md" }
+            "media": {
+              "markdown": "media/copilot_tutorial/08-copilot.md"
+            }
           }
         ]
       }
@@ -226,7 +377,9 @@
     "type": "git",
     "url": "https://github.com/locustcloud/extension.git"
   },
-  "bugs": { "url": "https://github.com/locustcloud/extension/issues" },
+  "bugs": {
+    "url": "https://github.com/locustcloud/extension/issues"
+  },
   "homepage": "https://www.locust.cloud/",
   "license": "MIT",
   "scripts": {
@@ -241,13 +394,12 @@
     "@types/chai": "^5.2.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.0.0",
-    "@types/vscode": "1.105.0",
+    "@types/vscode": "1.100.0",
     "@vscode/test-electron": "^2.5.2",
     "chai": "^6.0.1",
     "glob": "^11.0.3",
     "mocha": "^11.7.2",
     "typescript": "^5.4.0",
-    "vsce": "^2.15.0",
-    "vscode": "^1.1.37"
+    "vsce": "^2.15.0"
   }
 }
