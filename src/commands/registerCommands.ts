@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-// import { SetupService } from '../services/setupService';
+import { SetupService } from '../services/setupService';
 import { EnvService } from '../services/envService';
-// import { McpService } from '../services/mcpService';
+import { McpService } from '../services/mcpService';
 import { LocustRunner } from '../runners/locustRunner';
 import { Har2LocustRunner } from '../runners/har2locustRunner';
 import { TourRunner } from '../runners/tourRunner';
@@ -133,11 +133,11 @@ export function registerCommands(
       await tr.runBeginnerTour();
     }),
 
-    // vscode.commands.registerCommand('locust.mcp.rewriteAndReload', async () => {
-    //   const envService = new EnvService();
-    //   const mcp = new McpService(envService);
-    //   await mcp.writeMcpConfig('python');
-    // }),
+    vscode.commands.registerCommand('locust.mcp.rewriteAndReload', async () => {
+      const envService = new EnvService();
+      const mcp = new McpService(envService);
+      await mcp.writeMcpConfig('python');
+    }),
 
     vscode.commands.registerCommand('locust.convertHar', () => harRunner.convertHar()),
     vscode.commands.registerCommand('locust.toggleCloudSimple', async () => {

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { registerCommands } from './commands/registerCommands';
 import { EnvService } from './services/envService';
-// import { McpService } from './services/mcpService';
+import { McpService } from './services/mcpService';
 // import { SetupService } from './services/setupService';
 import { Har2LocustService } from './services/har2locustService';
 import { Har2LocustRunner } from './runners/har2locustRunner';
@@ -148,7 +148,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
   // Core services
   const env = new EnvService();
-  // const mcp = new McpService(env);
+  const mcp = new McpService(env);
   // const setup = new SetupService(env, mcp, ctx);
 
   const harService = new Har2LocustService(env);
