@@ -12,14 +12,14 @@ import { LocustCloudService } from '../services/locustCloudService';
 export function registerCommands(
   ctx: vscode.ExtensionContext,
   deps: {
-    setup: SetupService;
+    // setup: SetupService;
     harRunner: Har2LocustRunner;
     tree: LocustTreeProvider;
   }
 ) {
   const cloud = new LocustCloudService(ctx);
 
-  const { setup, harRunner, tree } = deps;
+  const {  harRunner, tree } = deps;
 
   const withProgress = (title: string, fn: () => Thenable<void>) =>
     vscode.window.withProgress(
@@ -107,9 +107,9 @@ export function registerCommands(
     vscode.commands.registerCommand('locust.runTaskUI', (node) => cloud.runTaskUI(node)),
     vscode.commands.registerCommand('locust.runTaskHeadless', (node) => cloud.runTaskHeadless(node)),
 
-    vscode.commands.registerCommand('locust.init', () =>
-      setup.checkAndOfferSetup({ forcePrompt: true })
-    ),
+    // vscode.commands.registerCommand('locust.init', () =>
+    //   setup.checkAndOfferSetup({ forcePrompt: true })
+    // ),
 
     vscode.commands.registerCommand('locust.showWelcome', async () => {
       await vscode.commands.executeCommand('setContext', 'locust.hideWelcome', false);
