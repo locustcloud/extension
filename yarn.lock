@@ -55,10 +55,10 @@
   dependencies:
     undici-types "~6.21.0"
 
-"@types/vscode@1.100.0":
-  version "1.100.0"
-  resolved "https://registry.yarnpkg.com/@types/vscode/-/vscode-1.100.0.tgz#35cd628a86b11587856df94be94054aab01f2f17"
-  integrity sha512-4uNyvzHoraXEeCamR3+fzcBlh7Afs4Ifjs4epINyUX/jvdk0uzLnwiDY35UKDKnkCHP5Nu3dljl2H8lR6s+rQw==
+"@types/vscode@1.105.0":
+  version "1.105.0"
+  resolved "https://registry.yarnpkg.com/@types/vscode/-/vscode-1.105.0.tgz#774c54cdb62409afeb0cb2a96f75c2e06ef3f97a"
+  integrity sha512-Lotk3CTFlGZN8ray4VxJE7axIyLZZETQJVWi/lYoUVQuqfRxlQhVOfoejsD2V3dVXPSbS15ov5ZyowMAzgUqcw==
 
 "@vscode/test-electron@^2.5.2":
   version "2.5.2"
