@@ -265,8 +265,8 @@ export class SetupService {
 
   // AUTO setup (no prompt). Explicit user consented OR setting is "always".
   async autoSetupSilently() {
-    if (!vscode.workspace.isTrusted) return;
     try {
+      if (!vscode.workspace.isTrusted) return;
       const wsPath = wsRoot();
       if (!wsPath) return;
 
@@ -416,5 +416,14 @@ export class SetupService {
       vscode.window.showInformationMessage('Okay, I won’t prompt for Locust setup again in this workspace.');
       return;
     }
+  }
+
+  private async finalizeWorkspace(wsPath: string, python: string) {
+    await this.mcp.writeMcpConfig(python);
+    await this.env.setWorkspaceInterpreter(python);            // keep editor/linters/Copilot aligned
+    const createdSettings = await ensureWorkspaceSettingsIfMissing(wsPath);
+    await configureRuffIfNew(this.ctx, createdSettings);
+    await ensurePythonActiveFileLaunch(wsPath, python);
+    await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
   }
 }

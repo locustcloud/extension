@@ -75,4 +75,19 @@ export class EnvService {
     try { return await this.resolvePythonStrict(envFolder); }
     catch { return 'python'; }
   }
+
+  // Optional terminal helpers
+  createFreshLocustTerminal(name = 'Locust'): vscode.Terminal {
+    return vscode.window.createTerminal({ name });
+  }
+  ensureTerminalEnv(term: vscode.Terminal, envFolder: string) {
+    const root = wsRoot();
+    if (!root) {return;}
+    const isWin = process.platform === 'win32';
+    const activateCmd = isWin
+      ? `if (Test-Path "${envFolder}\\Scripts\\Activate.ps1") { . "${envFolder}\\Scripts\\Activate.ps1" }`
+      : `if [ -f "${envFolder}/bin/activate" ]; then . "${envFolder}/bin/activate"; fi`;
+    term.sendText(`cd "${root}"`);
+    term.sendText(activateCmd);
+  }
 }

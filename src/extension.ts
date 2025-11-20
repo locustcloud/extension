@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { registerCommands } from './commands/registerCommands';
 import { EnvService } from './services/envService';
 import { McpService } from './services/mcpService';
-// import { SetupService } from './services/setupService';
+import { SetupService } from './services/setupService';
 import { Har2LocustService } from './services/har2locustService';
 import { Har2LocustRunner } from './runners/har2locustRunner';
 import { LocustTreeProvider } from './tree/locustTree';
@@ -149,7 +149,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
   // Core services
   const env = new EnvService();
   const mcp = new McpService(env);
-  // const setup = new SetupService(env, mcp, ctx);
+  const setup = new SetupService(env, mcp, ctx);
 
   const harService = new Har2LocustService(env);
   const harRunner = new Har2LocustRunner(env, harService);
@@ -198,20 +198,20 @@ export async function activate(ctx: vscode.ExtensionContext) {
   );
 
   // Centralized command registration
-  registerCommands(ctx, {  harRunner, tree });
+  registerCommands(ctx, { setup, harRunner, tree });
 
 
-  // if (!isCloud) {
-  //   await setup.checkAndOfferSetup(); //  Prompt/always/never + trust
-  //   ctx.subscriptions.push(
-  //     vscode.workspace.onDidGrantWorkspaceTrust(() => {
-  //       setup.checkAndOfferSetup().catch(() => {});
-  //     })
-  //   );
-  //   ctx.subscriptions.push(
-  //     vscode.workspace.onDidChangeWorkspaceFolders(() => setup.checkAndOfferSetup())
-  //   );
-  // }
+  if (!isCloud) {
+    await setup.checkAndOfferSetup(); //  Prompt/always/never + trust
+    ctx.subscriptions.push(
+      vscode.workspace.onDidGrantWorkspaceTrust(() => {
+        setup.checkAndOfferSetup().catch(() => {});
+      })
+    );
+    ctx.subscriptions.push(
+      vscode.workspace.onDidChangeWorkspaceFolders(() => setup.checkAndOfferSetup())
+    );
+  }
 }
 
 export function deactivate() { /* noop */ }
