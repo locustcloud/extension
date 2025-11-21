@@ -1,14 +1,15 @@
 import * as vscode from 'vscode';
-import { registerCommands } from 'commands/registerCommands';
-import { EnvService } from 'services/envService';
-import { McpService } from 'services/mcpService';
-import { SetupService } from 'services/setupService';
-import { Har2LocustService } from 'services/har2locustService';
-import { Har2LocustRunner } from 'runners/har2locustRunner';
-import { LocustTreeProvider } from 'tree/locustTree';
-import { registerWelcomePanel } from 'welcome/welcomePanel';
+import { registerCommands } from './commands/registerCommands';
+import { EnvService } from './services/envService';
+import { McpService } from './services/mcpService';
+import { SetupService } from './services/setupService';
+import { Har2LocustService } from './services/har2locustService';
+import { Har2LocustRunner } from './runners/har2locustRunner';
+import { LocustTreeProvider } from './tree/locustTree';
+import { registerWelcomePanel } from './welcome/welcomePanel';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { isWebEditor } from './core/utils/env';
 
 const RUNNING_COMMAND_FLAG_KEY = 'locust.commandWasStarted';
 function getCommandStarted(ctx: vscode.ExtensionContext): boolean {
@@ -168,10 +169,9 @@ class LocustWelcomeViewProvider implements vscode.WebviewViewProvider {
 }
 
 export async function activate(ctx: vscode.ExtensionContext) {
-  const isCloud = detectCloudEnv();
   // Detect environment and set context keys
-  await vscode.commands.executeCommand('setContext', 'locust.isCloud', isCloud);
-  await vscode.commands.executeCommand('setContext', 'locust.isDesktop', !isCloud);
+  await vscode.commands.executeCommand('setContext', 'locust.isCloud', isWebEditor);
+  await vscode.commands.executeCommand('setContext', 'locust.isDesktop', !isWebEditor);
 
   // Core services
   const env = new EnvService();
@@ -193,7 +193,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
   registerWelcomePanel(ctx);
 
   // Welcome view
-  const welcomeProvider = new LocustWelcomeViewProvider(ctx, isCloud);
+  const welcomeProvider = new LocustWelcomeViewProvider(ctx, isWebEditor);
   const welcomeReg = vscode.window.registerWebviewViewProvider('locust.welcome', welcomeProvider);
   ctx.subscriptions.push(welcomeReg);
 
@@ -231,7 +231,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
   // Centralized command registration
   registerCommands(ctx, { setup, harRunner, tree });
 
-  if (!isCloud) {
+  if (!isWebEditor) {
     await setup.checkAndOfferSetup(); //  Prompt/always/never + trust
     ctx.subscriptions.push(
       vscode.workspace.onDidGrantWorkspaceTrust(() => {
@@ -243,8 +243,6 @@ export async function activate(ctx: vscode.ExtensionContext) {
     );
   }
 }
-
-const detectCloudEnv = (): boolean => process.env.CODE_SERVER === 'true';
 
 export function deactivate() {
   /* noop */
