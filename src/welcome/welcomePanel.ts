@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
+import { isWebEditor } from 'core/utils/env';
 
 const WELCOME_STATE_KEY = 'locust.welcome.showOnStartup';
 const CMD_SHOW = 'locust.showWelcomePanel';
@@ -21,7 +21,7 @@ async function openWelcomePanel(ctx: vscode.ExtensionContext) {
       enableScripts: true,
       retainContextWhenHidden: true,
       localResourceRoots: [ctx.extensionUri],
-    }
+    },
   );
 
   const csp = panel.webview.cspSource;
@@ -119,7 +119,7 @@ async function openWelcomePanel(ctx: vscode.ExtensionContext) {
 </body>
 </html>`;
 
-  panel.webview.onDidReceiveMessage(async (msg) => {
+  panel.webview.onDidReceiveMessage(async msg => {
     if (!msg || typeof msg !== 'object') return;
     if (msg.type === 'toggle') {
       await setShowOnStartup(ctx, !!msg.value);
@@ -134,10 +134,10 @@ export function registerWelcomePanel(ctx: vscode.ExtensionContext, opts?: { auto
   const autoOpen = opts?.autoOpen ?? true;
 
   ctx.subscriptions.push(
-    vscode.commands.registerCommand(CMD_SHOW, () => void openWelcomePanel(ctx))
+    vscode.commands.registerCommand(CMD_SHOW, () => void openWelcomePanel(ctx)),
   );
 
-  if (autoOpen && vscode.env.uiKind !== vscode.UIKind.Web && getShowOnStartup(ctx)) {
+  if (!isWebEditor && autoOpen && getShowOnStartup(ctx)) {
     void openWelcomePanel(ctx);
   }
 }

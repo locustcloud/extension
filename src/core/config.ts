@@ -45,7 +45,7 @@ export function getConfig() {
     envFolder: cfg.get<string>('locust.envFolder', 'locust_env'),
 
     /** Optional default host passed to locust runs. */
-    defaultHost: cfg.get<string>('locust.defaultHost', '')
+    defaultHost: cfg.get<string>('locust.defaultHost', ''),
   };
 }
 

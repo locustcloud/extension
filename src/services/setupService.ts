@@ -3,14 +3,17 @@ import * as path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs/promises';
-import { EnvService } from './envService';
-import { McpService } from './mcpService';
-import { TourRunner } from '../runners/tourRunner';
-import { WS_SETUP_KEY } from '../core/config';
+import { EnvService } from 'services/envService';
+import { McpService } from 'services/mcpService';
+import { TourRunner } from 'runners/tourRunner';
+import { WS_SETUP_KEY } from 'core/config';
 
 const execFileAsync = promisify(execFile);
 
-async function readWorkspaceSetting<T = string>(section: string, key: string): Promise<T | undefined> {
+async function readWorkspaceSetting<T = string>(
+  section: string,
+  key: string,
+): Promise<T | undefined> {
   return vscode.workspace.getConfiguration(section).get<T>(key);
 }
 
@@ -24,7 +27,12 @@ function expandWs(p?: string): string | undefined {
 }
 
 async function fileExists(p: string): Promise<boolean> {
-  try { await fs.stat(p); return true; } catch { return false; }
+  try {
+    await fs.stat(p);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function runPythonCmd(python: string, args: string[], cwd?: string, env?: NodeJS.ProcessEnv) {
@@ -32,10 +40,15 @@ async function runPythonCmd(python: string, args: string[], cwd?: string, env?: 
 }
 
 async function canImport(python: string, moduleName: string, cwd?: string): Promise<boolean> {
-  try { await runPythonCmd(python, ['-c', `import ${moduleName}`], cwd); return true; } catch { return false; }
+  try {
+    await runPythonCmd(python, ['-c', `import ${moduleName}`], cwd);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-// Build environment similar to `source .venv/bin/activate` for child processes. 
+// Build environment similar to `source .venv/bin/activate` for child processes.
 function envForVenv(absPy: string): NodeJS.ProcessEnv {
   const env = { ...process.env };
   const venvDir = path.dirname(path.dirname(absPy)); // .../.locust_env/{bin|Scripts}/python -> .../.locust_env
@@ -57,46 +70,43 @@ async function ensureWorkspaceSettingsIfMissing(workspacePath: string): Promise<
   await fs.mkdir(vscodeDir, { recursive: true });
 
   const fresh = {
-    "python.terminal.activateEnvironment": true,
-    "markdown.preview.enableCommandUris": true,
+    'python.terminal.activateEnvironment': true,
+    'markdown.preview.enableCommandUris': true,
     // Enable pytest by default
-    "python.testing.pytestEnabled": true,
-    "python.testing.unittestEnabled": false,
-    "python.testing.nosetestsEnabled": false,
-    "python.testing.pytestArgs": [
-      "tests",
-      "."
-    ],
+    'python.testing.pytestEnabled': true,
+    'python.testing.unittestEnabled': false,
+    'python.testing.nosetestsEnabled': false,
+    'python.testing.pytestArgs': ['tests', '.'],
 
     // Disable all Copilot
-    "chat.sendElementsToChat.enabled": true,
-    "chat.sendElementsToChat.attachCSS": true,
-    "chat.sendElementsToChat.attachImages": true,
+    'chat.sendElementsToChat.enabled': true,
+    'chat.sendElementsToChat.attachCSS': true,
+    'chat.sendElementsToChat.attachImages': true,
 
     // Ruff fixes can be enabled by users later.
-    "[python]": {
-      "editor.codeActionsOnSave": { "source.fixAll.ruff": "never" },
-      "editor.formatOnSave": true
+    '[python]': {
+      'editor.codeActionsOnSave': { 'source.fixAll.ruff': 'never' },
+      'editor.formatOnSave': true,
     },
     // Hide internal folders
-    "files.exclude": {
-      "**/.locust_env": true,
-      "**/.tours": true,
-      "**/.ruff.toml": true,
-      "**/media": true,
-      "**/templates": true
+    'files.exclude': {
+      '**/.locust_env': true,
+      '**/.tours': true,
+      '**/.ruff.toml': true,
+      '**/media': true,
+      '**/templates': true,
     },
-    "search.exclude": {
-      "**/.locust_env/**": true,
-      "**/.tours/**": true,
-      "**/media": true,
-      "**/templates": true
+    'search.exclude': {
+      '**/.locust_env/**': true,
+      '**/.tours/**': true,
+      '**/media': true,
+      '**/templates': true,
     },
-    "files.watcherExclude": {
-      "**/.locust_env/**": true,
-      "**/.tours/**": true,
-      "**/templates": true
-    }
+    'files.watcherExclude': {
+      '**/.locust_env/**': true,
+      '**/.tours/**': true,
+      '**/templates': true,
+    },
   };
 
   await fs.writeFile(settingsPath, JSON.stringify(fresh, null, 2), 'utf8');
@@ -114,7 +124,8 @@ async function configureRuffIfNew(ctx: vscode.ExtensionContext, createdSettings:
   const bundled = path.join(ctx.extensionUri.fsPath, 'media', 'ruff', 'ruff.toml');
   try {
     await fs.stat(bundled);
-    await vscode.workspace.getConfiguration('ruff')
+    await vscode.workspace
+      .getConfiguration('ruff')
       .update('configuration', bundled, vscode.ConfigurationTarget.Workspace);
   } catch {
     // No bundled Ruff config packaged; silently skip.
@@ -135,7 +146,9 @@ async function ensurePythonActiveFileLaunch(wsPath: string, absPy: string) {
       launchJson.version = parsed.version ?? '0.2.0';
       launchJson.configurations = Array.isArray(parsed.configurations) ? parsed.configurations : [];
     }
-  } catch { /* no existing launch.json */ }
+  } catch {
+    /* no existing launch.json */
+  }
 
   const venvDir = path.dirname(path.dirname(absPy));
   const locustName = 'Locust: run_single_user (active file)';
@@ -171,9 +184,7 @@ async function ensurePythonActiveFileLaunch(wsPath: string, absPy: string) {
     cwd: '${workspaceFolder}',
     console: 'integratedTerminal',
     justMyCode: false,
-    args: [
-      '-q'
-    ],
+    args: ['-q'],
     env: {
       VIRTUAL_ENV: venvDir,
       PATH:
@@ -195,10 +206,7 @@ async function ensurePythonActiveFileLaunch(wsPath: string, absPy: string) {
     cwd: '${fileDirname}',
     console: 'integratedTerminal',
     justMyCode: false,
-    args: [
-      '-q',
-      '${file}'
-    ],
+    args: ['-q', '${file}'],
     env: {
       VIRTUAL_ENV: venvDir,
       PATH:
@@ -253,7 +261,7 @@ export class SetupService {
   constructor(
     private env: EnvService,
     private mcp: McpService,
-    private ctx: vscode.ExtensionContext
+    private ctx: vscode.ExtensionContext,
   ) {}
 
   // Use ABS path if present in settings, else 'python'.
@@ -272,57 +280,70 @@ export class SetupService {
 
       const already = this.ctx.workspaceState.get<boolean>(WS_SETUP_KEY, false);
 
-      const envFolder = (await readWorkspaceSetting<string>('locust', 'envFolder')) ?? '.locust_env';
+      const envFolder =
+        (await readWorkspaceSetting<string>('locust', 'envFolder')) ?? '.locust_env';
       const absPy = await venvPythonPath(wsPath, envFolder);
       const venvExists = await fileExists(absPy);
 
       // Create venv if needed
       if (!venvExists) {
         await vscode.window.withProgress(
-          { location: vscode.ProgressLocation.Notification, title: 'Locust: preparing local Python environment…', cancellable: false },
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: 'Locust: preparing local Python environment…',
+            cancellable: false,
+          },
           async () => {
             try {
-              await execFileAsync('python', ['-m', 'venv', '--upgrade-deps', envFolder], { cwd: wsPath });
+              await execFileAsync('python', ['-m', 'venv', '--upgrade-deps', envFolder], {
+                cwd: wsPath,
+              });
             } catch {
-              await execFileAsync('python3', ['-m', 'venv', '--upgrade-deps', envFolder], { cwd: wsPath });
+              await execFileAsync('python3', ['-m', 'venv', '--upgrade-deps', envFolder], {
+                cwd: wsPath,
+              });
             }
-          }
+          },
         );
       }
 
       const venvEnv = envForVenv(absPy);
 
-      
       try {
         // Try venv’s built-in upgrader.
         await execFileAsync(absPy, ['-m', 'ensurepip', '--upgrade'], { cwd: wsPath, env: venvEnv });
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       try {
         await execFileAsync(
           absPy,
           ['-m', 'pip', 'install', '--disable-pip-version-check', '--upgrade', 'pip'],
-          { cwd: wsPath, env: venvEnv }
+          { cwd: wsPath, env: venvEnv },
         );
       } catch (e: any) {
         const ch = vscode.window.createOutputChannel('Locust Setup');
         ch.appendLine('[auto-setup] pip upgrade failed; continuing anyway.');
         ch.appendLine(String(e?.stderr || e?.stdout || e?.message || e));
       }
-    
+
       // Install deps if missing OR first time
       const needsLocust = !(await canImport(absPy, 'locust', wsPath));
-      const needsH2L   = !(await canImport(absPy, 'har2locust', wsPath));
-      const needsMCP   = !(await canImport(absPy, 'mcp', wsPath));
+      const needsH2L = !(await canImport(absPy, 'har2locust', wsPath));
+      const needsMCP = !(await canImport(absPy, 'mcp', wsPath));
 
       if (!already || needsLocust || needsH2L || needsMCP) {
         const reqPath = path.join(wsPath, 'mcp', 'requirements.txt');
         if (await fileExists(reqPath)) {
-          await execFileAsync(absPy, ['-m', 'pip', 'install', '-r', reqPath], { cwd: wsPath, env: venvEnv });
+          await execFileAsync(absPy, ['-m', 'pip', 'install', '-r', reqPath], {
+            cwd: wsPath,
+            env: venvEnv,
+          });
         } else {
           await execFileAsync(
             absPy,
             ['-m', 'pip', 'install', 'locust', 'har2locust', 'ruff', 'mcp', 'pytest'],
-            { cwd: wsPath, env: venvEnv }
+            { cwd: wsPath, env: venvEnv },
           );
         }
       }
@@ -343,7 +364,9 @@ export class SetupService {
       try {
         const tr = new TourRunner(this.ctx);
         await tr.ensureBeginnerTourFiles(vscode.Uri.file(wsPath), { overwrite: false });
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       // Mark as done
       await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
@@ -351,7 +374,9 @@ export class SetupService {
       const ch = vscode.window.createOutputChannel('Locust Setup');
       ch.appendLine(`[auto-setup] ${err?.stack || err?.message || String(err)}`);
       ch.show(true);
-      vscode.window.showWarningMessage('Locust: automatic setup hit an issue. Check "Locust Setup" output for details.');
+      vscode.window.showWarningMessage(
+        'Locust: automatic setup hit an issue. Check "Locust Setup" output for details.',
+      );
     }
   }
 
@@ -393,7 +418,7 @@ export class SetupService {
       return this.autoSetupSilently();
     }
 
-    // mode === 'prompt' 
+    // mode === 'prompt'
     const needs = await needsSetup(wsPath, absPy);
     if (!needs) {
       await this.ctx.workspaceState.update(WS_SETUP_KEY, true);
@@ -402,25 +427,32 @@ export class SetupService {
 
     const choice = await vscode.window.showInformationMessage(
       'Locust needs a local Python environment and dependencies (locust, har2locust, mcp, pytest). Do you want to set this up now?',
-      { modal: true, detail: `Actions to be performed:\n• Create a virtual environment in "${envFolder}"\n• Update pip\n• Install required Python packages\n• Add minimal VS Code workspace settings & debug configs (if missing)` },
+      {
+        modal: true,
+        detail: `Actions to be performed:\n• Create a virtual environment in "${envFolder}"\n• Update pip\n• Install required Python packages\n• Add minimal VS Code workspace settings & debug configs (if missing)`,
+      },
       'Set up',
       'Not now',
-      'Don’t ask again'
+      'Don’t ask again',
     );
 
     if (choice === 'Set up') {
       return this.autoSetupSilently();
     }
     if (choice === 'Don’t ask again') {
-      await vscode.workspace.getConfiguration('locust').update('autoSetup', 'never', vscode.ConfigurationTarget.Workspace);
-      vscode.window.showInformationMessage('Okay, I won’t prompt for Locust setup again in this workspace.');
+      await vscode.workspace
+        .getConfiguration('locust')
+        .update('autoSetup', 'never', vscode.ConfigurationTarget.Workspace);
+      vscode.window.showInformationMessage(
+        'Okay, I won’t prompt for Locust setup again in this workspace.',
+      );
       return;
     }
   }
 
   private async finalizeWorkspace(wsPath: string, python: string) {
     await this.mcp.writeMcpConfig(python);
-    await this.env.setWorkspaceInterpreter(python);            // keep editor/linters/Copilot aligned
+    await this.env.setWorkspaceInterpreter(python); // keep editor/linters/Copilot aligned
     const createdSettings = await ensureWorkspaceSettingsIfMissing(wsPath);
     await configureRuffIfNew(this.ctx, createdSettings);
     await ensurePythonActiveFileLaunch(wsPath, python);

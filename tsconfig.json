@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "module": "Node16",
-    "target": "ES2022",
-    "lib": ["ES2022"],
+    "module": "nodenext",
+    "target": "ESNext",
+    "lib": ["ESNext"],
     "sourceMap": true,
     "rootDir": "src",
     "outDir": "out",
@@ -10,9 +10,13 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "types": ["node", "vscode", "mocha"]
+    "types": ["node", "vscode", "mocha"],
+    "baseUrl": ".",
+    "paths": {
+      "*": ["src/*"],
+    }
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src"],
   "exclude": [
     "node_modules",
     "out",
