@@ -27,7 +27,7 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     if (vscode.workspace.workspaceFolders?.length) {
       this.watchers.push(
         vscode.workspace.createFileSystemWatcher('**/locustfile*.py'),
-        vscode.workspace.createFileSystemWatcher('**/*.py')
+        vscode.workspace.createFileSystemWatcher('**/*.py'),
       );
       for (const w of this.watchers) {
         w.onDidCreate(() => this.refreshDebounced());
@@ -37,7 +37,9 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     }
   }
 
-  refresh(): void { this.emitter.fire(undefined); }
+  refresh(): void {
+    this.emitter.fire(undefined);
+  }
   private refreshDebounced(ms = 250) {
     clearTimeout(this.refreshTimer as any);
     this.refreshTimer = setTimeout(() => this.refresh(), ms);
@@ -53,7 +55,8 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     if (!folders || folders.length === 0) return [];
 
     if (!element) {
-      const exclude = '**/{.venv,.locust_env,.tour,.git,__pycache__,node_modules,site-packages,dist,build}/**';
+      const exclude =
+        '**/{.venv,.locust_env,.tour,.git,__pycache__,node_modules,site-packages,dist,build}/**';
       const explicit = await vscode.workspace.findFiles('**/locustfile*.py', exclude);
 
       const candidates = await vscode.workspace.findFiles('**/*.py', exclude);
@@ -70,11 +73,11 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
       const files = [...explicit, ...inferred].sort((a, b) => a.fsPath.localeCompare(b.fsPath));
       this._knownFiles = files; // cache for picker
 
-      return files.map((f) => ({
+      return files.map(f => ({
         kind: 'file',
         label: vscode.workspace.asRelativePath(f),
         fileUri: f,
-        filePath: f.fsPath
+        filePath: f.fsPath,
       }));
     }
 
@@ -89,7 +92,7 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
           label: m[1],
           fileUri: element.fileUri,
           userName: m[1],
-          filePath: element.fileUri.fsPath
+          filePath: element.fileUri.fsPath,
         });
       }
       return users;
@@ -110,7 +113,7 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
           fileUri: element.fileUri,
           userName: element.userName,
           taskName: m2[1],
-          filePath: element.fileUri.fsPath
+          filePath: element.fileUri.fsPath,
         });
       }
       return tasks;
@@ -132,7 +135,11 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
       item.description = path.basename(element.fileUri.fsPath);
     }
     if (element.kind === 'user' || element.kind === 'task') {
-      item.command = { command: 'vscode.open', title: 'Open locustfile', arguments: [element.fileUri] };
+      item.command = {
+        command: 'vscode.open',
+        title: 'Open locustfile',
+        arguments: [element.fileUri],
+      };
     }
     return item;
   }
@@ -167,11 +174,13 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
    *  1) If active editor is a locustfile (name matches, known in tree, or imports locust) → use it.
    *  2) Else, let user choose a Python file or scaffold a new one.
    */
-  async pickLocustfileOrActive(scaffoldCmdId = 'locust.createLocustfile'): Promise<vscode.Uri | undefined> {
+  async pickLocustfileOrActive(
+    scaffoldCmdId = 'locust.createLocustfile',
+  ): Promise<vscode.Uri | undefined> {
     const ws = vscode.workspace.workspaceFolders?.[0];
     if (!ws) {
       vscode.window.showWarningMessage('Open a folder first.');
-      await this.resetRunButtons();                    
+      await this.resetRunButtons();
       return;
     }
 
@@ -179,7 +188,11 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     if (active?.uri?.scheme === 'file' && active.languageId === 'python') {
       const fsPath = active.uri.fsPath;
       const name = path.basename(fsPath).toLowerCase();
-      if (name.endsWith('py') || this.isKnown(fsPath) || await this.looksLikeLocustFile(active.uri)) {
+      if (
+        name.endsWith('py') ||
+        this.isKnown(fsPath) ||
+        (await this.looksLikeLocustFile(active.uri))
+      ) {
         return active.uri;
       }
     }
@@ -190,11 +203,11 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
         { label: '$(add) Scaffold a new locustfile', action: 'scaffold' as const },
         { label: '$(x) Cancel', action: 'cancel' as const },
       ],
-      { placeHolder: 'No locustfile found. What would you like to do?' }
+      { placeHolder: 'No locustfile found. What would you like to do?' },
     );
 
     if (!action || action.action === 'cancel') {
-      await this.resetRunButtons();                    
+      await this.resetRunButtons();
       return;
     }
 
@@ -208,7 +221,7 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
         defaultUri: ws.uri,
       });
       if (!picked || picked.length === 0) {
-        await this.resetRunButtons();                  
+        await this.resetRunButtons();
         return;
       }
       return picked[0];
@@ -217,7 +230,7 @@ export class LocustTreeProvider implements vscode.TreeDataProvider<LocustNode>, 
     if (action.action === 'scaffold') {
       const dest = await vscode.commands.executeCommand(scaffoldCmdId);
       if (!dest || typeof dest !== 'object' || !('fsPath' in dest)) {
-        await this.resetRunButtons();                  
+        await this.resetRunButtons();
         return;
       }
       return dest as vscode.Uri;

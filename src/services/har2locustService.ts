@@ -31,7 +31,9 @@ export class Har2LocustService {
    */
   async convertHar(harPath: string, outUri: vscode.Uri, opts: Har2LocustOptions = {}) {
     const ws = vscode.workspace.workspaceFolders?.[0];
-    if (!ws) { return; }
+    if (!ws) {
+      return;
+    }
 
     const { envFolder } = getConfig();
 
@@ -40,17 +42,27 @@ export class Har2LocustService {
       py = await this.env.resolvePythonStrict(envFolder);
     } catch (e: any) {
       vscode.window.showErrorMessage(
-        `Python not found. Run “Locust: Initialize (Install/Detect)” to create ${envFolder}, or set “python.defaultInterpreterPath”. ${e?.message ?? ''}`.trim()
+        `Python not found. Run “Locust: Initialize (Install/Detect)” to create ${envFolder}, or set “python.defaultInterpreterPath”. ${e?.message ?? ''}`.trim(),
       );
       return;
     }
 
     const baseArgs: string[] = ['-m', 'har2locust'];
-    if (opts.template)        { baseArgs.push('--template', opts.template); }
-    if (opts.plugins)         { baseArgs.push('--plugins', opts.plugins); }
-    if (opts.disablePlugins)  { baseArgs.push('--disable-plugins', opts.disablePlugins); }
-    if (opts.resourceTypes)   { baseArgs.push('--resource-types', opts.resourceTypes); }
-    if (opts.logLevel)        { baseArgs.push('--loglevel', opts.logLevel); }
+    if (opts.template) {
+      baseArgs.push('--template', opts.template);
+    }
+    if (opts.plugins) {
+      baseArgs.push('--plugins', opts.plugins);
+    }
+    if (opts.disablePlugins) {
+      baseArgs.push('--disable-plugins', opts.disablePlugins);
+    }
+    if (opts.resourceTypes) {
+      baseArgs.push('--resource-types', opts.resourceTypes);
+    }
+    if (opts.logLevel) {
+      baseArgs.push('--loglevel', opts.logLevel);
+    }
     baseArgs.push(harPath);
 
     const cwd = ws.uri.fsPath;
@@ -74,7 +86,7 @@ export class Har2LocustService {
       // If the default ruff plugin failed because the 'ruff' binary wasn't found, try again without it.
       const missingRuff =
         message.includes(`No such file or directory: 'ruff'`) ||
-        message.includes('ENOENT') && message.toLowerCase().includes('ruff');
+        (message.includes('ENOENT') && message.toLowerCase().includes('ruff'));
 
       if (missingRuff) {
         try {
@@ -85,30 +97,30 @@ export class Har2LocustService {
           await vscode.window.showTextDocument(doc, { preview: false });
           vscode.commands.executeCommand('locust.refreshTree').then(undefined, () => {});
           vscode.window.showInformationMessage(
-            'har2locust: ruff not found on PATH, ran conversion with ruff plugin disabled.'
+            'har2locust: ruff not found on PATH, ran conversion with ruff plugin disabled.',
           );
           return;
         } catch (err2: any) {
-          const msg2 = (err2?.stderr || err2?.message || String(err2));
+          const msg2 = err2?.stderr || err2?.message || String(err2);
           vscode.window.showErrorMessage(`har2locust failed (even after disabling ruff): ${msg2}`);
           return;
         }
       }
 
       const extra =
-        /No module named ['"]?har2locust['"]?/.test(message) || /ModuleNotFoundError:.*har2locust/.test(message)
+        /No module named ['"]?har2locust['"]?/.test(message) ||
+        /ModuleNotFoundError:.*har2locust/.test(message)
           ? ' Tip: run “Locust: Initialize (Install/Detect)” to install har2locust into the selected interpreter.'
           : '';
       vscode.window.showErrorMessage(`har2locust failed: ${message}${extra}`);
     }
   }
-
-  }
+}
 
 export interface Har2LocustOptions {
   template?: string;
-  plugins?: string;          // comma-separated
-  disablePlugins?: string;   // comma-separated
-  resourceTypes?: string;    // comma-separated
-  logLevel?: string;         // e.g. INFO / DEBUG
+  plugins?: string; // comma-separated
+  disablePlugins?: string; // comma-separated
+  resourceTypes?: string; // comma-separated
+  logLevel?: string; // e.g. INFO / DEBUG
 }

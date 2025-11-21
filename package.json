@@ -38,20 +38,9 @@
     "onStartupFinished",
     "workspaceContains:locustfile.py",
     "locust.createSimulation",
-    "onView:locust.welcome",
-    "onView:locust.scenarios",
     "onCommand:locust.openCopilotWalkthrough",
     "onCommand:locust.runLocustUI",
-    "onCommand:locust.openLocustCloud",
-    "onCommand:locust.showWelcome",
-    "onCommand:locust.hideWelcome",
-    "onCommand:locust.createSimulation",
-    "onCommand:locust.convertHar",
-    "onCommand:locust.runUI",
-    "onCommand:locust.runHeadless",
     "onCommand:locust.installCopilot",
-    "onCommand:locust.showScenarios",
-    "onCommand:locust.hideScenarios",
     "onCommand:locust.openBeginnerTourPage"
   ],
   "main": "./out/extension.js",
@@ -121,16 +110,6 @@
       ],
       "view/item/context": [
         {
-          "command": "locust.runFileUI",
-          "when": "view == locust.scenarios && viewItem == locust.file",
-          "group": "inline"
-        },
-        {
-          "command": "locust.runFileHeadless",
-          "when": "view == locust.scenarios && viewItem == locust.file",
-          "group": "inline"
-        },
-        {
           "command": "locust.runUI",
           "title": "Locust: Run Test (Web UI)"
         },
@@ -198,11 +177,6 @@
       {
         "command": "locust.runUI",
         "title": "Locust: Run Test (Web UI)"
-      },
-      {
-        "command": "locust.runFileUI",
-        "title": "Locust: Run File (Web UI)",
-        "icon": "$(rocket)"
       },
       {
         "command": "locust.stopLocust",
@@ -388,6 +362,7 @@
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
     "extension:install": "yarn vscode:prepublish && yarn package && code --install-extension locust-vscode-extension-0.0.1.vsix --force",
+    "format": "prettier --write './src/**/*.{ts,tsx}'",
     "test": "yarn run compile && node ./out/test/runTest.js"
   },
   "devDependencies": {
@@ -399,6 +374,7 @@
     "chai": "^6.0.1",
     "glob": "^11.0.3",
     "mocha": "^11.7.2",
+    "prettier": "^3.6.2",
     "typescript": "^5.4.0",
     "vsce": "^2.15.0"
   }
