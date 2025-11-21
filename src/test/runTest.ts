@@ -3,7 +3,7 @@ import { execSync } from 'child_process';
 import {
   downloadAndUnzipVSCode,
   resolveCliPathFromVSCodeExecutablePath,
-  runTests,
+  runTests
 } from '@vscode/test-electron';
 
 /**
@@ -31,14 +31,10 @@ async function main() {
     run(`mkdir -p "${userDataDir}" "${extensionsDir}"`);
 
     // install required deps into the SAME dirs
-    run(
-      `${cli} --user-data-dir "${userDataDir}" --extensions-dir "${extensionsDir}" --install-extension ms-python.python`,
-    );
+    run(`${cli} --user-data-dir "${userDataDir}" --extensions-dir "${extensionsDir}" --install-extension ms-python.python`);
 
     // sanity print
-    run(
-      `${cli} --user-data-dir "${userDataDir}" --extensions-dir "${extensionsDir}" --list-extensions --show-versions`,
-    );
+    run(`${cli} --user-data-dir "${userDataDir}" --extensions-dir "${extensionsDir}" --list-extensions --show-versions`);
 
     const extensionDevelopmentPath = repoRoot;
     const extensionTestsPath = path.resolve(__dirname, './suite/index');
@@ -47,7 +43,10 @@ async function main() {
       version,
       extensionDevelopmentPath,
       extensionTestsPath,
-      launchArgs: [`--user-data-dir=${userDataDir}`, `--extensions-dir=${extensionsDir}`],
+      launchArgs: [
+        `--user-data-dir=${userDataDir}`,
+        `--extensions-dir=${extensionsDir}`,
+      ],
     });
   } catch (err) {
     console.error('Failed to run tests', err);

@@ -11,30 +11,16 @@ function wsRoot(): string | undefined {
   return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 }
 function expandWsVar(p: string | undefined): string | undefined {
-  if (!p) {
-    return p;
-  }
+  if (!p) {return p;}
   const root = wsRoot();
   return root ? p.replace('${workspaceFolder}', root) : p;
 }
 async function exists(p?: string): Promise<boolean> {
-  if (!p) {
-    return false;
-  }
-  try {
-    await fs.stat(p);
-    return true;
-  } catch {
-    return false;
-  }
+  if (!p) {return false;}
+  try { await fs.stat(p); return true; } catch { return false; }
 }
 async function cmdExists(cmd: string): Promise<boolean> {
-  try {
-    await execFileAsync(cmd, ['-V'], { timeout: 3000 });
-    return true;
-  } catch {
-    return false;
-  }
+  try { await execFileAsync(cmd, ['-V'], { timeout: 3000 }); return true; } catch { return false; }
 }
 
 export class EnvService {
@@ -72,37 +58,22 @@ export class EnvService {
    */
   async resolvePythonStrict(envFolder: string): Promise<string> {
     const venvPy = this.getEnvInterpreterPath(envFolder);
-    if (await exists(venvPy)) {
-      return venvPy;
-    }
+    if (await exists(venvPy)) {return venvPy;}
 
-    const cfgRaw = vscode.workspace
-      .getConfiguration('python')
-      .get<string>('defaultInterpreterPath');
+    const cfgRaw = vscode.workspace.getConfiguration('python').get<string>('defaultInterpreterPath');
     const cfgPy = expandWsVar(cfgRaw);
-    if (await exists(cfgPy)) {
-      return cfgPy!;
-    }
+    if (await exists(cfgPy)) {return cfgPy!;}
 
-    if (await cmdExists('python')) {
-      return 'python';
-    }
-    if (await cmdExists('python3')) {
-      return 'python3';
-    }
+    if (await cmdExists('python')) {return 'python';}
+    if (await cmdExists('python3')) {return 'python3';}
 
-    throw new Error(
-      'No usable Python found. Create a venv (Locust: Initialize) or set python.defaultInterpreterPath.',
-    );
+    throw new Error('No usable Python found. Create a venv (Locust: Initialize) or set python.defaultInterpreterPath.');
   }
 
   /** Backwards-compatible alias. Prefer resolvePythonStrict() */
   async resolvePython(envFolder: string): Promise<string> {
-    try {
-      return await this.resolvePythonStrict(envFolder);
-    } catch {
-      return 'python';
-    }
+    try { return await this.resolvePythonStrict(envFolder); }
+    catch { return 'python'; }
   }
 
   // Optional terminal helpers
@@ -111,9 +82,7 @@ export class EnvService {
   }
   ensureTerminalEnv(term: vscode.Terminal, envFolder: string) {
     const root = wsRoot();
-    if (!root) {
-      return;
-    }
+    if (!root) {return;}
     const isWin = process.platform === 'win32';
     const activateCmd = isWin
       ? `if (Test-Path "${envFolder}\\Scripts\\Activate.ps1") { . "${envFolder}\\Scripts\\Activate.ps1" }`

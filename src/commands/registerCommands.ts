@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
-import { SetupService } from 'services/setupService';
-import { EnvService } from 'services/envService';
-import { McpService } from 'services/mcpService';
-import { Har2LocustRunner } from 'runners/har2locustRunner';
-import { TourRunner } from 'runners/tourRunner';
-import { LocustTreeProvider } from 'tree/locustTree';
-import { LocustCloudService } from 'services/locustCloudService';
+import { SetupService } from '../services/setupService';
+import { EnvService } from '../services/envService';
+import { McpService } from '../services/mcpService';
+import { LocustRunner } from '../runners/locustRunner';
+import { Har2LocustRunner } from '../runners/har2locustRunner';
+import { TourRunner } from '../runners/tourRunner';
+import { LocustTreeProvider } from '../tree/locustTree';
+import { LocustCloudService } from '../services/locustCloudService';
 
 // Main command registrar
 export function registerCommands(
@@ -14,7 +15,7 @@ export function registerCommands(
     setup: SetupService;
     harRunner: Har2LocustRunner;
     tree: LocustTreeProvider;
-  },
+  }
 ) {
   const cloud = new LocustCloudService(ctx);
 
@@ -23,25 +24,26 @@ export function registerCommands(
   const withProgress = (title: string, fn: () => Thenable<void>) =>
     vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title, cancellable: false },
-      fn,
+      fn
     );
 
+
   ctx.subscriptions.push(
-    vscode.commands.registerCommand('locust.openLocustCloud', async () => {
+     vscode.commands.registerCommand("locust.openLocustCloud", async () => {
       try {
         return await cloud.openLocustCloudLanding();
       } catch (e: any) {
-        vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? 'unexpected error'}`);
+        vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? "unexpected error"}`);
         return false;
       }
     }),
 
-    vscode.commands.registerCommand('locust.stopLocust', async () => {
+    vscode.commands.registerCommand("locust.stopLocust", async () => {
       try {
-        await withProgress('Locust Cloud: stopping…', () => cloud.deleteLocustCloud());
-        vscode.window.setStatusBarMessage('Locust Cloud: stopped.', 3000);
+        await withProgress("Locust Cloud: stopping…", () => cloud.deleteLocustCloud());
+        vscode.window.setStatusBarMessage("Locust Cloud: stopped.", 3000);
       } catch (e: any) {
-        vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? 'unexpected error'}`);
+        vscode.window.showErrorMessage(`Locust Cloud: ${e?.message ?? "unexpected error"}`);
       }
     }),
 
@@ -51,9 +53,7 @@ export function registerCommands(
       const r = Math.min(0.8, Math.max(0.2, ratio));
 
       if (vscode.window.tabGroups.all.length < 2) {
-        await vscode.commands
-          .executeCommand('workbench.action.newGroupBelow')
-          .then(undefined, () => {});
+        await vscode.commands.executeCommand('workbench.action.newGroupBelow').then(undefined, () => {});
       }
 
       const ok = await vscode.commands
@@ -62,10 +62,7 @@ export function registerCommands(
           preserveFocus: true,
           preview: true,
         })
-        .then(
-          () => true,
-          () => false,
-        );
+        .then(() => true, () => false);
 
       if (!ok) {
         vscode.window.showErrorMessage('Could not open Simple Browser.');
@@ -73,24 +70,20 @@ export function registerCommands(
       }
 
       if (vscode.window.tabGroups.all.length === 2) {
-        await vscode.commands
-          .executeCommand('vscode.setEditorLayout', {
-            orientation: 0,
-            groups: [{ size: 1 - r }, { size: r }],
-          })
-          .then(undefined, () => {});
+        await vscode.commands.executeCommand('vscode.setEditorLayout', {
+          orientation: 0,
+          groups: [{ size: 1 - r }, { size: r }],
+        }).then(undefined, () => {});
       }
 
-      await vscode.commands
-        .executeCommand('workbench.action.focusFirstEditorGroup')
-        .then(undefined, () => {});
+      await vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup').then(undefined, () => {});
     }),
 
     vscode.commands.registerCommand('locust.pickLocustfile', async () => {
       const uri = await tree.pickLocustfileOrActive();
       return uri;
     }),
-
+  
     vscode.commands.registerCommand('locust.refreshTree', () => tree.refresh()),
 
     vscode.commands.registerCommand('locust.runUI', async () => {
@@ -111,11 +104,11 @@ export function registerCommands(
       }
     }),
 
-    vscode.commands.registerCommand('locust.runTaskUI', node => cloud.runTaskUI(node)),
-    vscode.commands.registerCommand('locust.runTaskHeadless', node => cloud.runTaskHeadless(node)),
+    vscode.commands.registerCommand('locust.runTaskUI', (node) => cloud.runTaskUI(node)),
+    vscode.commands.registerCommand('locust.runTaskHeadless', (node) => cloud.runTaskHeadless(node)),
 
     vscode.commands.registerCommand('locust.init', () =>
-      setup.checkAndOfferSetup({ forcePrompt: true }),
+      setup.checkAndOfferSetup({ forcePrompt: true })
     ),
 
     vscode.commands.registerCommand('locust.showWelcome', async () => {
@@ -131,8 +124,8 @@ export function registerCommands(
     vscode.commands.registerCommand('locust.openCopilotWalkthrough', () =>
       vscode.commands.executeCommand(
         'workbench.action.openWalkthrough',
-        'locust.locust-vscode-extension#locust.copilotWalkthrough',
-      ),
+        'locust.locust-vscode-extension#locust.copilotWalkthrough'
+      )
     ),
 
     vscode.commands.registerCommand('locust.startBeginnerTour', async () => {
@@ -149,9 +142,7 @@ export function registerCommands(
     vscode.commands.registerCommand('locust.convertHar', () => harRunner.convertHar()),
     vscode.commands.registerCommand('locust.toggleCloudSimple', async () => {
       try {
-        const ok = (await vscode.commands.executeCommand('locust.openLocustCloud')) as
-          | boolean
-          | undefined;
+        const ok = await vscode.commands.executeCommand('locust.openLocustCloud') as boolean | undefined;
         if (ok === true) {
           vscode.window.setStatusBarMessage('Locust Cloud: starting…', 3000);
         } else {
@@ -164,7 +155,7 @@ export function registerCommands(
 
     vscode.commands.registerCommand('locust.toggleLocalSimple', async () => {
       try {
-        const ok = (await vscode.commands.executeCommand('locust.runUI')) as boolean | undefined;
+        const ok = await vscode.commands.executeCommand('locust.runUI') as boolean | undefined;
         if (ok === true) {
           vscode.window.setStatusBarMessage('Locust: local test starting…', 3000);
         } else {

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
 /**
- * Check if file exists.
+ * Check if file exists. 
  * Uses vscode.workspace.fs.stat which works with both local and remote files.
  */
 
