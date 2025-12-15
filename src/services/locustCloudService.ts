@@ -262,7 +262,7 @@ export class LocustCloudService {
 
         if (urlMatch) {
           if (this.isWeb) {
-            await this.openUrlSplit('https://auth.locust.cloud/load-test?dashboard=false', 0.45);
+            await this.openUrlSplit('https://app.locust.cloud/load-test?dashboard=false', 0.45);
           } else {
             await vscode.env.openExternal(vscode.Uri.parse(urlMatch[1]));
           }
